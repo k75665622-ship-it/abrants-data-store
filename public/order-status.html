@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0b1020" />
+<meta name="format-detection" content="telephone=no" />
+<title>Track your order — Abrants Data Store</title>
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="apple-touch-icon" href="/icon.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/style.css" />
+<link rel="stylesheet" href="/css/status.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap nav">
+    <a class="brand" href="/" aria-label="Abrants Data Store home">
+      <span class="brand-icon" aria-hidden="true">A</span>
+      <span><strong>ABRANTS</strong><small>DATA STORE</small></span>
+    </a>
+    <div class="nav-actions">
+      <a href="/" class="track-link">Buy data</a>
+    </div>
+  </div>
+</header>
+
+<main class="wrap track-main">
+  <section class="track-hero">
+    <p class="section-kicker">ORDER CENTER</p>
+    <h1>Track your data order</h1>
+    <p>Enter the Ghana number you used at checkout. You can also enter your order reference to open one specific order.</p>
+  </section>
+
+  <section class="lookup-card">
+    <form id="historyForm" class="lookup-form" novalidate>
+      <label class="field" for="historyReference">
+        <span>Order reference</span>
+        <input id="historyReference" type="text" placeholder="DB-1234567890-ab12cd" autocomplete="off" autocapitalize="characters" />
+      </label>
+      <label class="field" for="historyPhone">
+        <span>Phone number used</span>
+        <input id="historyPhone" type="tel" inputmode="numeric" maxlength="10" placeholder="0551234567" autocomplete="tel-national" required />
+      </label>
+      <button type="submit" id="lookupBtn">Check my order</button>
+    </form>
+    <p id="lookupError" class="lookup-error" role="alert"></p>
+  </section>
+
+  <section id="currentStatus" class="status-card" hidden>
+    <p class="section-kicker">LIVE STATUS</p>
+    <h2 id="statusTitle">Checking your order…</h2>
+    <p id="statusBody">Hold on a moment — this only takes a few seconds.</p>
+    <div class="status-ref" id="statusRef" hidden>
+      <span>Ref</span><code id="statusRefValue"></code>
+      <button type="button" class="copy-btn" id="copyRef">Copy</button>
+    </div>
+    <div class="stepper" id="stepper" aria-hidden="true">
+      <div class="step" data-step="paid"><div class="dot">1</div><span>Payment</span></div>
+      <div class="step" data-step="processing"><div class="dot">2</div><span>Sending data</span></div>
+      <div class="step" data-step="fulfilled"><div class="dot">3</div><span>Delivered</span></div>
+    </div>
+  </section>
+
+  <section id="historyCard" class="history-card" hidden>
+    <div class="history-title">
+      <div><p class="section-kicker">HISTORY</p><h2>Order details</h2></div>
+      <span id="historyCount" class="muted"></span>
+    </div>
+    <div id="historyList"></div>
+  </section>
+
+  <p class="helper-note" id="helperNote">
+    Tip: your order reference was shown on the payment confirmation page and sent to your email. Lost it? Message support with the phone number you used.
+  </p>
+
+  <a href="/" class="back-link">← Buy another bundle</a>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap footer-bottom">
+    <span>© <span id="year">2026</span> Abrants Data Store</span>
+    <span>Secure payments by Paystack</span>
+  </div>
+</footer>
+
+<div class="toast-stack" id="toastStack" aria-live="polite"></div>
+
+<script src="/js/status.js"></script>
+</body>
+</html>

@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#070a10" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Abrants Admin — Control Center</title>
+<link rel="icon" href="/icon.svg" />
+<link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+
+<!-- ============================== LOGIN ============================== -->
+<div id="loginView" class="auth-shell">
+  <div class="auth-card">
+    <div class="brand-mark">A</div>
+    <p class="eyebrow" style="margin-top:16px">Abrants Data Store</p>
+    <h1>Admin control center</h1>
+    <p class="muted">Manage orders, bundles, pricing and customers from one place.</p>
+    <form id="loginForm">
+      <label for="password">Admin password</label>
+      <input id="password" type="password" autocomplete="current-password" placeholder="Enter your password" required />
+      <button class="btn btn-primary btn-block" type="submit" id="loginBtn">Sign in</button>
+      <p id="loginError" class="error" role="alert"></p>
+    </form>
+  </div>
+</div>
+
+<!-- =============================== APP =============================== -->
+<div id="appView" class="hidden">
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark small">A</span>
+      <div><strong>ABRANTS</strong><span>DATA STORE</span></div>
+    </div>
+    <div class="top-actions">
+      <span id="walletPill" class="wallet-pill">Checking wallet…</span>
+      <button id="logoutBtn" class="btn btn-ghost btn-sm">Log out</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="heading-row">
+      <div>
+        <p class="eyebrow">Control center</p>
+        <h1 id="pageTitle">Store dashboard</h1>
+        <p class="muted" id="pageSubtitle">Everything important, in one place.</p>
+      </div>
+      <div class="panel-actions">
+        <button id="refreshBtn" class="btn btn-primary">↻ Refresh</button>
+      </div>
+    </div>
+
+    <div class="layout">
+      <!-- Desktop sidebar -->
+      <aside class="sidebar">
+        <button class="side-link active" data-section="overview"><span class="ico">◧</span> Overview</button>
+        <button class="side-link" data-section="orders"><span class="ico">☰</span> Orders</button>
+        <button class="side-link" data-section="bundles"><span class="ico">₵</span> Bundles &amp; pricing</button>
+        <button class="side-link" data-section="numbers"><span class="ico">⊘</span> Blocked numbers</button>
+        <button class="side-link" data-section="settings"><span class="ico">⚙</span> Settings</button>
+        <button class="side-link" data-section="activity"><span class="ico">≡</span> Activity log</button>
+      </aside>
+
+      <main>
+        <!-- ------------------------- OVERVIEW ------------------------- -->
+        <section id="section-overview" class="admin-section">
+          <div id="alerts"></div>
+
+          <div class="stats-grid">
+            <article class="stat-card featured">
+              <span>Revenue (paid &amp; delivered)</span>
+              <strong id="revenue">GH₵0.00</strong>
+              <small><b id="realizedProfit">GH₵0.00</b> realized profit · <b id="last7d">0</b> orders in the last 7 days</small>
+            </article>
+            <article class="stat-card"><span>Today</span><strong id="todayRevenue">GH₵0.00</strong><small><b id="todayOrders">0</b> orders · <b id="todayProfit">GH₵0.00</b> profit</small></article>
+            <article class="stat-card"><span>Last 7 days</span><strong id="weekRevenue">GH₵0.00</strong><small><b id="weekOrders">0</b> orders · <b id="weekProfit">GH₵0.00</b> profit</small></article>
+            <article class="stat-card"><span>Last 30 days</span><strong id="monthRevenue">GH₵0.00</strong><small><b id="monthOrders">0</b> orders · <b id="monthProfit">GH₵0.00</b> profit</small></article>
+            <article class="stat-card" id="attentionCard"><span>Needs attention</span><strong id="attention">0</strong><small>Pending, failed or under review</small></article>
+          </div>
+
+          <div class="panel" style="margin-top:14px">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Last 14 days</p>
+                <h2>Sales trend</h2>
+                <p>Revenue per day, with order count.</p>
+              </div>
+            </div>
+            <div class="chart-wrap">
+              <svg class="chart-svg" id="salesChart" role="img" aria-label="Revenue over the last 14 days"></svg>
+              <div class="chart-legend">
+                <span><i style="background:#ffd21c"></i>Revenue</span>
+                <span><i style="background:#34d399"></i>Profit</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head">
+              <div><p class="eyebrow">Best performers</p><h2>Top bundles</h2><p>By revenue in the last 30 days.</p></div>
+            </div>
+            <div class="panel-body" id="topBundles"></div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head">
+              <div><p class="eyebrow">Networks</p><h2>Split by network</h2><p>Last 30 days.</p></div>
+            </div>
+            <div class="panel-body" id="networkSplit"></div>
+          </div>
+
+          <div class="quick-grid">
+            <button class="quick-card" data-section="orders"><span class="quick-icon">☰</span><div><strong>Check orders</strong><small>Search payments, retry deliveries and refund.</small></div></button>
+            <button class="quick-card" data-section="bundles"><span class="quick-icon">₵</span><div><strong>Change prices</strong><small>Set selling price, cost and availability.</small></div></button>
+            <button class="quick-card" data-section="settings"><span class="quick-icon">⚙</span><div><strong>Store settings</strong><small>Announcement, support contact and more.</small></div></button>
+          </div>
+        </section>
+
+        <!-- -------------------------- ORDERS -------------------------- -->
+        <section id="section-orders" class="admin-section hidden">
+          <div class="chip-row" id="statusCards">
+            <button data-status="all" class="chip active"><span>All</span><b id="s-all">0</b></button>
+            <button data-status="pending" class="chip"><span>Pending</span><b id="s-pending">0</b></button>
+            <button data-status="paid" class="chip"><span>Paid</span><b id="s-paid">0</b></button>
+            <button data-status="processing" class="chip"><span>Processing</span><b id="s-processing">0</b></button>
+            <button data-status="fulfilled" class="chip"><span>Delivered</span><b id="s-fulfilled">0</b></button>
+            <button data-status="delivery_failed" class="chip"><span>Failed</span><b id="s-failed">0</b></button>
+            <button data-status="delivery_review" class="chip"><span>Review</span><b id="s-review">0</b></button>
+            <button data-status="refunding" class="chip"><span>Refunding</span><b id="s-refunding">0</b></button>
+            <button data-status="refunded" class="chip"><span>Refunded</span><b id="s-refunded">0</b></button>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head">
+              <div><h2>Orders</h2><p>Search by reference, phone, email or provider reference.</p></div>
+              <div class="toolbar">
+                <div class="search-wrap">
+                  <span class="ico">⌕</span>
+                  <input id="search" placeholder="Search orders…" autocomplete="off" />
+                </div>
+                <div class="panel-actions">
+                  <button id="exportBtn" class="btn btn-ghost">↓ Export CSV</button>
+                </div>
+              </div>
+              <div class="filter-row">
+                <label class="field"><span>Network</span>
+                  <select id="filterNetwork">
+                    <option value="all">All networks</option>
+                    <option value="MTN">MTN</option>
+                    <option value="Telecel">Telecel</option>
+                    <option value="AirtelTigo">AirtelTigo</option>
+                  </select>
+                </label>
+                <label class="field"><span>From</span><input id="filterFrom" type="date" /></label>
+                <label class="field"><span>To</span><input id="filterTo" type="date" /></label>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>Order</th><th>Customer</th><th>Bundle</th><th>Amount</th><th>Status</th><th>Date</th><th></th></tr>
+                </thead>
+                <tbody id="ordersBody"></tbody>
+              </table>
+              <div id="empty" class="empty hidden">
+                <div>⌁</div><strong>No orders found</strong><p>Try another search or status filter.</p>
+              </div>
+            </div>
+            <div class="pager">
+              <span id="pagerInfo">—</span>
+              <div class="pager-btns">
+                <button class="btn btn-ghost btn-sm" id="prevPage">← Newer</button>
+                <button class="btn btn-ghost btn-sm" id="nextPage">Older →</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- -------------------------- BUNDLES ------------------------- -->
+        <section id="section-bundles" class="admin-section hidden">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Pricing</p>
+              <h2>Bundles &amp; profit</h2>
+              <p class="muted">Set the selling price, the provider cost used for profit estimates, and whether a bundle is visible to customers. Existing orders keep the price they were sold at.</p>
+            </div>
+            <div class="panel-actions" style="margin-top:12px">
+              <button id="addPlanBtn" class="btn btn-primary">+ Add bundle</button>
+            </div>
+          </div>
+          <div id="plansGridAdmin" class="settings-grid"></div>
+        </section>
+
+        <!-- ------------------------- NUMBERS -------------------------- -->
+        <section id="section-numbers" class="admin-section hidden">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Customer access</p>
+              <h2>Blocked numbers</h2>
+              <p class="muted">Blocked numbers cannot start a new checkout. Useful for stopping repeat fraud or abuse.</p>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-body">
+              <form id="blockForm">
+                <div class="filter-row">
+                  <label class="field"><span>Phone number</span><input id="blockPhone" inputmode="numeric" maxlength="10" placeholder="0247777777" required /></label>
+                  <label class="field" style="grid-column:span 2"><span>Reason (optional)</span><input id="blockReason" maxlength="200" placeholder="e.g. repeated chargebacks" /></label>
+                </div>
+                <button class="btn btn-primary" type="submit" style="margin-top:11px">Block number</button>
+                <p id="blockMessage" class="notice"></p>
+              </form>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head">
+              <div class="search-wrap">
+                <span class="ico">⌕</span>
+                <input id="blockedSearch" placeholder="Search blocked numbers…" autocomplete="off" />
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Phone</th><th>Reason</th><th>Blocked on</th><th></th></tr></thead>
+                <tbody id="blockedBody"></tbody>
+              </table>
+              <div id="blockedEmpty" class="empty hidden"><div>✓</div><strong>No blocked numbers</strong><p>All customer numbers can currently purchase.</p></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ------------------------- SETTINGS ------------------------- -->
+        <section id="section-settings" class="admin-section hidden">
+          <div class="section-head">
+            <div><p class="eyebrow">Storefront</p><h2>Settings</h2><p class="muted">These control what customers see on the storefront.</p></div>
+          </div>
+          <div class="panel">
+            <div class="panel-body">
+              <form id="settingsForm">
+                <label class="field" style="margin-bottom:12px"><span>Store name</span><input id="setStoreName" maxlength="60" /></label>
+
+                <label class="switch" style="margin:4px 0 12px">
+                  <input type="checkbox" id="setAnnounceEnabled" /><span class="track"></span>
+                  <span>Show announcement banner on the storefront</span>
+                </label>
+                <label class="field" style="margin-bottom:16px"><span>Announcement text</span><input id="setAnnouncement" maxlength="200" placeholder="e.g. Festive offer: 10GB now GH₵40!" /></label>
+
+                <div class="filter-row" style="margin-bottom:12px">
+                  <label class="field"><span>Support WhatsApp</span><input id="setWhatsapp" placeholder="233551234567" inputmode="tel" /></label>
+                  <label class="field"><span>Support phone</span><input id="setSupportPhone" placeholder="0551234567" inputmode="tel" /></label>
+                  <label class="field"><span>Low wallet alert (GH₵)</span><input id="setLowWallet" type="number" min="0" step="1" /></label>
+                </div>
+
+                <label class="switch" style="margin:6px 0 12px">
+                  <input type="checkbox" id="setMaintenance" /><span class="track"></span>
+                  <span>Maintenance mode (pauses new checkouts)</span>
+                </label>
+                <label class="field" style="margin-bottom:16px"><span>Maintenance message</span><input id="setMaintenanceMsg" maxlength="200" /></label>
+
+                <button class="btn btn-primary" type="submit" id="saveSettingsBtn">Save settings</button>
+                <p id="settingsMessage" class="notice"></p>
+              </form>
+            </div>
+          </div>
+        </section>
+
+        <!-- ------------------------ ACTIVITY LOG ---------------------- -->
+        <section id="section-activity" class="admin-section hidden">
+          <div class="section-head">
+            <div><p class="eyebrow">Accountability</p><h2>Activity log</h2><p class="muted">Every admin action: price changes, refunds, retries, blocks and settings edits.</p></div>
+          </div>
+          <div class="panel">
+            <div class="panel-body" id="auditList"></div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Mobile bottom tab bar -->
+  <nav class="appnav" id="appnav">
+    <button class="active" data-section="overview"><span class="ico">◧</span>Home</button>
+    <button data-section="orders"><span class="ico">☰</span>Orders</button>
+    <button data-section="bundles"><span class="ico">₵</span>Bundles</button>
+    <button data-section="numbers"><span class="ico">⊘</span>Numbers</button>
+    <button data-section="settings"><span class="ico">⚙</span>Settings</button>
+  </nav>
+</div>
+
+<!-- ============================== DRAWER ============================== -->
+<div id="drawer" class="drawer-backdrop hidden">
+  <aside class="drawer" role="dialog" aria-modal="true" aria-label="Order details">
+    <button id="closeDrawer" class="close" aria-label="Close">×</button>
+    <div id="drawerContent"></div>
+  </aside>
+</div>
+
+<!-- ============================== MODAL =============================== -->
+<div id="planModal" class="modal-backdrop hidden">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="planModalTitle">
+    <div class="modal-head">
+      <div><p class="eyebrow" id="planModalKicker">New bundle</p><h2 id="planModalTitle">Add a bundle</h2></div>
+      <button id="closePlanModal" class="close" aria-label="Close">×</button>
+    </div>
+    <form id="planForm">
+      <div class="form-grid">
+        <label class="field"><span>Network</span>
+          <select id="planNetwork">
+            <option value="MTN">MTN</option>
+            <option value="Telecel">Telecel</option>
+            <option value="AirtelTigo">AirtelTigo</option>
+          </select>
+        </label>
+        <label class="field"><span>Bundle label</span><input id="planLabel" placeholder="e.g. 3GB" maxlength="20" required /></label>
+        <label class="field"><span>Size (GB)</span><input id="planCapacity" type="number" min="0.5" step="0.5" placeholder="3" required /></label>
+        <label class="field"><span>Validity</span><input id="planValidity" placeholder="30 days" value="30 days" maxlength="30" /></label>
+        <label class="field"><span>Customer price (GH₵)</span><input id="planPrice" type="number" min="0.01" step="0.01" placeholder="15.00" required /></label>
+        <label class="field"><span>Provider cost (GH₵)</span><input id="planCost" type="number" min="0" step="0.01" placeholder="13.00" /></label>
+        <label class="field full"><span>Provider network code</span><input id="planNetworkCode" placeholder="YELLO / TELECEL / AT_PREMIUM" maxlength="30" /></label>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-ghost" id="cancelPlanBtn">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="savePlanBtn">Save bundle</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="toast-stack" id="toastStack" aria-live="polite"></div>
+
+<script src="admin.js"></script>
+</body>
+</html>
