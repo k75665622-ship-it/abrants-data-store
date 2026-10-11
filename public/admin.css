@@ -571,3 +571,79 @@ tbody tr:hover{background:rgba(255,255,255,.02)}
   .pager .pager-btns .btn{flex:1}
   .detail-grid{grid-template-columns:1fr}
 }
+
+/* ==========================================================================
+   Customers, offers and notices
+   ========================================================================== */
+[hidden]{display:none !important}
+img.brand-mark{background:none;box-shadow:none;object-fit:contain;display:block;border-radius:12px}
+.field em{font-style:normal;font-weight:500;color:var(--muted-2)}
+
+/* Six tabs on the phone bar: tighten so every label fits at 320px */
+.appnav{grid-template-columns:repeat(6,minmax(0,1fr));padding-inline:2px}
+.appnav button{font-size:9.5px;padding:7px 1px;min-width:0}
+.appnav button .ico{font-size:17px}
+
+/* Big, easy-to-tap checkbox */
+.chk{position:relative;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;cursor:pointer;flex:none}
+.chk input{position:absolute;inset:0;width:100%;height:100%;min-height:0;margin:0;opacity:0;cursor:pointer}
+.chk span{width:22px;height:22px;border-radius:7px;border:2px solid #3b465e;background:var(--bg-2);display:grid;place-items:center;transition:background .15s,border-color .15s}
+.chk input:checked + span{background:var(--accent);border-color:var(--accent)}
+.chk input:checked + span::after{content:"";width:5px;height:10px;border:solid #141414;border-width:0 2.5px 2.5px 0;transform:rotate(45deg) translate(-1px,-1px)}
+.chk input:focus-visible + span{outline:3px solid rgba(96,165,250,.6);outline-offset:2px}
+.chk input:disabled + span{opacity:.35}
+.chk-col{width:56px;padding-left:6px !important;padding-right:0 !important}
+
+/* Selected-customers action bar (floats above the bottom tabs on phones) */
+.sel-bar{
+  position:fixed;left:10px;right:10px;z-index:65;
+  bottom:calc(var(--nav-h) + var(--safe-b) + 8px);
+  display:flex;flex-direction:column;gap:9px;
+  background:#1a2030;border:1px solid rgba(255,210,28,.35);border-radius:var(--r-md);
+  padding:11px 12px;box-shadow:var(--shadow);
+}
+.sel-bar strong{font-size:13px}
+.sel-actions{display:grid;grid-template-columns:1.4fr 1fr auto;gap:8px}
+.sel-actions .btn{min-width:0;padding-inline:8px}
+body.has-selbar .container{padding-bottom:calc(190px + var(--safe-b))}
+
+/* Cards inside the customer drawer */
+.mini-card{background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r);padding:11px 12px;margin-bottom:9px;min-width:0}
+.mini-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.mini-top strong{font-size:13.5px;min-width:0;overflow-wrap:anywhere}
+.mini-top .badge{flex:none}
+.temp-pw{display:inline-block;margin:8px 0;padding:8px 12px;border-radius:var(--r-sm);background:var(--bg);color:var(--accent);font:700 17px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.06em;user-select:all;overflow-wrap:anywhere}
+.modal .field textarea{min-height:80px}
+.modal .muted{margin:0 0 14px}
+.notice.ok,.notice.bad{line-height:1.5}
+
+@media (min-width:641px){
+  .modal .form-grid{grid-template-columns:1fr 1fr}
+}
+@media (max-width:420px){
+  /* One column in forms on very small phones so inputs never get squeezed */
+  .modal .form-grid{grid-template-columns:1fr}
+}
+@media (min-width:1000px){
+  .sel-bar{left:50%;right:auto;transform:translateX(-50%);bottom:22px;width:min(560px,calc(100vw - 340px));flex-direction:row;align-items:center;justify-content:space-between}
+  .sel-actions{display:flex}
+  body.has-selbar .container{padding-bottom:110px}
+}
+
+/* Long toggle labels (Settings) wrap instead of running off narrow screens */
+#settingsForm .switch{white-space:normal;align-items:flex-start;max-width:100%}
+#settingsForm .switch>span:last-child{min-width:0;padding-top:3px;line-height:1.4}
+
+/* Customer rows on phones: name and contact stacked and left-aligned so long names never get squeezed */
+@media (max-width:760px){
+  #custBody td[data-label="Customer"]{display:block;text-align:left;padding-bottom:8px}
+  #custBody td[data-label="Customer"]::before{display:none}
+  #custBody td[data-label="Customer"] strong{font-size:15.5px;overflow-wrap:anywhere}
+  #custBody td[data-label="Customer"] .sub{overflow-wrap:anywhere}
+  #custBody td.chk-col{width:auto;padding:0 !important;position:absolute;right:8px;top:8px;display:block}
+  #custBody td.chk-col::before{display:none}
+  #custBody tr{position:relative;padding-right:56px}
+}
+/* Toasts sit above the selection bar */
+body.has-selbar .toast-stack{bottom:calc(var(--nav-h) + var(--safe-b) + 150px)}
+@media (min-width:1000px){ body.has-selbar .toast-stack{bottom:96px} }

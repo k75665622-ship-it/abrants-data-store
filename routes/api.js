@@ -1,7 +1,8 @@
 const express = require('express');
 const crypto = require('crypto');
-const { initializeTransaction, verifyTransaction, refundTransaction } = require('../services/paystack');
-const { purchaseData } = require('../services/datahustle');
+const { initializeTransaction, verifyTransaction } = require('../services/paystack');
+const { deliverOrder, attemptCustomerRefund } = require('../services/fulfillment');
+const { optionalCustomer, listOffers, resolvePrice } = require('../services/customers');
 const {
   createOrder, updateOrder, transitionOrder, claimOrderForFulfillment,
   getOrder, findByProviderReference, getPlans, isNumberBlocked,
@@ -49,13 +50,22 @@ function paymentMatchesOrder(tx, order) {
 }
 
 // Only bundles that are switched on in the admin dashboard are shown to customers.
-router.get('/plans', async (req, res) => {
+// A logged-in customer also sees their own special prices (decided here, on the server).
+router.get('/plans', optionalCustomer(), async (req, res) => {
   try {
     const plans = await getPlans();
-    res.json(plans.map(p => ({
-      id: p.id, network: p.network, networkCode: p.networkCode, capacityGB: p.capacityGB,
-      label: p.label, validity: p.validity, priceGHS: p.priceGHS, pricePerGB: p.pricePerGB,
-    })));
+    const offers = req.customer ? await listOffers(req.customer.id, { onlyUsable: true }) : [];
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.json(plans.map((p) => {
+      const quote = resolvePrice(p, offers);
+      const special = quote.offerId != null;
+      return {
+        id: p.id, network: p.network, networkCode: p.networkCode, capacityGB: p.capacityGB,
+        label: p.label, validity: p.validity, priceGHS: quote.priceGHS,
+        pricePerGB: p.capacityGB > 0 ? quote.priceGHS / p.capacityGB : quote.priceGHS,
+        special, listPriceGHS: special ? quote.listPriceGHS : undefined, offerTitle: special ? quote.offerTitle : undefined,
+      };
+    }));
   } catch (err) { console.error(err); res.status(500).json({ error: 'Could not load bundles.' }); }
 });
 
@@ -69,17 +79,18 @@ router.get('/settings', async (req, res) => {
       announcementEnabled: Boolean(s.announcementEnabled && s.announcement),
       supportWhatsapp: s.supportWhatsapp || '',
       supportPhone: s.supportPhone || '',
+      channelLink: s.channelLink || '',
       maintenanceMode: Boolean(s.maintenanceMode),
       maintenanceMessage: s.maintenanceMessage,
     });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Could not load store settings.' }); }
 });
 
-router.post('/checkout', checkoutLimit, async (req, res) => {
+router.post('/checkout', checkoutLimit, optionalCustomer(), async (req, res) => {
   try {
     const { planId } = req.body || {};
     const phone = normalizePhone(req.body?.phone);
-    const email = String(req.body?.email || '').trim().slice(0, 254);
+    const email = String(req.body?.email || req.customer?.email || '').trim().slice(0, 254);
     const settings = await getSettings();
 
     if (settings.maintenanceMode) {
@@ -94,19 +105,25 @@ router.post('/checkout', checkoutLimit, async (req, res) => {
     if (!/^\S+@\S+\.\S+$/.test(email)) return res.status(400).json({ error: 'Enter a valid email address.' });
     if (await isNumberBlocked(phone)) return res.status(403).json({ error: 'This phone number is currently blocked from making purchases. Please contact support.' });
 
+    // The price is always worked out here from the database, never taken from the browser.
+    const offers = req.customer ? await listOffers(req.customer.id, { onlyUsable: true }) : [];
+    const quote = resolvePrice(plan, offers);
+    const priceGHS = quote.priceGHS;
+
     const reference = `DB-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
-    const estimatedPaymentFeeGHS = Math.round(plan.priceGHS * Number(process.env.PAYSTACK_FEE_RATE || 0.0195) * 100) / 100;
+    const estimatedPaymentFeeGHS = Math.round(priceGHS * Number(process.env.PAYSTACK_FEE_RATE || 0.0195) * 100) / 100;
 
     await createOrder({
       reference, planId: plan.id, network: plan.network, networkCode: plan.networkCode,
-      capacityGB: plan.capacityGB, label: plan.label, priceGHS: plan.priceGHS,
+      capacityGB: plan.capacityGB, label: plan.label, priceGHS,
       providerCostGHS: plan.providerCostGHS, paymentFeeGHS: estimatedPaymentFeeGHS,
       phone, email,
+      customerId: req.customer ? req.customer.id : null, offerId: quote.offerId, listPriceGHS: plan.priceGHS,
     });
 
     const origin = `${req.protocol}://${req.get('host')}`;
     const tx = await initializeTransaction({
-      email, amountGHS: plan.priceGHS, reference,
+      email, amountGHS: priceGHS, reference,
       metadata: { phone, network: plan.network, label: plan.label, planId: plan.id },
       callbackUrl: `${origin}/order-status.html`,
     });
@@ -259,42 +276,7 @@ async function confirmAndFulfill(reference, eventData = null) {
   });
   if (!order) return; // another webhook/poll already claimed it
 
-  try {
-    const result = await purchaseData({ network: order.networkCode, phone: order.phone, capacityGB: order.capacityGB, reference });
-    if (result.accepted) {
-      const changes = {
-        status: 'processing',
-        providerReference: result.transactionReference,
-        purchaseId: result.purchaseId,
-      };
-      if (Number.isFinite(Number(result.priceGHS))) changes.providerCostGHS = Number(result.priceGHS);
-      await updateOrder(reference, changes, 'provider.order_accepted');
-    } else {
-      const failed = await transitionOrder(reference, 'paid', { status: 'delivery_failed' }, 'delivery.failed');
-      if (failed) await attemptCustomerRefund(reference);
-    }
-  } catch (err) {
-    console.error('DataHustle purchase error:', err.response?.data || err.message);
-    // A timeout/network error is ambiguous: the provider may have accepted the order even
-    // though our request did not receive the response. Never auto-refund in that case.
-    await transitionOrder(reference, 'paid', { status: 'delivery_review' }, 'delivery.review_required');
-  }
-}
-
-async function attemptCustomerRefund(reference) {
-  const order = await getOrder(reference);
-  if (!order || !['delivery_failed', 'paid'].includes(order.status) || order.refundStatus === 'queued' || order.refundStatus === 'processed') return;
-  try {
-    const refund = await refundTransaction(reference, order.priceGHS);
-    await updateOrder(reference, {
-      status: 'refunding',
-      refundId: refund?.id ? String(refund.id) : null,
-      refundStatus: refund?.status || 'pending',
-    }, 'customer.refund.queued');
-  } catch (err) {
-    console.error('Customer refund failed to start:', err.response?.data || err.message);
-    await updateOrder(reference, { refundStatus: 'needs_manual_refund' }, 'customer.refund.failed');
-  }
+  await deliverOrder(order);
 }
 
 async function handlePaystackRefundEvent(eventName, reference, data) {

@@ -6,6 +6,7 @@
   var ACTIVE_NETWORK = 'MTN';
   var SELECTED_PLAN = null;
   var SETTINGS = {};
+  var CUSTOMER = null;
 
   var $ = function (id) { return document.getElementById(id); };
   var plansGrid = $('plansGrid');
@@ -102,6 +103,10 @@
             : 'tel:' + data.supportPhone;
           $('supportStrip').hidden = false;
         }
+        if (data.channelLink && /^https:\/\//i.test(data.channelLink)) {
+          $('channelLink').href = data.channelLink;
+          $('channelStrip').hidden = false;
+        }
         if (data.maintenanceMode) {
           toast(data.maintenanceMessage || 'The store is briefly closed for maintenance.', 'error');
         }
@@ -162,11 +167,13 @@
     plansGrid.innerHTML = plans.map(function (plan) {
       var unit = Number(plan.capacityGB) > 0 ? Number(plan.priceGHS) / Number(plan.capacityGB) : null;
       var isBest = plan.id === bestId && plans.length > 1;
-      return '<button type="button" class="plan-card' + (isBest ? ' featured-plan' : '') + '" data-plan="' + esc(plan.id) + '">' +
-        (isBest ? '<span class="plan-tag">BEST VALUE</span>' : '') +
+      return '<button type="button" class="plan-card' + (plan.special ? ' special-plan' : (isBest ? ' featured-plan' : '')) + '" data-plan="' + esc(plan.id) + '">' +
+        (plan.special ? '<span class="plan-tag mine">YOUR PRICE</span>' : (isBest ? '<span class="plan-tag">BEST VALUE</span>' : '')) +
         '<span class="plan-size">' + esc(plan.label) + '</span>' +
         '<span class="plan-validity">Valid ' + esc(plan.validity || '30 days') + '</span>' +
-        '<span class="plan-price">' + money(plan.priceGHS) + '</span>' +
+        '<span class="plan-price">' +
+          (plan.special && plan.listPriceGHS ? '<s class="plan-was">' + money(plan.listPriceGHS) + '</s>' : '') +
+          money(plan.priceGHS) + '</span>' +
         (unit ? '<span class="plan-unit">' + money(unit) + ' per GB</span>' : '') +
         '</button>';
     }).join('');
@@ -192,6 +199,11 @@
     $('ckNetwork').textContent = plan.network + ' · delivered to your number';
     $('ckPrice').textContent = money(plan.priceGHS);
     $('ckValidity').textContent = 'Valid ' + (plan.validity || '30 days');
+    var sp = $('ckSpecial');
+    if (plan.special && plan.listPriceGHS) {
+      $('ckSpecialText').textContent = '🎁 ' + (plan.offerTitle || 'Special price for you') + ' — normally ' + money(plan.listPriceGHS);
+      sp.hidden = false;
+    } else { sp.hidden = true; }
     clearError();
     lastFocused = document.activeElement;
     sheet.hidden = false;
@@ -305,6 +317,28 @@
   var yearEl = $('year');
   if (yearEl) yearEl.textContent = String(new Date().getFullYear());
 
+  function loadMe() {
+    return fetch('/api/account/me', { credentials: 'same-origin' })
+      .then(function (res) { return res.ok ? res.json() : null; })
+      .then(function (data) {
+        if (!data || !data.customer) return;
+        CUSTOMER = data.customer;
+        var first = String(CUSTOMER.name || '').split(' ')[0] || 'Account';
+        $('accountLinkText').textContent = first;
+        $('accountLink').classList.add('logged-in');
+        $('accountDot').hidden = !data.unread;
+        $('guestHint').hidden = true;
+        if (!phoneInput.value && CUSTOMER.phone) phoneInput.value = CUSTOMER.phone;
+        if (!emailInput.value && CUSTOMER.email) emailInput.value = CUSTOMER.email;
+        if (data.offers) {
+          $('offerBannerText').textContent = 'You have ' + data.offers + ' offer' + (data.offers > 1 ? 's' : '') + ' waiting — tap to view';
+          $('offerBanner').hidden = false;
+        }
+      })
+      .catch(function () { /* optional */ });
+  }
+
   loadSettings();
   loadPlans();
+  loadMe();
 })();

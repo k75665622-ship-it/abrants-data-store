@@ -9,6 +9,12 @@ const {
 } = require('../services/orderStore');
 const { getWalletBalance, purchaseData } = require('../services/datahustle');
 const { refundTransaction } = require('../services/paystack');
+const {
+  listCustomersAdmin, customerSummary, getCustomer, listOffers, createOffers, deactivateOffer,
+  createNotice, createNoticeForMany, listNotices, listCustomerOrders, customerIdsWhere,
+  setPassword, setCustomerStatus, setCustomerNote, passwordProblem,
+} = require('../services/customers');
+const crypto = require('crypto');
 
 const router = express.Router();
 
@@ -172,6 +178,7 @@ router.post('/orders/:reference/refund', async (req, res) => {
     const order = await getOrder(ref);
     if (!order) return res.status(404).json({ error: 'Order not found.' });
     if (!['delivery_failed', 'delivery_review', 'paid'].includes(order.status)) return res.status(400).json({ error: 'Only failed/paid orders can be refunded.' });
+    if (order.source === 'gift' || Number(order.priceGHS) <= 0) return res.status(400).json({ error: 'This was a free bundle, so there is nothing to refund.' });
     if (order.refundStatus === 'processed') return res.status(409).json({ error: 'This order is already refunded.' });
     const refund = await refundTransaction(order.reference, order.priceGHS);
     const updated = await updateOrder(order.reference, {
@@ -264,6 +271,114 @@ router.delete('/plans/:planId', async (req, res) => {
 });
 
 /* ---------------------------------------------------------------- */
+/* Customers, offers and notices                                     */
+/* ---------------------------------------------------------------- */
+
+router.get('/customers', async (req, res) => {
+  try {
+    const { search, sort, minWeek, page, pageSize } = req.query;
+    const [list, summary] = await Promise.all([
+      listCustomersAdmin({ search, sort, minWeekOrders: minWeek, page, pageSize }),
+      customerSummary(),
+    ]);
+    res.json({ ...list, summary });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Could not load customers.' }); }
+});
+
+router.get('/customers/:id', async (req, res) => {
+  try {
+    const customer = await getCustomer(req.params.id);
+    if (!customer) return res.status(404).json({ error: 'Customer not found.' });
+    const [offers, orders, notices, plans] = await Promise.all([
+      listOffers(customer.id), listCustomerOrders(customer.id, 15), listNotices(customer.id, 10), getPlans({ includeInactive: true }),
+    ]);
+    const byId = new Map(plans.map((p) => [p.id, p]));
+    res.json({
+      customer: {
+        id: customer.id, name: customer.name, phone: customer.phone, email: customer.email, status: customer.status,
+        adminNote: customer.adminNote, createdAt: customer.createdAt, lastLoginAt: customer.lastLoginAt,
+      },
+      offers: offers.map((o) => {
+        const plan = o.planId ? byId.get(o.planId) : null;
+        return { ...o, planLabel: plan ? `${plan.network} ${plan.label}` : null };
+      }),
+      orders, notices,
+    });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Could not load this customer.' }); }
+});
+
+// Give an offer (special price, % off, or free bundle) to one or many chosen customers.
+router.post('/offers', async (req, res) => {
+  try {
+    const ids = await customerIdsWhere(req.body?.customerIds);
+    if (!ids.length) return res.status(400).json({ error: 'Choose at least one active customer.' });
+    const plans = await getPlans({ includeInactive: true });
+    const result = await createOffers(ids, req.body || {}, new Map(plans.map((p) => [p.id, p])));
+    if (result.error) return res.status(400).json({ error: result.error });
+    const first = result.offers[0];
+    await audit(req, 'offer.create', { customers: ids.length, kind: first.kind, planId: first.planId, value: first.value, maxUses: first.maxUses, title: first.title });
+    res.status(201).json({ created: result.offers.length });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Could not save this offer.' }); }
+});
+
+router.delete('/customers/:id/offers/:offerId', async (req, res) => {
+  try {
+    const offer = await deactivateOffer(req.params.id, req.params.offerId);
+    if (!offer) return res.status(404).json({ error: 'Offer not found.' });
+    await audit(req, 'offer.cancel', { customerId: Number(req.params.id), offerId: offer.id, title: offer.title });
+    res.json({ ok: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Could not cancel this offer.' }); }
+});
+
+router.post('/notices', async (req, res) => {
+  try {
+    const title = String(req.body?.title || '').trim().slice(0, 100);
+    const body = String(req.body?.body || '').trim().slice(0, 600);
+    if (!title || !body) return res.status(400).json({ error: 'Write a title and a message.' });
+    const ids = await customerIdsWhere(req.body?.customerIds);
+    if (!ids.length) return res.status(400).json({ error: 'Choose at least one active customer.' });
+    const sent = await createNoticeForMany(ids, title, body);
+    await audit(req, 'notice.send', { customers: sent, title });
+    res.status(201).json({ sent });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Could not send the notice.' }); }
+});
+
+// Gives the customer a one-time temporary password (shown once to the admin).
+router.post('/customers/:id/reset-password', async (req, res) => {
+  try {
+    const customer = await getCustomer(req.params.id);
+    if (!customer) return res.status(404).json({ error: 'Customer not found.' });
+    const alphabet = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
+    let temp = '';
+    for (const b of crypto.randomBytes(10)) temp += alphabet[b % alphabet.length];
+    if (passwordProblem(temp)) return res.status(500).json({ error: 'Try again.' });
+    await setPassword(customer.id, temp);
+    await audit(req, 'customer.reset_password', { customerId: customer.id, phone: customer.phone });
+    res.json({ temporaryPassword: temp });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Could not reset the password.' }); }
+});
+
+router.post('/customers/:id/status', async (req, res) => {
+  try {
+    const status = String(req.body?.status || '');
+    if (!['active', 'disabled'].includes(status)) return res.status(400).json({ error: 'Unknown status.' });
+    const customer = await setCustomerStatus(req.params.id, status);
+    if (!customer) return res.status(404).json({ error: 'Customer not found.' });
+    await audit(req, 'customer.status', { customerId: customer.id, status });
+    res.json({ ok: true, status: customer.status });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Could not update this customer.' }); }
+});
+
+router.post('/customers/:id/note', async (req, res) => {
+  try {
+    const customer = await setCustomerNote(req.params.id, String(req.body?.note || '').trim().slice(0, 500));
+    if (!customer) return res.status(404).json({ error: 'Customer not found.' });
+    await audit(req, 'customer.note', { customerId: customer.id });
+    res.json({ ok: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Could not save the note.' }); }
+});
+
+/* ---------------------------------------------------------------- */
 /* Blocked numbers                                                   */
 /* ---------------------------------------------------------------- */
 
@@ -310,6 +425,13 @@ router.put('/settings', async (req, res) => {
     if (body.announcementEnabled != null) patch.announcementEnabled = Boolean(body.announcementEnabled);
     if (body.supportWhatsapp != null) patch.supportWhatsapp = String(body.supportWhatsapp).replace(/[^\d+]/g, '').slice(0, 20);
     if (body.supportPhone != null) patch.supportPhone = String(body.supportPhone).replace(/[^\d+]/g, '').slice(0, 20);
+    if (body.channelLink != null) {
+      const link = String(body.channelLink).trim().slice(0, 300);
+      if (link && !/^https:\/\/(www\.)?(whatsapp\.com\/channel\/|chat\.whatsapp\.com\/)[A-Za-z0-9_-]+\/?$/i.test(link)) {
+        return res.status(400).json({ error: 'Please paste a valid WhatsApp channel or group link (it starts with https://whatsapp.com/channel/ or https://chat.whatsapp.com/).' });
+      }
+      patch.channelLink = link;
+    }
     if (body.maintenanceMode != null) patch.maintenanceMode = Boolean(body.maintenanceMode);
     if (body.maintenanceMessage != null) patch.maintenanceMessage = String(body.maintenanceMessage).trim().slice(0, 200);
     if (body.lowWalletThreshold != null) {

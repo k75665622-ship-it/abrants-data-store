@@ -6,7 +6,10 @@
 <meta name="theme-color" content="#070a10" />
 <meta name="robots" content="noindex, nofollow" />
 <title>Abrants Admin — Control Center</title>
-<link rel="icon" href="/icon.svg" />
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/svg+xml" href="/icon.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <link rel="stylesheet" href="admin.css" />
 </head>
 <body>
@@ -14,7 +17,7 @@
 <!-- ============================== LOGIN ============================== -->
 <div id="loginView" class="auth-shell">
   <div class="auth-card">
-    <div class="brand-mark">A</div>
+    <img class="brand-mark" src="/icon.svg" alt="Abrants" width="42" height="42" />
     <p class="eyebrow" style="margin-top:16px">Abrants Data Store</p>
     <h1>Admin control center</h1>
     <p class="muted">Manage orders, bundles, pricing and customers from one place.</p>
@@ -31,7 +34,7 @@
 <div id="appView" class="hidden">
   <header class="topbar">
     <div class="brand">
-      <span class="brand-mark small">A</span>
+      <img class="brand-mark small" src="/icon.svg" alt="" width="34" height="34" />
       <div><strong>ABRANTS</strong><span>DATA STORE</span></div>
     </div>
     <div class="top-actions">
@@ -58,6 +61,7 @@
         <button class="side-link active" data-section="overview"><span class="ico">◧</span> Overview</button>
         <button class="side-link" data-section="orders"><span class="ico">☰</span> Orders</button>
         <button class="side-link" data-section="bundles"><span class="ico">₵</span> Bundles &amp; pricing</button>
+        <button class="side-link" data-section="customers"><span class="ico">☺</span> Customers</button>
         <button class="side-link" data-section="numbers"><span class="ico">⊘</span> Blocked numbers</button>
         <button class="side-link" data-section="settings"><span class="ico">⚙</span> Settings</button>
         <button class="side-link" data-section="activity"><span class="ico">≡</span> Activity log</button>
@@ -114,6 +118,7 @@
           <div class="quick-grid">
             <button class="quick-card" data-section="orders"><span class="quick-icon">☰</span><div><strong>Check orders</strong><small>Search payments, retry deliveries and refund.</small></div></button>
             <button class="quick-card" data-section="bundles"><span class="quick-icon">₵</span><div><strong>Change prices</strong><small>Set selling price, cost and availability.</small></div></button>
+            <button class="quick-card" data-section="customers"><span class="quick-icon">☺</span><div><strong>Customers &amp; promos</strong><small>See top buyers, give special prices or free data.</small></div></button>
             <button class="quick-card" data-section="settings"><span class="quick-icon">⚙</span><div><strong>Store settings</strong><small>Announcement, support contact and more.</small></div></button>
           </div>
         </section>
@@ -193,6 +198,68 @@
           <div id="plansGridAdmin" class="settings-grid"></div>
         </section>
 
+        <!-- ------------------------ CUSTOMERS ------------------------- -->
+        <section id="section-customers" class="admin-section hidden">
+          <div class="stats-grid" id="custStats">
+            <article class="stat-card"><span>Customers</span><strong id="cs-total">0</strong><small>with an account</small></article>
+            <article class="stat-card"><span>New this week</span><strong id="cs-new">0</strong><small>joined in 7 days</small></article>
+            <article class="stat-card"><span>Buying this week</span><strong id="cs-buyers">0</strong><small>logged-in buyers</small></article>
+          </div>
+
+          <div class="panel" style="margin-top:14px">
+            <div class="panel-head">
+              <div><h2>Customers</h2><p>Tick customers to give them an offer or send a notice. Offers only work for the customers you choose.</p></div>
+              <div class="toolbar">
+                <div class="search-wrap">
+                  <span class="ico">⌕</span>
+                  <input id="custSearch" placeholder="Search name, phone or email…" autocomplete="off" />
+                </div>
+                <label class="field"><span>Sort by</span>
+                  <select id="custSort">
+                    <option value="recent">Newest first</option>
+                    <option value="week">Top buyers this week</option>
+                    <option value="spent">Top spenders (all time)</option>
+                    <option value="orders">Most orders (all time)</option>
+                  </select>
+                </label>
+              </div>
+              <div class="chip-row" id="custChips" aria-label="Filter customers">
+                <button class="chip active" data-min="0"><span>Everyone</span></button>
+                <button class="chip" data-min="1"><span>Bought this week</span></button>
+                <button class="chip" data-min="3"><span>3+ orders this week</span></button>
+                <button class="chip" data-min="5"><span>5+ orders this week</span></button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th class="chk-col"><label class="chk"><input type="checkbox" id="custAll" aria-label="Select all on this page" /><span></span></label></th><th>Customer</th><th>This week</th><th>All time</th><th>Offers</th><th>Joined</th><th>Status</th><th></th></tr>
+                </thead>
+                <tbody id="custBody"></tbody>
+              </table>
+              <div id="custEmpty" class="empty hidden">
+                <div>👥</div><strong>No customers yet</strong><p>When customers create an account on the store, they will appear here.</p>
+              </div>
+            </div>
+            <div class="pager">
+              <span id="custPagerInfo">—</span>
+              <div class="pager-btns">
+                <button class="btn btn-ghost btn-sm" id="custPrev">← Prev</button>
+                <button class="btn btn-ghost btn-sm" id="custNext">Next →</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="sel-bar hidden" id="selBar" role="region" aria-label="Actions for selected customers">
+            <strong id="selCount">0 selected</strong>
+            <div class="sel-actions">
+              <button class="btn btn-primary btn-sm" id="selOffer">🎁 Give offer</button>
+              <button class="btn btn-ghost btn-sm" id="selNotice">✉ Notice</button>
+              <button class="btn btn-subtle btn-sm" id="selClear">Clear</button>
+            </div>
+          </div>
+        </section>
+
         <!-- ------------------------- NUMBERS -------------------------- -->
         <section id="section-numbers" class="admin-section hidden">
           <div class="section-head">
@@ -253,6 +320,8 @@
                   <label class="field"><span>Low wallet alert (GH₵)</span><input id="setLowWallet" type="number" min="0" step="1" /></label>
                 </div>
 
+                <label class="field" style="margin-bottom:16px"><span>WhatsApp channel or group link (shows a "Join" button on the store; leave empty to hide)</span><input id="setChannelLink" maxlength="300" placeholder="https://whatsapp.com/channel/..." inputmode="url" /></label>
+
                 <label class="switch" style="margin:6px 0 12px">
                   <input type="checkbox" id="setMaintenance" /><span class="track"></span>
                   <span>Maintenance mode (pauses new checkouts)</span>
@@ -284,7 +353,8 @@
     <button class="active" data-section="overview"><span class="ico">◧</span>Home</button>
     <button data-section="orders"><span class="ico">☰</span>Orders</button>
     <button data-section="bundles"><span class="ico">₵</span>Bundles</button>
-    <button data-section="numbers"><span class="ico">⊘</span>Numbers</button>
+    <button data-section="customers"><span class="ico">☺</span>Customers</button>
+    <button data-section="numbers"><span class="ico">⊘</span>Blocked</button>
     <button data-section="settings"><span class="ico">⚙</span>Settings</button>
   </nav>
 </div>
@@ -328,8 +398,79 @@
   </div>
 </div>
 
+<!-- Give an offer -->
+<div id="offerModal" class="modal-backdrop hidden">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="offerModalTitle">
+    <div class="modal-head">
+      <div><p class="eyebrow">Locked to chosen customers</p><h2 id="offerModalTitle">Give an offer</h2></div>
+      <button id="closeOfferModal" class="close" aria-label="Close">×</button>
+    </div>
+    <p class="muted" id="offerWho"></p>
+    <form id="offerForm">
+      <div class="form-grid">
+        <label class="field full"><span>What do you want to give?</span>
+          <select id="offerKind">
+            <option value="fixed_price">Special price for one bundle</option>
+            <option value="percent_off">Percent off (discount)</option>
+            <option value="free_bundle">Free bundle (gift)</option>
+          </select>
+        </label>
+        <label class="field full"><span id="offerPlanLabel">Which bundle?</span>
+          <select id="offerPlan"></select>
+        </label>
+        <label class="field" id="offerValueWrap"><span id="offerValueLabel">Special price (GH₵)</span>
+          <input id="offerValue" type="number" step="0.01" min="0.5" inputmode="decimal" />
+        </label>
+        <label class="field" id="offerQtyWrap" hidden><span>How many free bundles?</span>
+          <input id="offerQty" type="number" step="1" min="1" max="20" value="1" inputmode="numeric" />
+        </label>
+        <label class="field" id="offerUsesWrap"><span>Limit uses <em>(optional)</em></span>
+          <input id="offerUses" type="number" step="1" min="1" max="1000" placeholder="No limit" inputmode="numeric" />
+        </label>
+        <label class="field"><span>Ends on <em>(optional)</em></span>
+          <input id="offerEnds" type="date" />
+        </label>
+        <label class="field full"><span>Title <em>(optional, the customer sees this)</em></span>
+          <input id="offerTitle" maxlength="80" placeholder="e.g. Thank you for your loyalty" />
+        </label>
+        <label class="field full"><span>Message <em>(optional)</em></span>
+          <textarea id="offerMessage" maxlength="300" placeholder="A short note shown with the offer"></textarea>
+        </label>
+        <label class="switch full" style="grid-column:1/-1;white-space:normal">
+          <input type="checkbox" id="offerNotify" checked /><span class="track"></span><span>Send the customer a notice about it</span>
+        </label>
+      </div>
+      <p class="notice" id="offerWarn"></p>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-ghost" id="cancelOfferBtn">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="saveOfferBtn">Give offer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Send a notice -->
+<div id="noticeModal" class="modal-backdrop hidden">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="noticeModalTitle">
+    <div class="modal-head">
+      <div><p class="eyebrow">Shown in their account</p><h2 id="noticeModalTitle">Send a notice</h2></div>
+      <button id="closeNoticeModal" class="close" aria-label="Close">×</button>
+    </div>
+    <p class="muted" id="noticeWho"></p>
+    <form id="noticeForm">
+      <label class="field" style="margin-bottom:11px"><span>Title</span><input id="noticeTitle" maxlength="100" placeholder="e.g. Weekend promo" required /></label>
+      <label class="field"><span>Message</span><textarea id="noticeBody" maxlength="600" placeholder="Write your message…" required></textarea></label>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-ghost" id="cancelNoticeBtn">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="sendNoticeBtn">Send notice</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <div class="toast-stack" id="toastStack" aria-live="polite"></div>
 
 <script src="admin.js"></script>
+<script src="admin-customers.js"></script>
 </body>
 </html>
