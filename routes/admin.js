@@ -352,7 +352,7 @@ router.post('/customers/:id/reset-password', async (req, res) => {
     let temp = '';
     for (const b of crypto.randomBytes(10)) temp += alphabet[b % alphabet.length];
     if (passwordProblem(temp)) return res.status(500).json({ error: 'Try again.' });
-    await setPassword(customer.id, temp);
+    await setPassword(customer.id, temp, true);
     await audit(req, 'customer.reset_password', { customerId: customer.id, phone: customer.phone });
     res.json({ temporaryPassword: temp });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Could not reset the password.' }); }

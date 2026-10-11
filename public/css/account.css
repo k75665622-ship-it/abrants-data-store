@@ -114,3 +114,6 @@
 @media (max-width:379px){
   .site-header .nav-actions .track-link:first-child{display:none}
 }
+.alert-card{background:#fff8e1;border:1px solid #f5d77a;border-radius:var(--r-md);padding:16px;margin-bottom:18px}
+.alert-card p{margin:6px 0 12px;font-size:13.5px;line-height:1.55;color:#5b4a10}
+.alert-card .field span{color:#5b4a10}

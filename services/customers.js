@@ -33,6 +33,7 @@ async function initCustomerDb() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       last_login_at TIMESTAMPTZ
     );
+    ALTER TABLE customers ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT false;
     CREATE INDEX IF NOT EXISTS idx_customers_created ON customers(created_at DESC);
 
     CREATE TABLE IF NOT EXISTS customer_offers (
@@ -169,13 +170,14 @@ function mapCustomer(row) {
     status: row.status,
     adminNote: row.admin_note || '',
     passwordHash: row.password_hash,
+    mustChangePassword: !!row.must_change_password,
     createdAt: row.created_at,
     lastLoginAt: row.last_login_at,
   };
 }
 
 function publicCustomer(c) {
-  return { id: c.id, name: c.name, phone: c.phone, email: c.email, createdAt: c.createdAt };
+  return { id: c.id, name: c.name, phone: c.phone, email: c.email, createdAt: c.createdAt, mustChangePassword: !!c.mustChangePassword };
 }
 
 async function getCustomer(id) {
@@ -203,9 +205,10 @@ async function createCustomer({ name, phone, email, password }) {
   }
 }
 
-async function setPassword(id, password) {
+// temporary = true for passwords the store owner hands out: the customer must then pick their own.
+async function setPassword(id, password, temporary = false) {
   const hash = await hashPassword(password);
-  const r = await pool.query('UPDATE customers SET password_hash = $2 WHERE id = $1 RETURNING *', [id, hash]);
+  const r = await pool.query('UPDATE customers SET password_hash = $2, must_change_password = $3 WHERE id = $1 RETURNING *', [id, hash, !!temporary]);
   return mapCustomer(r.rows[0]);
 }
 
