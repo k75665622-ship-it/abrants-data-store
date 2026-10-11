@@ -105,3 +105,12 @@
 .pw-toggle{position:absolute;right:6px;top:50%;transform:translateY(-50%);min-height:36px;min-width:52px;padding:0 10px;border:0;border-radius:8px;background:transparent;color:var(--muted);font-weight:600;font-size:13px;font-family:inherit;cursor:pointer}
 .pw-toggle:hover,.pw-toggle:focus-visible{color:inherit;background:rgba(127,127,127,.12)}
 .forgot-link{display:block;margin:14px 0 0;padding:12px;text-align:center;border:1px solid rgba(127,127,127,.3);border-radius:12px;font-size:14px;font-weight:600;text-decoration:none;color:inherit}
+@media (max-width:379px){
+  .site-header .brand small{display:none}
+  .site-header .nav-actions .track-link{padding-left:10px;padding-right:10px;font-size:13px}
+  .site-header .nav-actions{gap:6px}
+  .site-header .brand{min-width:0;flex-shrink:1}
+}
+@media (max-width:379px){
+  .site-header .nav-actions .track-link:first-child{display:none}
+}
