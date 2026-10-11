@@ -242,6 +242,46 @@
       .then(function () { setBusy(btn, false); });
   });
 
+  /* ------------------------------------------- show/hide password + forgot */
+  Array.prototype.forEach.call(document.querySelectorAll('input[type="password"]'), function (input) {
+    var wrap = document.createElement('div');
+    wrap.className = 'pw-wrap';
+    input.parentNode.insertBefore(wrap, input);
+    wrap.appendChild(input);
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'pw-toggle';
+    btn.textContent = 'Show';
+    btn.setAttribute('aria-label', 'Show password');
+    btn.addEventListener('click', function () {
+      var show = input.type === 'password';
+      input.type = show ? 'text' : 'password';
+      btn.textContent = show ? 'Hide' : 'Show';
+      btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+    });
+    wrap.appendChild(btn);
+  });
+
+  fetch('/api/settings').then(function (r) { return r.json(); }).then(function (s) {
+    var foot = document.querySelector('#loginForm .auth-foot');
+    if (!foot) return;
+    var num = String(s.supportWhatsapp || '').replace(/\D/g, '');
+    var phone = s.supportPhone ? String(s.supportPhone).replace(/[^\d+]/g, '') : '';
+    if (!num && !phone) return;
+    var a = document.createElement('a');
+    a.className = 'forgot-link';
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.textContent = num ? '💬 Forgot password? Message us on WhatsApp' : '📞 Forgot password? Call us';
+    a.href = num
+      ? 'https://wa.me/' + num + '?text=' + encodeURIComponent('Hello, I forgot my password. Please reset it. My phone number is ' + ($('loginPhone').value || '') )
+      : 'tel:' + phone;
+    if (num) a.addEventListener('click', function () {
+      a.href = 'https://wa.me/' + num + '?text=' + encodeURIComponent('Hello, I forgot my password. Please reset it. My phone number is ' + $('loginPhone').value.trim());
+    });
+    foot.parentNode.insertBefore(a, foot);
+  }).catch(function () {});
+
   /* --------------------------------------------------------------- init */
   var y = $('year'); if (y) y.textContent = String(new Date().getFullYear());
   load();
