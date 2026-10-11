@@ -57,7 +57,19 @@ async function getDataPackages(network) {
   return res.data?.data;
 }
 
+async function getWebhookStatus() {
+  const res = await client.get('/webhook/status');
+  return res.data;
+}
+
+async function setWebhookActive(isActive) {
+  const res = await client.put('/webhook/toggle', { isActive: Boolean(isActive) });
+  return res.data;
+}
+
 module.exports = {
+  getWebhookStatus,
+  setWebhookActive,
   purchaseData,
   getWalletBalance,
   getDataPackages,

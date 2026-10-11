@@ -757,6 +757,36 @@
     }).catch(function (err) { toast(err.message, 'error'); });
   }
 
+  function showWebhook(r) {
+    var p = r.provider || {};
+    var d = p.data || p;
+    var url = d.url || d.webhookUrl || '';
+    var active = d.isActive != null ? d.isActive : d.active;
+    var lines = [];
+    lines.push('<div class="detail-grid">' +
+      '<div class="detail-box"><span>Secret set on your store</span><strong>' + (r.secretSetOnServer ? 'Yes' : 'NO — add DATAHUSTLE_WEBHOOK_SECRET in Render') + '</strong></div>' +
+      '<div class="detail-box"><span>Webhook switched on</span><strong>' + (active == null ? '—' : (active ? 'Yes' : 'NO — tap "Switch webhook on"')) + '</strong></div>' +
+      '<div class="detail-box" style="grid-column:1/-1"><span>URL DataHustle sends to</span><strong style="word-break:break-all">' + esc(url || '— none set —') + '</strong></div>' +
+      '<div class="detail-box" style="grid-column:1/-1"><span>URL it should send to</span><strong style="word-break:break-all">' + esc(r.expectedUrl || '') + '</strong></div>' +
+      '</div>');
+    lines.push('<p class="muted" style="margin:12px 0 6px">What DataHustle reported (secrets removed):</p>' +
+      '<pre style="white-space:pre-wrap;word-break:break-word;font-size:12px;max-height:320px;overflow:auto;background:rgba(127,127,127,.12);padding:10px;border-radius:10px">' + esc(JSON.stringify(p, null, 2)) + '</pre>');
+    $('#whResult').innerHTML = lines.join('');
+  }
+  $('#whCheckBtn').addEventListener('click', function () {
+    var btn = this; setBusy(btn, true, 'Checking…');
+    api('/api/admin/datahustle/webhook').then(showWebhook)
+      .catch(function (err) { $('#whResult').innerHTML = '<div class="alert-strip warn"><span class="ico">!</span><div>' + esc(err.message) + '</div></div>'; })
+      .then(function () { setBusy(btn, false); });
+  });
+  $('#whEnableBtn').addEventListener('click', function () {
+    var btn = this; setBusy(btn, true, 'Working…');
+    api('/api/admin/datahustle/webhook/enable', { method: 'POST', body: '{}' })
+      .then(function () { toast('Webhook switched on.', 'success'); return api('/api/admin/datahustle/webhook').then(showWebhook); })
+      .catch(function (err) { toast(err.message, 'error'); })
+      .then(function () { setBusy(btn, false); });
+  });
+
   $('#settingsForm').addEventListener('submit', function (event) {
     event.preventDefault();
     var btn = $('#saveSettingsBtn');

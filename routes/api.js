@@ -257,7 +257,10 @@ router.post('/webhook/datahustle', async (req, res) => {
   const signature = String(req.headers['x-datahustle-signature'] || '');
   const raw = Buffer.isBuffer(req.body) ? req.body : Buffer.from(String(req.body || ''));
   const expected = crypto.createHmac('sha256', process.env.DATAHUSTLE_WEBHOOK_SECRET || '').update(raw).digest('hex');
-  if (!safeEqualHex(expected, signature)) return res.status(401).json({ error: 'Invalid signature' });
+  if (!safeEqualHex(expected, signature)) {
+    console.warn('DataHustle webhook rejected: signature did not match. Check DATAHUSTLE_WEBHOOK_SECRET in Render.' + (signature ? '' : ' (no signature header)') + (process.env.DATAHUSTLE_WEBHOOK_SECRET ? '' : ' [secret is NOT set]'));
+    return res.status(401).json({ error: 'Invalid signature' });
+  }
 
   const body = rawJson(req);
   const d = body?.data || {};
