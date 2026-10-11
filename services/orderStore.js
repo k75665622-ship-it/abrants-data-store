@@ -338,6 +338,31 @@ async function findByProviderReference(providerReference) {
   return mapOrder(result.rows[0]);
 }
 
+// Finds the order a DataHustle webhook is about. Normally the transaction reference matches.
+// If it does not, fall back to the provider's order id, then to a single still-processing order
+// with the same phone number, network and size (only when exactly one order fits).
+async function findOrderForProviderEvent({ transactionId, orderId, phone, network, capacity }) {
+  if (transactionId) {
+    const r = await pool.query('SELECT * FROM orders WHERE provider_reference = $1 LIMIT 1', [String(transactionId)]);
+    if (r.rows[0]) return mapOrder(r.rows[0]);
+  }
+  if (orderId) {
+    const r = await pool.query('SELECT * FROM orders WHERE purchase_id = $1 LIMIT 1', [String(orderId)]);
+    if (r.rows[0]) return mapOrder(r.rows[0]);
+  }
+  const p = normalizePhone(phone);
+  const cap = Number(capacity);
+  if (PHONE_RE.test(p) && Number.isFinite(cap)) {
+    const r = await pool.query(
+      `SELECT * FROM orders WHERE phone = $1 AND capacity_gb = $2 AND status = 'processing'
+         AND ($3::text IS NULL OR network_code = $3) ORDER BY created_at ASC LIMIT 2`,
+      [p, cap, network || null]
+    );
+    if (r.rows.length === 1) return mapOrder(r.rows[0]);
+  }
+  return null;
+}
+
 async function getOrderEvents(reference) {
   const result = await pool.query(
     'SELECT event_type, details, created_at FROM order_events WHERE order_reference = $1 ORDER BY created_at DESC',
@@ -836,7 +861,7 @@ module.exports = {
   getStalePendingOrders,
   deleteUnpaidOrder,
   createOrder, updateOrder, transitionOrder, claimOrderForFulfillment,
-  getOrder, getAllOrders, getOrdersPage, getOrderStats, getOrderEvents, findByProviderReference,
+  getOrder, getAllOrders, getOrdersPage, getOrderStats, getOrderEvents, findByProviderReference, findOrderForProviderEvent,
   getPlans, getPlan, createPlan, updatePlan, updatePlanPrice, updatePlanProviderCost, deletePlan,
   getSettings, saveSettings, createGiftOrder, pool,
   logAdminAction, getAuditLog,
