@@ -48,6 +48,10 @@ initDb()
   .then(() => {
     app.listen(PORT, () => {
       console.log(`Abrants Data Store running on http://localhost:${PORT}`);
+      // Tidy up unpaid checkouts: a couple of minutes after start, then every hour.
+      const sweep = () => apiRoutes.sweepPendingOrders().catch((e) => console.warn('Pending sweep failed:', e.message));
+      setTimeout(sweep, 2 * 60 * 1000).unref();
+      setInterval(sweep, 60 * 60 * 1000).unref();
       if (process.env.DATAHUSTLE_MOCK_MODE === 'true') {
         console.log('DataHustle is in MOCK MODE - no real provider wallet purchase will be made.');
       }

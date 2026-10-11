@@ -6,7 +6,7 @@ const { optionalCustomer, listOffers, resolvePrice } = require('../services/cust
 const {
   createOrder, updateOrder, transitionOrder, claimOrderForFulfillment,
   getOrder, findByProviderReference, getPlans, isNumberBlocked,
-  getOrderHistoryByPhone, getRecentOrdersByPhone, getSettings, normalizePhone, PHONE_RE,
+  getOrderHistoryByPhone, getRecentOrdersByPhone, getStalePendingOrders, deleteUnpaidOrder, getSettings, normalizePhone, PHONE_RE,
 } = require('../services/orderStore');
 
 const router = express.Router();
@@ -298,5 +298,30 @@ async function handlePaystackRefundEvent(eventName, reference, data) {
     refundId: data.refund_reference || order.refundId || null,
   }, `customer.${eventName}`);
 }
+
+/*
+ * Clean-up of checkouts that were never paid. An order older than 24 hours that Paystack says
+ * was not paid is removed. If Paystack says it WAS paid (a missed webhook), it is delivered instead.
+ * Any error from Paystack leaves the order untouched.
+ */
+async function sweepPendingOrders() {
+  const references = await getStalePendingOrders(24, 50);
+  let removed = 0, rescued = 0;
+  for (const reference of references) {
+    try {
+      const tx = await verifyTransaction(reference);
+      if (tx && tx.status === 'success') {
+        await confirmAndFulfill(reference, tx);
+        rescued += 1;
+      } else if (tx && ['abandoned', 'failed', 'reversed'].includes(tx.status)) {
+        if (await deleteUnpaidOrder(reference)) removed += 1;
+      }
+    } catch (err) {
+      console.warn('Pending sweep skipped', reference, err.response?.status || err.message);
+    }
+  }
+  if (removed || rescued) console.log(`Pending sweep: removed ${removed} unpaid, delivered ${rescued} paid.`);
+}
+router.sweepPendingOrders = sweepPendingOrders;
 
 module.exports = router;

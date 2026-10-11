@@ -350,6 +350,10 @@ function orderFilters({ status, search, network, from, to } = {}) {
   if (status && status !== 'all') {
     where.push(`status = $${i++}`);
     values.push(status);
+  } else if (!search) {
+    // Checkouts that were never paid are not real orders: keep them out of the default list.
+    // They can still be found by choosing the "pending" filter or by searching.
+    where.push(`status <> 'pending'`);
   }
   if (network && network !== 'all') {
     where.push(`network = $${i++}`);
@@ -786,10 +790,38 @@ async function getOrderHistoryByPhone(phone, reference) {
   }];
 }
 
+// Unpaid checkouts older than `hours`, oldest first.
+async function getStalePendingOrders(hours = 24, limit = 50) {
+  const result = await pool.query(
+    `SELECT reference FROM orders
+     WHERE status = 'pending' AND source = 'store' AND created_at < NOW() - ($1 || ' hours')::interval
+     ORDER BY created_at ASC LIMIT $2`,
+    [String(Math.max(Number(hours) || 24, 1)), Math.min(Number(limit) || 50, 200)]
+  );
+  return result.rows.map((r) => r.reference);
+}
+
+// Removes an order that was never paid. Does nothing if it has moved on from 'pending'.
+async function deleteUnpaidOrder(reference) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const locked = await client.query("SELECT 1 FROM orders WHERE reference = $1 AND status = 'pending' FOR UPDATE", [reference]);
+    if (!locked.rowCount) { await client.query('ROLLBACK'); return false; }
+    await client.query('DELETE FROM order_events WHERE order_reference = $1', [reference]);
+    await client.query('DELETE FROM orders WHERE reference = $1', [reference]);
+    await client.query('COMMIT');
+    return true;
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw err;
+  } finally { client.release(); }
+}
+
 async function getRecentOrdersByPhone(phone, limit = 5) {
   const result = await pool.query(`
     SELECT reference, network, label, price_ghs, status, created_at
-    FROM orders WHERE phone=$1 ORDER BY created_at DESC LIMIT $2`, [phone, Math.min(Number(limit) || 5, 20)]);
+    FROM orders WHERE phone=$1 AND status <> 'pending' ORDER BY created_at DESC LIMIT $2`, [phone, Math.min(Number(limit) || 5, 20)]);
   return result.rows.map(r => ({
     reference: r.reference, network: r.network, label: r.label, priceGHS: Number(r.price_ghs),
     status: r.status, createdAt: r.created_at,
@@ -798,6 +830,8 @@ async function getRecentOrdersByPhone(phone, limit = 5) {
 
 module.exports = {
   initDb,
+  getStalePendingOrders,
+  deleteUnpaidOrder,
   createOrder, updateOrder, transitionOrder, claimOrderForFulfillment,
   getOrder, getAllOrders, getOrdersPage, getOrderStats, getOrderEvents, findByProviderReference,
   getPlans, getPlan, createPlan, updatePlan, updatePlanPrice, updatePlanProviderCost, deletePlan,
