@@ -112,6 +112,7 @@
     $('avatar').textContent = (String(c.name || 'A').trim().charAt(0) || 'A').toUpperCase();
     $('helloName').textContent = 'Hi, ' + (String(c.name || '').split(' ')[0] || 'there');
     $('helloPhone').textContent = c.phone;
+    $('pwForce').hidden = !c.mustChangePassword;
 
     var offers = data.offers || [];
     $('offersCount').textContent = offers.length ? String(offers.length) : '';
@@ -189,6 +190,18 @@
     api('/api/account/logout', 'POST', {}).catch(function () {}).then(function () {
       OVERVIEW = null; setAuthTab('login'); show('auth'); window.scrollTo(0, 0);
     });
+  });
+
+  $('forceForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var btn = $('fpBtn');
+    showErr($('fpError'), '');
+    if (!$('fpCurrent').value || !$('fpNew').value) { showErr($('fpError'), 'Fill in both boxes.'); return; }
+    setBusy(btn, true, 'Saving…');
+    api('/api/account/password', 'POST', { current: $('fpCurrent').value, next: $('fpNew').value })
+      .then(function () { $('fpCurrent').value = ''; $('fpNew').value = ''; toast('Password saved. You are all set.', 'success'); load(); })
+      .catch(function (err) { showErr($('fpError'), err.message); })
+      .then(function () { setBusy(btn, false); });
   });
 
   $('passwordForm').addEventListener('submit', function (e) {

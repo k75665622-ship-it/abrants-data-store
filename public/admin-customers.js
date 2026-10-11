@@ -270,6 +270,20 @@
     closeOffer(); closeNotice();
   });
 
+  /* ---------------------------------------- WhatsApp message helpers */
+  function firstName(c) { return String(c.name || '').split(' ')[0] || 'there'; }
+  function waLink(phone, text) {
+    var p = String(phone || '').replace(/\D/g, '');
+    if (p.charAt(0) === '0') p = '233' + p.slice(1);
+    return 'https://wa.me/' + p + '?text=' + encodeURIComponent(text);
+  }
+  function nudgeText(c, hasOffer) {
+    var url = location.origin + '/account.html';
+    return hasOffer
+      ? 'Hello ' + firstName(c) + '! We have a special offer waiting for you on Abrants Data Store. Log in to see it: ' + url
+      : 'Hello ' + firstName(c) + '! Thank you for being a customer of Abrants Data Store. Cheap data bundles are ready whenever you need them: ' + location.origin;
+  }
+
   /* --------------------------------------------------- customer drawer */
   function offerLine(o) {
     var kind = o.kind === 'free_bundle' ? 'Free bundle' : (o.kind === 'percent_off' ? 'Discount' : 'Special price');
@@ -300,6 +314,7 @@
         '<div class="drawer-actions">' +
           '<button class="btn btn-primary btn-sm" data-c-offer="' + c.id + '">🎁 Give offer</button>' +
           '<button class="btn btn-ghost btn-sm" data-c-notice="' + c.id + '">✉ Send notice</button>' +
+          '<a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="' + esc(waLink(c.phone, nudgeText(c, d.offers.some(function (o) { return o.usable; })))) + '">💬 WhatsApp</a>' +
         '</div>' +
         '<div class="detail-grid">' +
           '<div class="detail-box"><span>Phone</span><strong>' + esc(c.phone) + '</strong></div>' +
@@ -360,7 +375,8 @@
       api('/api/admin/customers/' + t.dataset.cReset + '/reset-password', 'POST', {})
         .then(function (r) {
           $('#resetBox').innerHTML = '<div class="alert-strip warn" style="margin-top:12px"><span class="ico">🔑</span><div><strong>Temporary password (shown once)</strong><br>' +
-            '<code class="temp-pw">' + esc(r.temporaryPassword) + '</code><br>Send it to the customer privately. They can change it in their account.</div></div>';
+            '<code class="temp-pw">' + esc(r.temporaryPassword) + '</code><br>Send it to the customer privately. When they log in with it, they will be asked to choose their own password.<br>' +
+            '<a class="btn btn-primary btn-sm" style="margin-top:10px" target="_blank" rel="noopener" href="' + esc(waLink(st.drawerCustomer.phone, 'Hello ' + firstName(st.drawerCustomer) + ', your temporary password for Abrants Data Store is: ' + r.temporaryPassword + '\nLog in at ' + location.origin + '/account.html and you will be asked to choose your own password.')) + '">💬 Send on WhatsApp</a></div></div>';
         })
         .catch(function (err) { toast(err.message, 'error'); })
         .then(function () { setBusy(t, false); });

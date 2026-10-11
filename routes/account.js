@@ -141,6 +141,7 @@ router.post('/password', passwordLimit, requireCustomer(), async (req, res) => {
   try {
     const current = String(req.body?.current || '');
     const next = req.body?.next;
+    if (String(next) === current) return res.status(400).json({ error: 'Please choose a different password from the temporary one.' });
     if (!(await verifyPassword(current, req.customer.passwordHash))) return res.status(400).json({ error: 'Your current password is not correct.' });
     const problem = passwordProblem(next);
     if (problem) return res.status(400).json({ error: problem });
@@ -153,6 +154,7 @@ router.post('/password', passwordLimit, requireCustomer(), async (req, res) => {
 // Spend a free bundle the store owner gave this customer.
 router.post('/redeem/:offerId', redeemLimit, requireCustomer(), async (req, res) => {
   try {
+    if (req.customer.mustChangePassword) return res.status(403).json({ error: 'Please choose your own password first (see the box at the top), then send your free bundle.' });
     const settings = await getSettings();
     if (settings.maintenanceMode) return res.status(503).json({ error: settings.maintenanceMessage || 'The store is temporarily closed. Please try again shortly.' });
 
