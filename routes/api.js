@@ -30,6 +30,7 @@ function rateLimit({ windowMs, max, keyPrefix }) {
 
 const checkoutLimit = rateLimit({ windowMs: 60_000, max: 20, keyPrefix: 'checkout' });
 const historyLimit = rateLimit({ windowMs: 60_000, max: 20, keyPrefix: 'history' });
+const orderLimit = rateLimit({ windowMs: 60_000, max: 120, keyPrefix: 'order' });
 
 function safeEqualHex(a, b) {
   if (!a || !b || a.length !== b.length) return false;
@@ -39,6 +40,32 @@ function safeEqualHex(a, b) {
 function rawJson(req) {
   try { return JSON.parse(Buffer.isBuffer(req.body) ? req.body.toString('utf8') : String(req.body || '')); }
   catch { return null; }
+}
+
+/*
+ * Orders are only saved AFTER Paystack confirms the payment. At checkout, the order details are
+ * attached to the Paystack transaction as signed metadata. Once the payment succeeds, the order
+ * is rebuilt from that metadata. The signature means nobody can invent or change an order by
+ * making their own Paystack payment.
+ */
+const SIGN_FIELDS = ['planId', 'network', 'networkCode', 'capacityGB', 'label', 'priceGHS', 'providerCostGHS',
+  'paymentFeeGHS', 'phone', 'email', 'customerId', 'offerId', 'listPriceGHS'];
+
+function signOrderFields(reference, o) {
+  const text = ['abrants-order-v1', reference, ...SIGN_FIELDS.map((k) => (o[k] == null ? '' : String(o[k])))].join('|');
+  return crypto.createHmac('sha256', process.env.PAYSTACK_SECRET_KEY || '').update(text).digest('hex');
+}
+
+function orderFromMetadata(reference, tx) {
+  let meta = tx && tx.metadata;
+  if (typeof meta === 'string') { try { meta = JSON.parse(meta); } catch { return null; } }
+  const pack = meta && meta.abrants;
+  if (!pack || !pack.o || typeof pack.sig !== 'string') return null;
+  if (!safeEqualHex(signOrderFields(reference, pack.o), pack.sig)) return null;
+  const o = pack.o;
+  const price = Number(o.priceGHS);
+  if (!o.planId || !o.network || !o.networkCode || !Number.isFinite(price) || price <= 0 || !PHONE_RE.test(String(o.phone || ''))) return null;
+  return { reference, ...o };
 }
 
 function paymentMatchesOrder(tx, order) {
@@ -113,18 +140,19 @@ router.post('/checkout', checkoutLimit, optionalCustomer(), async (req, res) => 
     const reference = `DB-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
     const estimatedPaymentFeeGHS = Math.round(priceGHS * Number(process.env.PAYSTACK_FEE_RATE || 0.0195) * 100) / 100;
 
-    await createOrder({
-      reference, planId: plan.id, network: plan.network, networkCode: plan.networkCode,
+    // Nothing is saved yet: the order is created only when Paystack confirms the payment.
+    const orderFields = {
+      planId: plan.id, network: plan.network, networkCode: plan.networkCode,
       capacityGB: plan.capacityGB, label: plan.label, priceGHS,
-      providerCostGHS: plan.providerCostGHS, paymentFeeGHS: estimatedPaymentFeeGHS,
+      providerCostGHS: plan.providerCostGHS ?? null, paymentFeeGHS: estimatedPaymentFeeGHS,
       phone, email,
-      customerId: req.customer ? req.customer.id : null, offerId: quote.offerId, listPriceGHS: plan.priceGHS,
-    });
+      customerId: req.customer ? req.customer.id : null, offerId: quote.offerId ?? null, listPriceGHS: plan.priceGHS,
+    };
 
     const origin = `${req.protocol}://${req.get('host')}`;
     const tx = await initializeTransaction({
       email, amountGHS: priceGHS, reference,
-      metadata: { phone, network: plan.network, label: plan.label, planId: plan.id },
+      metadata: { phone, network: plan.network, label: plan.label, planId: plan.id, abrants: { o: orderFields, sig: signOrderFields(reference, orderFields) } },
       callbackUrl: `${origin}/order-status.html`,
     });
     res.json({ authorizationUrl: tx.authorization_url, reference });
@@ -234,9 +262,26 @@ router.post('/webhook/datahustle', async (req, res) => {
   res.json({ status: 'success' });
 });
 
-router.get('/order/:reference', async (req, res) => {
-  const order = await getOrder(req.params.reference);
-  if (!order) return res.status(404).json({ error: 'Order not found.' });
+router.get('/order/:reference', orderLimit, async (req, res) => {
+  let order = await getOrder(req.params.reference);
+  if (!order) {
+    // No order yet: it only exists once Paystack confirms the payment. Ask Paystack now.
+    let tx;
+    try { tx = await verifyTransaction(req.params.reference); } catch (e) { return res.status(404).json({ error: 'Order not found.' }); }
+    if (tx && tx.status === 'success') {
+      try { await confirmAndFulfill(req.params.reference, tx); } catch (e) { console.error('Order confirm error:', e.response?.data || e.message); }
+      order = await getOrder(req.params.reference);
+    } else {
+      const f = orderFromMetadata(req.params.reference, tx);
+      if (!f) return res.status(404).json({ error: 'Order not found.' });
+      // Payment not finished yet: show it as waiting, without saving anything.
+      return res.json({
+        reference: f.reference, status: 'pending', label: f.label, network: f.network, capacityGB: f.capacityGB,
+        priceGHS: f.priceGHS, phone: f.phone, createdAt: null, updatedAt: null, refundStatus: null,
+      });
+    }
+    if (!order) return res.status(404).json({ error: 'Order not found.' });
+  }
 
   if (order.status === 'pending') {
     try {
@@ -256,10 +301,22 @@ router.get('/order/:reference', async (req, res) => {
 
 async function confirmAndFulfill(reference, eventData = null) {
   let order = await getOrder(reference);
-  if (!order) return;
+  let tx = eventData;
+  if (!order) {
+    // First time we hear about this payment: confirm it with Paystack, then create the order.
+    tx = await verifyTransaction(reference);
+    if (!tx || tx.status !== 'success') return;
+    const fields = orderFromMetadata(reference, tx);
+    if (!fields) { console.warn('Paystack payment has no valid order details, ignored:', reference); return; }
+    if (String(tx.currency || '').toUpperCase() !== 'GHS' || Math.round(Number(tx.amount)) !== Math.round(Number(fields.priceGHS) * 100)) {
+      console.warn('Paystack payment amount does not match the order, ignored:', reference);
+      return;
+    }
+    order = await createOrder(fields);
+    if (!order) return;
+  }
 
   // Always verify server-to-server before delivering digital value.
-  let tx = eventData;
   if (!tx || tx.status !== 'success' || Number(tx.amount) / 100 !== Number(order.priceGHS) || String(tx.currency || '').toUpperCase() !== 'GHS') {
     tx = await verifyTransaction(reference);
   }

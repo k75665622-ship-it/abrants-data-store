@@ -95,6 +95,17 @@
       <button type="button" class="ghost-btn" id="logoutBtn">Log out</button>
     </section>
 
+    <section class="alert-card" id="pwForce" hidden>
+      <strong>🔑 Choose your own password</strong>
+      <p>You are using a temporary password from the store. Enter it below as your current password, then pick a password you will remember.</p>
+      <form id="forceForm" class="auth-form" novalidate>
+        <label class="field"><span>Temporary password</span><input id="fpCurrent" type="password" autocomplete="current-password" maxlength="100" /></label>
+        <label class="field"><span>Your new password</span><input id="fpNew" type="password" autocomplete="new-password" maxlength="100" placeholder="At least 8 characters" /></label>
+        <button class="pay-btn" type="submit" id="fpBtn">Save my password</button>
+        <p class="ck-error" id="fpError" role="alert" hidden></p>
+      </form>
+    </section>
+
     <section class="acct-section" id="offersSection">
       <div class="sec-head"><h2>🎁 Your offers</h2><span class="sec-count" id="offersCount"></span></div>
       <div id="offersList" class="offers-list"></div>
