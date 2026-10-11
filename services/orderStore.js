@@ -193,6 +193,7 @@ async function createOrder(order) {
       (reference, plan_id, network, network_code, capacity_gb, label, price_ghs, provider_cost_ghs, payment_fee_ghs,
        phone, email, status, customer_id, offer_id, list_price_ghs, source)
     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'pending',$12,$13,$14,'store')
+    ON CONFLICT (reference) DO NOTHING
     RETURNING *
   `, [
     order.reference, order.planId, order.network, order.networkCode,
@@ -200,6 +201,8 @@ async function createOrder(order) {
     order.paymentFeeGHS ?? null, order.phone, order.email || null,
     order.customerId ?? null, order.offerId ?? null, order.listPriceGHS ?? null,
   ]);
+  // Safe to call twice for the same reference (e.g. webhook and status page at the same moment).
+  if (!result.rows[0]) return getOrder(order.reference);
   await addEvent(order.reference, 'order.created', { status: 'pending', customerId: order.customerId ?? null, offerId: order.offerId ?? null });
   return mapOrder(result.rows[0]);
 }
