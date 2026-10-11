@@ -7,7 +7,7 @@ const {
   getSettings, saveSettings, logAdminAction, getAuditLog,
   updateOrder, normalizePhone, PHONE_RE, ORDER_STATUSES,
 } = require('../services/orderStore');
-const { getWalletBalance, purchaseData } = require('../services/datahustle');
+const { getWalletBalance, purchaseData, getWebhookStatus, setWebhookActive } = require('../services/datahustle');
 const { refundTransaction } = require('../services/paystack');
 const {
   listCustomersAdmin, customerSummary, getCustomer, listOffers, createOffers, deactivateOffer,
@@ -51,6 +51,46 @@ router.get('/stats', async (req, res) => {
 /* ---------------------------------------------------------------- */
 /* Orders                                                            */
 /* ---------------------------------------------------------------- */
+
+// What DataHustle itself says about the webhook (with anything secret removed), so the owner can
+// see from a phone whether it is on, where it points and how recent deliveries were answered.
+function stripSecrets(value) {
+  if (Array.isArray(value)) return value.map(stripSecrets);
+  if (value && typeof value === 'object') {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) if (!/secret|api.?key|token|password/i.test(k)) out[k] = stripSecrets(v);
+    return out;
+  }
+  return value;
+}
+
+router.get('/datahustle/webhook', async (req, res) => {
+  try {
+    const provider = await getWebhookStatus();
+    res.json({
+      secretSetOnServer: Boolean(process.env.DATAHUSTLE_WEBHOOK_SECRET),
+      expectedUrl: `${req.protocol}://${req.get('host')}/api/webhook/datahustle`,
+      provider: stripSecrets(provider),
+    });
+  } catch (err) {
+    console.error('Webhook status error:', err.response?.data || err.message);
+    res.status(502).json({
+      error: 'Could not reach DataHustle: ' + (err.response?.data?.message || err.message),
+      secretSetOnServer: Boolean(process.env.DATAHUSTLE_WEBHOOK_SECRET),
+    });
+  }
+});
+
+router.post('/datahustle/webhook/enable', async (req, res) => {
+  try {
+    const provider = await setWebhookActive(true);
+    await audit(req, 'datahustle.webhook_enable', {});
+    res.json({ ok: true, provider: stripSecrets(provider) });
+  } catch (err) {
+    console.error('Webhook enable error:', err.response?.data || err.message);
+    res.status(502).json({ error: 'Could not switch the webhook on: ' + (err.response?.data?.message || err.message) });
+  }
+});
 
 router.get('/orders', async (req, res) => {
   try {
