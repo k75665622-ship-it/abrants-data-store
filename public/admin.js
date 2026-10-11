@@ -307,6 +307,7 @@
   function loadOrders() {
     var body = $('#ordersBody');
     body.innerHTML = '<tr><td colspan="7"><div class="skeleton-row"></div><div class="skeleton-row" style="width:60%"></div></td></tr>';
+    loadStats().catch(function () {}); // keep the Pending / Paid / Delivered numbers in step with the list
     api('/api/admin/orders?' + orderQuery({ page: state.page, pageSize: state.pageSize }))
       .then(function (data) {
         var rows = data.rows || [];
