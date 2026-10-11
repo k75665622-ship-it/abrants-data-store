@@ -5,7 +5,7 @@ const { deliverOrder, attemptCustomerRefund } = require('../services/fulfillment
 const { optionalCustomer, listOffers, resolvePrice } = require('../services/customers');
 const {
   createOrder, updateOrder, transitionOrder, claimOrderForFulfillment,
-  getOrder, findByProviderReference, getPlans, isNumberBlocked,
+  getOrder, findByProviderReference, findOrderForProviderEvent, getPlans, isNumberBlocked,
   getOrderHistoryByPhone, getRecentOrdersByPhone, getStalePendingOrders, deleteUnpaidOrder, getSettings, normalizePhone, PHONE_RE,
 } = require('../services/orderStore');
 
@@ -260,12 +260,16 @@ router.post('/webhook/datahustle', async (req, res) => {
   if (!safeEqualHex(expected, signature)) return res.status(401).json({ error: 'Invalid signature' });
 
   const body = rawJson(req);
-  if (!body?.event || !body?.data?.transactionId) return res.status(400).json({ error: 'Invalid webhook payload.' });
+  const d = body?.data || {};
+  if (!body?.event || !(d.transactionId || d.orderId || d.orderReference)) return res.status(400).json({ error: 'Invalid webhook payload.' });
+  console.log('DataHustle webhook:', body.event, 'tx=' + (d.transactionId || '-'), 'order=' + (d.orderReference || d.orderId || '-'));
 
   try {
-    const order = await findByProviderReference(body.data.transactionId);
+    const order = await findOrderForProviderEvent({
+      transactionId: d.transactionId, orderId: d.orderId, phone: d.phone, network: d.network, capacity: d.capacity,
+    });
     if (!order) {
-      console.warn('DataHustle webhook for unknown order:', body.data.transactionId);
+      console.warn('DataHustle webhook for unknown order:', d.transactionId || d.orderReference || d.orderId);
       return res.json({ status: 'ignored' });
     }
 
@@ -279,7 +283,7 @@ router.post('/webhook/datahustle', async (req, res) => {
     };
 
     if (body.event === 'order.completed') {
-      await advance({ status: 'fulfilled', trackingId: body.data.trackingId || null }, 'delivery.completed');
+      await advance({ status: 'fulfilled', trackingId: d.trackingId || null }, 'delivery.completed');
     } else if (body.event === 'order.failed') {
       const failed = await advance({ status: 'delivery_failed' }, 'delivery.failed');
       if (failed) await attemptCustomerRefund(failed.reference);
