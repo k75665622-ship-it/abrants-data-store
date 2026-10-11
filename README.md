@@ -231,6 +231,32 @@ overwrite anything you change afterwards.
 - Hit `GET /api/developer/data-packages` and `/balance` directly against  
   DataHustle to sanity-check your API key works, before wiring anything else.
 
+## 11. Customer accounts, special prices and free bundles
+
+Customers can create an account (phone number + password) on **/account.html**. Buying without an account still works exactly as before.
+
+**For customers**
+- Log in to see their own special prices on the store (shown with a green "YOUR PRICE" tag).
+- A "Your offers" list with free bundles they can send to any number, notices from the store, and their order history.
+- Passwords are hashed (scrypt) and never stored in plain text. Too many wrong passwords locks that number for 15 minutes.
+
+**For the store owner (Admin → Customers)**
+- See every customer with their orders and spend this week and all time. Sort by "Top buyers this week" or filter to "3+ orders this week".
+- Tick one or many customers, then **Give offer**: a special price for one bundle, a percent discount, or free bundles. Offers belong to the chosen customers only. You can set an end date and a use limit.
+- The form warns you if an offer would sell below your cost.
+- **Send notice** shows a message in the customer's account.
+- Open a customer to cancel an offer, reset a password (a temporary password is shown once), disable the account, or keep a private note.
+
+**How prices are protected:** the price is always worked out on the server from the database. The browser never sends a price, so a customer cannot change it. A free bundle can only be spent once per use, even if the button is tapped several times.
+
+**Free bundles cost you money:** each one is bought from your DataHustle wallet when the customer sends it. They show in Orders as "FREE gift" and reduce your profit figures.
+
+**Limits to know about:** accounts are not verified by SMS, so someone could register using another person's number. Offers are given to the account you choose in admin, so give them to people you know, and use **Reset password** or **Disable account** if a number was taken by the wrong person.
+
+**Settings:** a WhatsApp channel or group link added in Admin → Settings shows a "Join our WhatsApp channel" button on the store.
+
+No new environment variables are needed. Customer logins are signed with `ADMIN_SECRET`. To use a separate secret, set `CUSTOMER_SECRET`. The new database tables are created automatically on first start.
+
 ## Notes
 
 - Orders are stored in PostgreSQL and survive server restarts/redeploys.

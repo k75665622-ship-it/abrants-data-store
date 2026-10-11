@@ -29,6 +29,7 @@ const DEFAULT_SETTINGS = {
   announcementEnabled: false,
   supportWhatsapp: '',
   supportPhone: '',
+  channelLink: '',
   maintenanceMode: false,
   maintenanceMessage: "We are doing a quick upgrade. Please check back in a few minutes.",
   lowWalletThreshold: 100,
@@ -123,6 +124,12 @@ async function initDb() {
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS refund_id TEXT;
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS refund_status TEXT;
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS admin_note TEXT;
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_id BIGINT;
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS offer_id BIGINT;
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS list_price_ghs NUMERIC(12,2);
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'store';
+    CREATE INDEX IF NOT EXISTS idx_orders_customer ON orders(customer_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_orders_offer ON orders(offer_id);
     ALTER TABLE store_plans ADD COLUMN IF NOT EXISTS network TEXT;
     ALTER TABLE store_plans ADD COLUMN IF NOT EXISTS network_code TEXT;
     ALTER TABLE store_plans ADD COLUMN IF NOT EXISTS capacity_gb NUMERIC(10,2);
@@ -164,6 +171,10 @@ function mapOrder(row) {
     refundId: row.refund_id,
     refundStatus: row.refund_status,
     adminNote: row.admin_note || null,
+    customerId: row.customer_id == null ? null : Number(row.customer_id),
+    offerId: row.offer_id == null ? null : Number(row.offer_id),
+    listPriceGHS: row.list_price_ghs == null ? null : Number(row.list_price_ghs),
+    source: row.source || 'store',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -179,15 +190,38 @@ async function addEvent(reference, eventType, details = {}) {
 async function createOrder(order) {
   const result = await pool.query(`
     INSERT INTO orders
-      (reference, plan_id, network, network_code, capacity_gb, label, price_ghs, provider_cost_ghs, payment_fee_ghs, phone, email, status)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'pending')
+      (reference, plan_id, network, network_code, capacity_gb, label, price_ghs, provider_cost_ghs, payment_fee_ghs,
+       phone, email, status, customer_id, offer_id, list_price_ghs, source)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'pending',$12,$13,$14,'store')
     RETURNING *
   `, [
     order.reference, order.planId, order.network, order.networkCode,
     order.capacityGB, order.label, order.priceGHS, order.providerCostGHS ?? null,
     order.paymentFeeGHS ?? null, order.phone, order.email || null,
+    order.customerId ?? null, order.offerId ?? null, order.listPriceGHS ?? null,
   ]);
-  await addEvent(order.reference, 'order.created', { status: 'pending' });
+  await addEvent(order.reference, 'order.created', { status: 'pending', customerId: order.customerId ?? null, offerId: order.offerId ?? null });
+  return mapOrder(result.rows[0]);
+}
+
+// A free bundle given by the store owner (no payment). It starts life as 'paid' so the
+// normal delivery path takes over. Callers must already have reserved the offer use.
+async function createGiftOrder(order, client = pool) {
+  const result = await client.query(`
+    INSERT INTO orders
+      (reference, plan_id, network, network_code, capacity_gb, label, price_ghs, provider_cost_ghs, payment_fee_ghs,
+       phone, email, status, customer_id, offer_id, list_price_ghs, source)
+    VALUES ($1,$2,$3,$4,$5,$6,0,$7,0,$8,$9,'paid',$10,$11,$12,'gift')
+    RETURNING *
+  `, [
+    order.reference, order.planId, order.network, order.networkCode, order.capacityGB, order.label,
+    order.providerCostGHS ?? null, order.phone, order.email || null,
+    order.customerId, order.offerId, order.listPriceGHS ?? null,
+  ]);
+  await client.query(
+    'INSERT INTO order_events (order_reference, event_type, details) VALUES ($1, $2, $3)',
+    [order.reference, 'gift.redeemed', { customerId: order.customerId, offerId: order.offerId }]
+  );
   return mapOrder(result.rows[0]);
 }
 
@@ -767,7 +801,7 @@ module.exports = {
   createOrder, updateOrder, transitionOrder, claimOrderForFulfillment,
   getOrder, getAllOrders, getOrdersPage, getOrderStats, getOrderEvents, findByProviderReference,
   getPlans, getPlan, createPlan, updatePlan, updatePlanPrice, updatePlanProviderCost, deletePlan,
-  getSettings, saveSettings,
+  getSettings, saveSettings, createGiftOrder, pool,
   logAdminAction, getAuditLog,
   getBlockedNumbers, isNumberBlocked, blockNumber, unblockNumber,
   getOrderHistoryByPhone, getRecentOrdersByPhone,

@@ -26,6 +26,7 @@
     overview: ['Store dashboard', 'Everything important, in one place.'],
     orders: ['Orders', 'Search payments, retry deliveries and issue refunds.'],
     bundles: ['Bundles & pricing', 'Control what you sell and what it costs.'],
+    customers: ['Customers & promos', 'See who buys the most and reward them.'],
     numbers: ['Blocked numbers', 'Stop specific numbers from buying.'],
     settings: ['Settings', 'Storefront content and support details.'],
     activity: ['Activity log', 'A record of every admin action.']
@@ -139,6 +140,7 @@
     if (name === 'overview') loadDashboard();
     if (name === 'orders') { loadOrders(); loadStats(); }
     if (name === 'bundles') loadPlans();
+    if (name === 'customers' && window.AbrantsCustomers) window.AbrantsCustomers.load();
     if (name === 'numbers') loadBlocked();
     if (name === 'settings') loadSettings();
     if (name === 'activity') loadAudit();
@@ -317,7 +319,7 @@
             '<td data-label="Order"><span class="ref">' + esc(o.reference) + '</span><span class="sub">' + esc(o.network) + '</span></td>' +
             '<td data-label="Customer">' + esc(o.phone) + '<span class="sub">' + esc(o.email || '—') + '</span></td>' +
             '<td data-label="Bundle"><strong>' + esc(o.label) + '</strong><span class="sub">' + esc(o.capacityGB) + 'GB · ' + esc(o.network) + '</span></td>' +
-            '<td data-label="Amount"><strong>' + money(o.priceGHS) + '</strong>' +
+            '<td data-label="Amount"><strong>' + (o.source === 'gift' ? 'FREE gift' : money(o.priceGHS)) + '</strong>' +
             (o.estimatedProfitGHS == null ? '' : '<span class="sub ' + (o.estimatedProfitGHS < 0 ? 'neg' : 'pos') + '">' + money(o.estimatedProfitGHS) + '</span>') + '</td>' +
             '<td data-label="Status">' + badge(o.status) + '</td>' +
             '<td data-label="Date">' + date(o.createdAt) + '</td>' +
@@ -748,6 +750,7 @@
       $('#setAnnounceEnabled').checked = Boolean(s.announcementEnabled);
       $('#setWhatsapp').value = s.supportWhatsapp || '';
       $('#setSupportPhone').value = s.supportPhone || '';
+      $('#setChannelLink').value = s.channelLink || '';
       $('#setLowWallet').value = s.lowWalletThreshold || 0;
       $('#setMaintenance').checked = Boolean(s.maintenanceMode);
       $('#setMaintenanceMsg').value = s.maintenanceMessage || '';
@@ -766,6 +769,7 @@
       announcementEnabled: $('#setAnnounceEnabled').checked,
       supportWhatsapp: $('#setWhatsapp').value.trim(),
       supportPhone: $('#setSupportPhone').value.trim(),
+      channelLink: $('#setChannelLink').value.trim(),
       lowWalletThreshold: Number($('#setLowWallet').value || 0),
       maintenanceMode: $('#setMaintenance').checked,
       maintenanceMessage: $('#setMaintenanceMsg').value.trim()

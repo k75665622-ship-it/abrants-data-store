@@ -471,6 +471,59 @@ body.has-mobilebar{padding-bottom:82px}
   *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important;scroll-behavior:auto !important}
 }
 
+/* ------------------------------------------------ Logo, account link, offers */
+.brand-logo{width:38px;height:38px;flex:none;border-radius:11px;display:block;box-shadow:0 6px 18px rgba(255,210,28,.18)}
+.brand>span{min-width:0}
+.nav .brand{flex:1 1 auto}
+
+.account-link{
+  position:relative;display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  min-height:40px;min-width:40px;padding:0 12px;border-radius:999px;
+  border:1px solid rgba(255,255,255,.16);color:#fff;font-size:13px;font-weight:600;white-space:nowrap;
+}
+.account-link:active{background:rgba(255,255,255,.1)}
+.account-link span{display:none;max-width:110px;overflow:hidden;text-overflow:ellipsis}
+.account-link.logged-in{border-color:rgba(255,210,28,.45);color:#ffe98a}
+.account-link .dot{position:absolute;top:5px;right:5px;width:9px;height:9px;border-radius:50%;background:#ff5a5f;border:2px solid var(--navy)}
+.account-link .dot[hidden]{display:none}
+.track-link{display:inline-flex;align-items:center;min-height:40px}
+
+.offer-banner{
+  display:flex;align-items:center;gap:12px;margin:0 0 12px;padding:13px 14px;min-height:56px;
+  border-radius:var(--r-md);background:linear-gradient(135deg,#fff3c4,#ffe27a);color:#3a2c00;
+  border:1px solid rgba(255,190,0,.55);box-shadow:0 8px 22px rgba(255,190,0,.16);font-weight:700;font-size:14px;line-height:1.35;
+}
+.offer-banner[hidden]{display:none}
+.offer-banner-icon{font-size:22px;flex:none}
+.offer-banner-text{flex:1;min-width:0}
+.offer-banner-go{font-size:24px;line-height:1;flex:none}
+.guest-hint{margin:0 0 6px;font-size:13px;color:var(--muted)}
+.guest-hint[hidden]{display:none}
+.guest-hint a{color:var(--navy);font-weight:700;text-decoration:underline;text-underline-offset:2px}
+
+.plan-was{display:block;font:500 11.5px var(--body);color:#98a0b2;text-decoration:line-through;margin-bottom:1px}
+.plan-price{overflow-wrap:anywhere}
+.plan-tag.mine{background:#dff7ea;color:#0a7a47}
+.plan-card.special-plan{border-color:rgba(18,183,106,.55);box-shadow:0 10px 26px rgba(18,183,106,.12)}
+.summary-special{margin-top:12px;padding:10px 12px;border-radius:var(--r-sm);background:rgba(255,210,28,.12);color:#ffe98a;font-size:12.5px;line-height:1.45;font-weight:600;overflow-wrap:anywhere}
+.summary-special[hidden]{display:none}
+.support-strip.channel-strip{margin-bottom:14px}
+.support-strip>div{min-width:0}
+.support-strip a{max-width:100%}
+
+/* Very small phones: nothing may overflow the screen */
+@media (max-width:399px){
+  .brand small{display:none}
+  .track-link{padding:0 11px;font-size:12.5px}
+  .brand strong{font-size:14px}
+}
+@media (max-width:379px){
+  .plan-tag{position:static;align-self:flex-start;margin-bottom:6px}
+  .plan-size{font-size:22px}
+  .hero h1{font-size:36px}
+}
+@media (min-width:430px){ .account-link span{display:inline} }
+
 /* ==========================================================================
    Tablet and up
    ========================================================================== */

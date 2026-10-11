@@ -4,7 +4,9 @@ const path = require('path');
 const cors = require('cors');
 const apiRoutes = require('./routes/api');
 const adminRoutes = require('./routes/admin');
+const accountRoutes = require('./routes/account');
 const { initDb } = require('./services/orderStore');
+const { initCustomerDb } = require('./services/customers');
 
 const app = express();
 app.disable('x-powered-by');
@@ -36,11 +38,13 @@ app.use((req, res, next) => {
 });
 
 app.use('/api/admin', adminRoutes);
+app.use('/api/account', accountRoutes);
 app.use('/api', apiRoutes);
 app.use(express.static(path.join(__dirname, 'public')));
 
 const PORT = process.env.PORT || 3000;
 initDb()
+  .then(() => initCustomerDb())
   .then(() => {
     app.listen(PORT, () => {
       console.log(`Abrants Data Store running on http://localhost:${PORT}`);
