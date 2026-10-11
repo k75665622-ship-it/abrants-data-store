@@ -78,7 +78,15 @@ function orderFromMetadata(reference, tx) {
   } else { return null; }
   const price = Number(o.priceGHS);
   if (!o.planId || !o.network || !o.networkCode || !Number.isFinite(price) || price <= 0 || !PHONE_RE.test(String(o.phone || ''))) return null;
-  return { reference, ...o };
+  // Paystack turns empty values (null) into "" - turn them back so the database accepts them.
+  const num = (v) => (v === '' || v == null || !Number.isFinite(Number(v)) ? null : Number(v));
+  return {
+    reference, ...o,
+    capacityGB: Number(o.capacityGB), priceGHS: price,
+    providerCostGHS: num(o.providerCostGHS), paymentFeeGHS: num(o.paymentFeeGHS),
+    customerId: num(o.customerId), offerId: num(o.offerId), listPriceGHS: num(o.listPriceGHS),
+    email: o.email || '',
+  };
 }
 
 function paymentMatchesOrder(tx, order) {
