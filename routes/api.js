@@ -56,13 +56,26 @@ function signOrderFields(reference, o) {
   return crypto.createHmac('sha256', process.env.PAYSTACK_SECRET_KEY || '').update(text).digest('hex');
 }
 
+// v2: the order is carried as one JSON text and signed exactly as written, so it cannot be
+// changed by the way Paystack stores or returns numbers.
+function signOrderText(reference, text) {
+  return crypto.createHmac('sha256', process.env.PAYSTACK_SECRET_KEY || '').update(`abrants-order-v2|${reference}|${text}`).digest('hex');
+}
+
 function orderFromMetadata(reference, tx) {
   let meta = tx && tx.metadata;
-  if (typeof meta === 'string') { try { meta = JSON.parse(meta); } catch { return null; } }
+  if (typeof meta === 'string') { try { meta = JSON.parse(meta); } catch { meta = null; } }
   const pack = meta && meta.abrants;
-  if (!pack || !pack.o || typeof pack.sig !== 'string') return null;
-  if (!safeEqualHex(signOrderFields(reference, pack.o), pack.sig)) return null;
-  const o = pack.o;
+  if (!pack || typeof pack.sig !== 'string') { console.warn('Order details missing from Paystack metadata:', reference, meta ? Object.keys(meta).join(',') : 'no metadata'); return null; }
+  let o = null;
+  if (typeof pack.d === 'string') {
+    if (!safeEqualHex(signOrderText(reference, pack.d), pack.sig)) { console.warn('Order signature (v2) did not match:', reference); return null; }
+    try { o = JSON.parse(pack.d); } catch { return null; }
+  } else if (pack.o) {
+    // Older format used during the first deploy.
+    if (!safeEqualHex(signOrderFields(reference, pack.o), pack.sig)) { console.warn('Order signature (v1) did not match:', reference); return null; }
+    o = pack.o;
+  } else { return null; }
   const price = Number(o.priceGHS);
   if (!o.planId || !o.network || !o.networkCode || !Number.isFinite(price) || price <= 0 || !PHONE_RE.test(String(o.phone || ''))) return null;
   return { reference, ...o };
@@ -152,7 +165,7 @@ router.post('/checkout', checkoutLimit, optionalCustomer(), async (req, res) => 
     const origin = `${req.protocol}://${req.get('host')}`;
     const tx = await initializeTransaction({
       email, amountGHS: priceGHS, reference,
-      metadata: { phone, network: plan.network, label: plan.label, planId: plan.id, abrants: { o: orderFields, sig: signOrderFields(reference, orderFields) } },
+      metadata: { phone, network: plan.network, label: plan.label, planId: plan.id, abrants: (() => { const d = JSON.stringify(orderFields); return { d, sig: signOrderText(reference, d) }; })() },
       callbackUrl: `${origin}/order-status.html`,
     });
     res.json({ authorizationUrl: tx.authorization_url, reference });
@@ -184,9 +197,21 @@ router.get('/history', historyLimit, async (req, res) => {
   }
 
   try {
-    const rows = reference
+    let rows = reference
       ? await getOrderHistoryByPhone(phone, reference)
       : await getRecentOrdersByPhone(phone, 20);
+
+    // A paid order may not be saved yet (it is created when Paystack confirms the payment).
+    if (reference && !rows.length && /^DB-[A-Za-z0-9-]+$/.test(reference)) {
+      try {
+        const tx = await verifyTransaction(reference);
+        const f = tx && tx.status === 'success' ? orderFromMetadata(reference, tx) : null;
+        if (f && f.phone === phone) {
+          await confirmAndFulfill(reference, tx);
+          rows = await getOrderHistoryByPhone(phone, reference);
+        }
+      } catch (e) { /* not paid or not known to Paystack: fall through to "not found" */ }
+    }
 
     res.json(rows);
   } catch (err) {
