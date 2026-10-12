@@ -262,7 +262,7 @@ No new environment variables are needed. Customer logins are signed with `ADMIN_
 DataHustle stays the default. To deliver a network through FastDealsGH instead:
 
 1. Fund your FastDealsGH wallet and add `FASTDEALS_API_KEY` in Render (Environment). Optional: `FASTDEALS_BASE_URL`, `FASTDEALS_MOCK_MODE`.
-2. Admin → Settings → Delivery provider: press **Check FastDealsGH** to see matched plans and costs, then choose a provider per network and save.
+2. Admin → Settings → Delivery provider: press **Check FastDealsGH** to see matched plans and costs, then pick DataHustle or FastDealsGH for all orders and save. Switch back the same way.
 3. Orders remember which provider delivered them (`orders.provider`). FastDeals has no webhook, so a poller checks their order status every 2 minutes.
 
 Note: FastDeals has no idempotency key, so before retrying a timed-out order check their order history first.

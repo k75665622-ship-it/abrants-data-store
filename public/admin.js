@@ -761,14 +761,14 @@
   function loadProviders() {
     api('/api/admin/settings').then(function (s) {
       var p = s.providers || {};
-      ['MTN', 'Telecel', 'AirtelTigo'].forEach(function (n) { var el = $('#prov' + n); if (el) el.value = p[n] || 'datahustle'; });
+      var el = $('#provAll'); if (el) el.value = p.MTN || 'datahustle';
     }).catch(function () {});
   }
   $('#provSaveBtn').addEventListener('click', function () {
     var btn = this; setBusy(btn, true, 'Saving…');
-    var body = { providers: { MTN: $('#provMTN').value, Telecel: $('#provTelecel').value, AirtelTigo: $('#provAirtelTigo').value } };
+    var v = $('#provAll').value; var body = { providers: { MTN: v, Telecel: v, AirtelTigo: v } };
     api('/api/admin/settings', { method: 'PUT', body: JSON.stringify(body) })
-      .then(function () { toast('Delivery providers saved.', 'success'); })
+      .then(function () { toast('Saved. New orders will be delivered by '+($('#provAll').value==='fastdeals'?'FastDealsGH':'DataHustle')+'.', 'success'); })
       .catch(function (err) { toast(err.message, 'error'); })
       .then(function () { setBusy(btn, false); });
   });
