@@ -278,11 +278,14 @@
     var pill = $('#walletPill');
     api('/api/admin/wallet').then(function (w) {
       pill.classList.remove('err', 'low', 'mock');
-      var low = w.lowWalletThreshold > 0 && w.balance < w.lowWalletThreshold;
+      var activeBal = w.active === 'fastdeals' ? w.fastdeals : w.datahustle;
+      var low = w.lowWalletThreshold > 0 && activeBal != null && activeBal < w.lowWalletThreshold;
       if (low) pill.classList.add('low');
       if (w.mockMode) pill.classList.add('mock');
-      pill.textContent = (w.mockMode ? 'Mock · ' : '') + 'Wallet ' + money(w.balance);
-      pill.title = w.mockMode ? 'Mock mode: no real provider purchases' : 'DataHustle wallet balance';
+      var parts = ['DataHustle ' + (w.datahustle == null ? '—' : money(w.datahustle))];
+      if (w.fastdealsConfigured) parts.push('FastDeals ' + (w.fastdeals == null ? '—' : money(w.fastdeals)));
+      pill.textContent = (w.mockMode ? 'Mock · ' : '') + parts.join(' · ');
+      pill.title = 'Wallet balances. Orders are delivered by ' + (w.active === 'fastdeals' ? 'FastDealsGH' : 'DataHustle') + ' right now.';
     }).catch(function () {
       pill.classList.remove('low', 'mock');
       pill.classList.add('err');
