@@ -5,7 +5,7 @@ const {
   getPlans, getPlan, createPlan, updatePlan, updatePlanPrice, updatePlanProviderCost, deletePlan,
   getBlockedNumbers, blockNumber, unblockNumber,
   getSettings, saveSettings, logAdminAction, getAuditLog,
-  updateOrder, normalizePhone, PHONE_RE, ORDER_STATUSES,
+  updateOrder, normalizePhone, PHONE_RE, ORDER_STATUSES, countOldOrders, deleteOldOrders,
 } = require('../services/orderStore');
 const { getWalletBalance, getWebhookStatus, setWebhookActive } = require('../services/datahustle');
 const providers = require('../services/providers');
@@ -107,6 +107,13 @@ router.get('/orders', async (req, res) => {
 
 // Fetch one order directly. This avoids relying on the paginated/search response
 // when the admin opens an order from the Orders table.
+router.get('/orders/cleanup-preview', async (req, res) => {
+  try {
+    const months = [6, 12].includes(Number(req.query.months)) ? Number(req.query.months) : 6;
+    res.json(await countOldOrders(months));
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Could not check old orders.' }); }
+});
+
 router.get('/orders/:reference', async (req, res, next) => {
   if (req.params.reference === 'export') return next();
   try {
@@ -214,6 +221,16 @@ router.post('/orders/:reference/retry', async (req, res) => {
   }
 });
 
+router.post('/orders/cleanup', async (req, res) => {
+  try {
+    const months = [6, 12].includes(Number(req.body?.months)) ? Number(req.body.months) : 6;
+    if (String(req.body?.confirm || '') !== 'DELETE') return res.status(400).json({ error: 'Type DELETE to confirm.' });
+    const deleted = await deleteOldOrders(months);
+    await audit(req, 'orders.cleanup', { months, deleted });
+    res.json({ deleted, months });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Could not delete old orders.' }); }
+});
+
 router.post('/orders/:reference/refund', async (req, res) => {
   try {
     const ref = String(req.params.reference || '');
@@ -221,7 +238,9 @@ router.post('/orders/:reference/refund', async (req, res) => {
     if (!order) return res.status(404).json({ error: 'Order not found.' });
     if (!['delivery_failed', 'delivery_review', 'paid'].includes(order.status)) return res.status(400).json({ error: 'Only failed/paid orders can be refunded.' });
     if (order.source === 'gift' || Number(order.priceGHS) <= 0) return res.status(400).json({ error: 'This was a free bundle, so there is nothing to refund.' });
-    if (order.refundStatus === 'processed') return res.status(409).json({ error: 'This order is already refunded.' });
+    if (['refunding', 'refunded'].includes(order.status) || ['pending', 'processing', 'processed', 'queued'].includes(order.refundStatus || '')) {
+      return res.status(409).json({ error: 'This order has already been refunded or a refund is in progress. Do not refund it again.' });
+    }
     const refund = await refundTransaction(order.reference, order.priceGHS);
     const updated = await updateOrder(order.reference, {
       status: 'refunding', refundId: refund?.id ? String(refund.id) : null,

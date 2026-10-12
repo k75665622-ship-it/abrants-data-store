@@ -768,6 +768,29 @@
       var el = $('#provAll'); if (el) el.value = p.MTN || 'datahustle';
     }).catch(function () {});
   }
+
+  /* ---- Clear old orders ---- */
+  var cleanPending = 0;
+  $('#cleanMonths').addEventListener('change', function () { $('#cleanDeleteBtn').hidden = true; $('#cleanResult').textContent = ''; });
+  $('#cleanCheckBtn').addEventListener('click', function () {
+    var btn = this; setBusy(btn, true, 'Checking…');
+    api('/api/admin/orders/cleanup-preview?months=' + encodeURIComponent($('#cleanMonths').value)).then(function (r) {
+      cleanPending = r.count;
+      $('#cleanResult').textContent = r.count ? (r.count + ' delivered or refunded order' + (r.count > 1 ? 's' : '') + ' older than ' + r.months + ' months can be deleted.') : 'Nothing to delete. No finished orders are older than ' + r.months + ' months.';
+      $('#cleanDeleteBtn').textContent = 'Delete ' + r.count + ' orders';
+      $('#cleanDeleteBtn').hidden = !r.count;
+    }).catch(function (err) { toast(err.message, 'error'); }).then(function () { setBusy(btn, false); });
+  });
+  $('#cleanDeleteBtn').addEventListener('click', function () {
+    var btn = this, months = $('#cleanMonths').value;
+    var typed = prompt('This permanently deletes ' + cleanPending + ' old orders and cannot be undone.\n\nHave you exported a CSV copy? Type DELETE to continue.');
+    if (typed !== 'DELETE') return;
+    setBusy(btn, true, 'Deleting…');
+    api('/api/admin/orders/cleanup', { method: 'POST', body: JSON.stringify({ months: Number(months), confirm: 'DELETE' }) })
+      .then(function (r) { toast(r.deleted + ' old orders deleted.', 'success'); $('#cleanResult').textContent = r.deleted + ' orders deleted.'; btn.hidden = true; loadStats && loadStats(); })
+      .catch(function (err) { toast(err.message, 'error'); })
+      .then(function () { setBusy(btn, false); });
+  });
   $('#provSaveBtn').addEventListener('click', function () {
     var btn = this; setBusy(btn, true, 'Saving…');
     var v = $('#provAll').value; var body = { providers: { MTN: v, Telecel: v, AirtelTigo: v } };

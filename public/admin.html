@@ -10,7 +10,7 @@
 <link rel="icon" type="image/svg+xml" href="/icon.svg" />
 <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png" />
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-<link rel="stylesheet" href="admin.css?v=3" />
+<link rel="stylesheet" href="admin.css?v=4" />
 </head>
 <body>
 
@@ -335,6 +335,19 @@
           </div>
 
           <div class="panel" style="margin-top:18px">
+            <div class="panel-head"><h3>Clear old orders</h3></div>
+            <div class="panel-body">
+              <p class="muted" style="margin:0 0 12px">Permanently delete delivered and refunded orders older than the period you choose. Orders that still need attention are never deleted. Your sales and profit totals will go down because they are worked out from orders, so use <b>Export CSV</b> on the Orders page first to keep a copy.</p>
+              <label class="field" style="margin-bottom:14px"><span>Older than</span><select id="cleanMonths"><option value="6">6 months</option><option value="12">12 months</option></select></label>
+              <div class="drawer-actions">
+                <button class="btn btn-ghost btn-sm" type="button" id="cleanCheckBtn">Check how many</button>
+                <button class="btn btn-danger btn-sm" type="button" id="cleanDeleteBtn" hidden>Delete</button>
+              </div>
+              <div id="cleanResult" class="muted" style="margin-top:12px"></div>
+            </div>
+          </div>
+
+          <div class="panel" style="margin-top:18px">
             <div class="panel-head"><h3>Delivery provider</h3></div>
             <div class="panel-body">
               <p class="muted" style="margin:0 0 12px">Choose who delivers all your data orders. Switch any time; orders already placed are not changed.</p>
@@ -495,7 +508,7 @@
 
 <div class="toast-stack" id="toastStack" aria-live="polite"></div>
 
-<script src="admin.js?v=3"></script>
+<script src="admin.js?v=4"></script>
 <script src="admin-customers.js"></script>
 </body>
 </html>

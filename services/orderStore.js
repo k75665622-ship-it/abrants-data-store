@@ -870,7 +870,28 @@ async function getRecentOrdersByPhone(phone, limit = 5) {
   }));
 }
 
+// Old finished orders (delivered, or refunded) that can be cleared out. Orders that still need
+// attention (paid, processing, under review, refunding, failed) are never included.
+const CLEANABLE_STATUSES = ['fulfilled', 'refunded'];
+async function countOldOrders(months) {
+  const m = Math.max(1, Math.floor(Number(months) || 6));
+  const r = await pool.query(
+    "SELECT COUNT(*)::int AS n, MIN(created_at) AS oldest, MAX(created_at) AS newest FROM orders WHERE status = ANY($1) AND created_at < NOW() - make_interval(months => $2)",
+    [CLEANABLE_STATUSES, m]
+  );
+  return { count: r.rows[0].n, oldest: r.rows[0].oldest, newest: r.rows[0].newest, months: m };
+}
+async function deleteOldOrders(months) {
+  const m = Math.max(1, Math.floor(Number(months) || 6));
+  const r = await pool.query(
+    "DELETE FROM orders WHERE status = ANY($1) AND created_at < NOW() - make_interval(months => $2)",
+    [CLEANABLE_STATUSES, m]
+  );
+  return r.rowCount;
+}
+
 module.exports = {
+  countOldOrders, deleteOldOrders,
   initDb,
   getStalePendingOrders,
   deleteUnpaidOrder,
