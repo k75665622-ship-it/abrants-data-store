@@ -257,6 +257,16 @@ Customers can create an account (phone number + password) on **/account.html**. 
 
 No new environment variables are needed. Customer logins are signed with `ADMIN_SECRET`. To use a separate secret, set `CUSTOMER_SECRET`. The new database tables are created automatically on first start.
 
+## 12. Second delivery provider: FastDealsGH
+
+DataHustle stays the default. To deliver a network through FastDealsGH instead:
+
+1. Fund your FastDealsGH wallet and add `FASTDEALS_API_KEY` in Render (Environment). Optional: `FASTDEALS_BASE_URL`, `FASTDEALS_MOCK_MODE`.
+2. Admin → Settings → Delivery provider: press **Check FastDealsGH** to see matched plans and costs, then pick DataHustle or FastDealsGH for all orders and save. Switch back the same way.
+3. Orders remember which provider delivered them (`orders.provider`). FastDeals has no webhook, so a poller checks their order status every 2 minutes.
+
+Note: FastDeals has no idempotency key, so before retrying a timed-out order check their order history first.
+
 ## Notes
 
 - Orders are stored in PostgreSQL and survive server restarts/redeploys.

@@ -335,6 +335,19 @@
           </div>
 
           <div class="panel" style="margin-top:18px">
+            <div class="panel-head"><h3>Delivery provider</h3></div>
+            <div class="panel-body">
+              <p class="muted" style="margin:0 0 12px">Choose who delivers all your data orders. Switch any time; orders already placed are not changed.</p>
+              <label class="field" style="margin-bottom:14px"><span>Deliver with</span><select id="provAll"><option value="datahustle">DataHustle</option><option value="fastdeals">FastDealsGH</option></select></label>
+              <div class="drawer-actions">
+                <button class="btn btn-primary btn-sm" type="button" id="provSaveBtn">Save</button>
+                <button class="btn btn-ghost btn-sm" type="button" id="fdCheckBtn">Check FastDealsGH</button>
+              </div>
+              <div id="fdResult" style="margin-top:14px"></div>
+            </div>
+          </div>
+
+          <div class="panel" style="margin-top:18px">
             <div class="panel-head"><h3>DataHustle connection</h3></div>
             <div class="panel-body">
               <p class="muted" style="margin:0 0 12px">Checks that DataHustle can tell your store when a bundle is delivered.</p>

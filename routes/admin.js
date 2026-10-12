@@ -7,7 +7,9 @@ const {
   getSettings, saveSettings, logAdminAction, getAuditLog,
   updateOrder, normalizePhone, PHONE_RE, ORDER_STATUSES,
 } = require('../services/orderStore');
-const { getWalletBalance, purchaseData, getWebhookStatus, setWebhookActive } = require('../services/datahustle');
+const { getWalletBalance, getWebhookStatus, setWebhookActive } = require('../services/datahustle');
+const providers = require('../services/providers');
+const fastdeals = require('../services/fastdeals');
 const { refundTransaction } = require('../services/paystack');
 const {
   listCustomersAdmin, customerSummary, getCustomer, listOffers, createOffers, deactivateOffer,
@@ -192,15 +194,14 @@ router.post('/orders/:reference/retry', async (req, res) => {
       return res.status(409).json({ error: 'The provider already accepted this order. Check the tracking ID before retrying.' });
     }
 
-    const result = await purchaseData({
-      network: order.networkCode, phone: order.phone, capacityGB: order.capacityGB, reference,
-    });
+    const provider = providers.providerFor(await getSettings(), order.network);
+    const result = await providers.purchase(provider, order);
     if (!result.accepted) {
       const failed = await updateOrder(reference, { status: 'delivery_failed' }, 'admin.retry.failed');
       await audit(req, 'order.retry', { reference, result: 'rejected' });
       return res.status(502).json({ error: 'The provider rejected the retry.', order: failed });
     }
-    const changes = { status: 'processing', providerReference: result.transactionReference, purchaseId: result.purchaseId };
+    const changes = { status: result.delivered ? 'fulfilled' : 'processing', provider, providerReference: result.transactionReference, purchaseId: result.purchaseId };
     if (Number.isFinite(Number(result.priceGHS))) changes.providerCostGHS = Number(result.priceGHS);
     const updated = await updateOrder(reference, changes, 'admin.retry.accepted');
     await audit(req, 'order.retry', { reference, result: 'accepted' });
@@ -472,6 +473,19 @@ router.put('/settings', async (req, res) => {
       }
       patch.channelLink = link;
     }
+    if (body.providers != null && typeof body.providers === 'object') {
+      const current = (await getSettings()).providers || {};
+      const next = { ...current };
+      for (const net of ['MTN', 'Telecel', 'AirtelTigo']) {
+        if (body.providers[net] == null) continue;
+        if (!providers.PROVIDER_NAMES.includes(body.providers[net])) return res.status(400).json({ error: 'Unknown delivery provider.' });
+        if (body.providers[net] === 'fastdeals' && !fastdeals.configured()) {
+          return res.status(400).json({ error: 'FastDealsGH is not connected yet. Add FASTDEALS_API_KEY in Render first.' });
+        }
+        next[net] = body.providers[net];
+      }
+      patch.providers = next;
+    }
     if (body.maintenanceMode != null) patch.maintenanceMode = Boolean(body.maintenanceMode);
     if (body.maintenanceMessage != null) patch.maintenanceMessage = String(body.maintenanceMessage).trim().slice(0, 200);
     if (body.lowWalletThreshold != null) {
@@ -482,6 +496,27 @@ router.put('/settings', async (req, res) => {
     await audit(req, 'settings.update', patch);
     res.json(settings);
   } catch (err) { console.error(err); res.status(500).json({ error: 'Could not save settings.' }); }
+});
+
+// FastDealsGH: balance, plus how each of our bundles lines up with one of their plans.
+router.get('/fastdeals', async (req, res) => {
+  if (!fastdeals.configured()) return res.json({ keySet: false });
+  try {
+    const [balance, ours] = await Promise.all([fastdeals.getWalletBalance(), getPlans()]);
+    const rows = [];
+    for (const p of ours) {
+      let match = null, problem = null;
+      try { match = await fastdeals.findPlan(p.network, p.capacityGB, { fresh: true }); } catch (e) { problem = e.response?.status ? 'HTTP ' + e.response.status : e.message; }
+      rows.push({
+        network: p.network, label: p.label, ourCost: p.providerCostGHS, ourPrice: p.priceGHS,
+        theirName: match ? match.name : null, theirPrice: match && match.price != null ? Number(match.price) : null, problem,
+      });
+    }
+    res.json({ keySet: true, balance: balance == null ? null : Number(balance), plans: rows });
+  } catch (err) {
+    console.error('FastDeals check error:', err.response?.data || err.message);
+    res.status(502).json({ keySet: true, error: 'Could not reach FastDealsGH: ' + (err.response?.data?.message || err.message) });
+  }
 });
 
 router.get('/wallet', async (req, res) => {
