@@ -209,7 +209,8 @@ router.post('/orders/:reference/retry', async (req, res) => {
   } catch (err) {
     console.error('Retry error:', err.response?.data || err.message);
     await audit(req, 'order.retry', { reference: req.params.reference, result: 'error' });
-    res.status(502).json({ error: 'The retry could not be confirmed. The order was left under review — do not refund blindly.' });
+    const why = String(err.response?.data?.message || err.response?.data?.error || err.message || '').slice(0, 160);
+    res.status(502).json({ error: 'The retry could not be confirmed' + (why ? ' (' + why + ')' : '') + '. The order was left under review. If the provider has no record of it, use Refund customer.' });
   }
 });
 
