@@ -756,6 +756,8 @@
       $('#setSupportPhone').value = s.supportPhone || '';
       $('#setChannelLink').value = s.channelLink || '';
       $('#setLowWallet').value = s.lowWalletThreshold || 0;
+      ['MTN', 'Telecel', 'AirtelTigo'].forEach(function (n) { $('#pause' + n).checked = (s.pausedNetworks || []).indexOf(n) !== -1; });
+      $('#setPauseMsg').value = s.pauseMessage || '';
       $('#setMaintenance').checked = Boolean(s.maintenanceMode);
       $('#setMaintenanceMsg').value = s.maintenanceMessage || '';
     }).catch(function (err) { toast(err.message, 'error'); });
@@ -861,6 +863,8 @@
       supportPhone: $('#setSupportPhone').value.trim(),
       channelLink: $('#setChannelLink').value.trim(),
       lowWalletThreshold: Number($('#setLowWallet').value || 0),
+      pausedNetworks: ['MTN', 'Telecel', 'AirtelTigo'].filter(function (n) { return $('#pause' + n).checked; }),
+      pauseMessage: $('#setPauseMsg').value.trim(),
       maintenanceMode: $('#setMaintenance').checked,
       maintenanceMessage: $('#setMaintenanceMsg').value.trim()
     };

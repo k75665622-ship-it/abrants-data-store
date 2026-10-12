@@ -31,6 +31,8 @@ const DEFAULT_SETTINGS = {
   supportPhone: '',
   channelLink: '',
   providers: { MTN: 'datahustle', Telecel: 'datahustle', AirtelTigo: 'datahustle' },
+  pausedNetworks: [],
+  pauseMessage: "{network} bundles are temporarily out of stock with our supplier. We are sorting it out. Please try again later or choose another network. You have not been charged.",
   maintenanceMode: false,
   maintenanceMessage: "We are doing a quick upgrade. Please check back in a few minutes.",
   lowWalletThreshold: 100,
