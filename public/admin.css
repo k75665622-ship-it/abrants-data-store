@@ -135,6 +135,8 @@ h1,h2,h3{font-weight:700;letter-spacing:-.02em}
 .wallet-pill.err{color:#ffb4b4;border-color:rgba(248,113,113,.3)}
 .wallet-pill.err::before{background:var(--red)}
 .wallet-pill.mock::before{background:var(--blue)}
+.wallet-pill.stack{border-radius:14px;padding:6px 12px;line-height:1.35;max-width:none}
+.wallet-pill.stack .wl{display:block;white-space:nowrap}
 
 /* ----------------------------------------------------------------- Layout */
 .container{padding:22px var(--pad) calc(96px + var(--safe-b))}

@@ -284,7 +284,8 @@
       if (w.mockMode) pill.classList.add('mock');
       var parts = ['DataHustle ' + (w.datahustle == null ? '—' : money(w.datahustle))];
       if (w.fastdealsConfigured) parts.push('FastDeals ' + (w.fastdeals == null ? '—' : money(w.fastdeals)));
-      pill.textContent = (w.mockMode ? 'Mock · ' : '') + parts.join(' · ');
+      pill.classList.add('stack');
+      pill.innerHTML = (w.mockMode ? '<span class="wl">Mock mode</span>' : '') + parts.map(function (t) { return '<span class="wl">' + t + '</span>'; }).join('');
       pill.title = 'Wallet balances. Orders are delivered by ' + (w.active === 'fastdeals' ? 'FastDealsGH' : 'DataHustle') + ' right now.';
     }).catch(function () {
       pill.classList.remove('low', 'mock');
