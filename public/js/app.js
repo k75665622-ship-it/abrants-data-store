@@ -99,7 +99,7 @@
         if (contact) {
           var link = $('supportLink');
           link.href = data.supportWhatsapp
-            ? 'https://wa.me/' + String(data.supportWhatsapp).replace(/[^\d]/g, '')
+            ? 'https://wa.me/' + String(data.supportWhatsapp).replace(/[^\d]/g, '').replace(/^0(\d{9})$/, '233$1')
             : 'tel:' + data.supportPhone;
           $('supportStrip').hidden = false;
         }
