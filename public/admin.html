@@ -10,7 +10,7 @@
 <link rel="icon" type="image/svg+xml" href="/icon.svg" />
 <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png" />
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-<link rel="stylesheet" href="admin.css?v=4" />
+<link rel="stylesheet" href="admin.css?v=5" />
 </head>
 <body>
 
@@ -350,8 +350,11 @@
           <div class="panel" style="margin-top:18px">
             <div class="panel-head"><h3>Delivery provider</h3></div>
             <div class="panel-body">
-              <p class="muted" style="margin:0 0 12px">Choose who delivers all your data orders. Switch any time; orders already placed are not changed.</p>
-              <label class="field" style="margin-bottom:14px"><span>Deliver with</span><select id="provAll"><option value="datahustle">DataHustle</option><option value="fastdeals">FastDealsGH</option></select></label>
+              <p class="muted" style="margin:0 0 12px">Choose who delivers each network. For example, MTN on DataHustle and Telecel (Vodafone) on FastDealsGH. Orders already placed are not changed.</p>
+              <label class="field" style="margin-bottom:10px"><span>MTN</span><select id="provMTN"><option value="datahustle">DataHustle</option><option value="fastdeals">FastDealsGH</option></select></label>
+              <label class="field" style="margin-bottom:10px"><span>Telecel (Vodafone)</span><select id="provTelecel"><option value="datahustle">DataHustle</option><option value="fastdeals">FastDealsGH</option></select></label>
+              <label class="field" style="margin-bottom:10px"><span>AirtelTigo</span><select id="provAirtelTigo"><option value="datahustle">DataHustle</option><option value="fastdeals">FastDealsGH</option></select></label>
+              <p class="muted" style="margin:0 0 14px;font-size:13px">Quick set: <a href="#" id="provAllDH">all DataHustle</a> · <a href="#" id="provAllFD">all FastDealsGH</a></p>
               <div class="drawer-actions">
                 <button class="btn btn-primary btn-sm" type="button" id="provSaveBtn">Save</button>
                 <button class="btn btn-ghost btn-sm" type="button" id="fdCheckBtn">Check FastDealsGH</button>
@@ -508,7 +511,7 @@
 
 <div class="toast-stack" id="toastStack" aria-live="polite"></div>
 
-<script src="admin.js?v=4"></script>
+<script src="admin.js?v=5"></script>
 <script src="admin-customers.js"></script>
 </body>
 </html>
