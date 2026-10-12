@@ -70,6 +70,7 @@
   }
   $('tabLogin').addEventListener('click', function () { setAuthTab('login'); });
   $('tabRegister').addEventListener('click', function () { setAuthTab('register'); });
+  if (location.hash === '#register') setAuthTab('register');
 
   function digitsOnly(input) {
     input.addEventListener('input', function () {

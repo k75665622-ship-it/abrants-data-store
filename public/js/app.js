@@ -321,13 +321,14 @@
     return fetch('/api/account/me', { credentials: 'same-origin' })
       .then(function (res) { return res.ok ? res.json() : null; })
       .then(function (data) {
-        if (!data || !data.customer) return;
+        if (!data || !data.customer) { if ($('memberPromo')) $('memberPromo').hidden = false; return; }
         CUSTOMER = data.customer;
         var first = String(CUSTOMER.name || '').split(' ')[0] || 'Account';
         $('accountLinkText').textContent = first;
         $('accountLink').classList.add('logged-in');
         $('accountDot').hidden = !data.unread;
         $('guestHint').hidden = true;
+        if ($('memberPromo')) $('memberPromo').hidden = true;
         if (!phoneInput.value && CUSTOMER.phone) phoneInput.value = CUSTOMER.phone;
         if (!emailInput.value && CUSTOMER.email) emailInput.value = CUSTOMER.email;
         if (data.offers) {
@@ -335,7 +336,7 @@
           $('offerBanner').hidden = false;
         }
       })
-      .catch(function () { /* optional */ });
+      .catch(function () { if ($('memberPromo')) $('memberPromo').hidden = false; });
   }
 
   loadSettings();
