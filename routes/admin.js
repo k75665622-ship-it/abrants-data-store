@@ -520,17 +520,24 @@ router.get('/fastdeals', async (req, res) => {
 });
 
 router.get('/wallet', async (req, res) => {
-  try {
-    const balance = await getWalletBalance();
-    const settings = await getSettings();
-    res.json({
-      balance: Number(balance || 0),
-      mockMode: process.env.DATAHUSTLE_MOCK_MODE === 'true',
-      lowWalletThreshold: Number(settings.lowWalletThreshold || 0),
-    });
-  } catch (err) {
-    res.status(502).json({ error: 'Could not check DataHustle wallet.' });
+  const settings = await getSettings();
+  const active = (settings.providers && settings.providers.MTN) || 'datahustle';
+  let dh = null;
+  try { dh = Number(await getWalletBalance() || 0); } catch { dh = null; }
+  let fd = null;
+  if (fastdeals.configured()) {
+    try { const b = await fastdeals.getWalletBalance(); fd = b == null ? null : Number(b); } catch { fd = null; }
   }
+  if (dh == null && fd == null) return res.status(502).json({ error: 'Could not check wallets.' });
+  res.json({
+    balance: dh,
+    datahustle: dh,
+    fastdeals: fd,
+    fastdealsConfigured: fastdeals.configured(),
+    active,
+    mockMode: process.env.DATAHUSTLE_MOCK_MODE === 'true',
+    lowWalletThreshold: Number(settings.lowWalletThreshold || 0),
+  });
 });
 
 router.get('/audit', async (req, res) => {
