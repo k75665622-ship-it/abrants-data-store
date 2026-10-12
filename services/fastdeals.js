@@ -7,6 +7,8 @@
 const axios = require('axios');
 
 const NETWORK_KEYS = { MTN: 'mtn', Telecel: 'telecel', AirtelTigo: 'airteltigo' };
+// Other names a provider might use for the same network; tried only if the first one returns no plans.
+const NETWORK_ALIASES = { telecel: ['vodafone'], airteltigo: ['airtel-tigo', 'airtel_tigo', 'at'] };
 const DELIVERED = ['successful', 'success', 'completed', 'delivered'];
 const FAILED = ['failed', 'refunded', 'cancelled', 'canceled', 'rejected', 'error'];
 
@@ -33,8 +35,16 @@ async function listPlans(networkName, { fresh = false } = {}) {
   const key = NETWORK_KEYS[networkName] || String(networkName || '').toLowerCase();
   const hit = planCache.get(key);
   if (!fresh && hit && Date.now() - hit.at < CACHE_MS) return hit.plans;
-  const res = await client.get('/plans', { params: { network: key } });
-  const plans = Array.isArray(res.data?.plans) ? res.data.plans : [];
+  let plans = [];
+  for (const k of [key, ...(NETWORK_ALIASES[key] || [])]) {
+    try {
+      const res = await client.get('/plans', { params: { network: k } });
+      plans = Array.isArray(res.data?.plans) ? res.data.plans : [];
+    } catch (err) {
+      if (k === key) throw err; // real error on the main name; do not hide it
+    }
+    if (plans.length) break;
+  }
   planCache.set(key, { at: Date.now(), plans });
   return plans;
 }

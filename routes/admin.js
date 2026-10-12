@@ -541,7 +541,8 @@ router.get('/fastdeals', async (req, res) => {
 
 router.get('/wallet', async (req, res) => {
   const settings = await getSettings();
-  const active = (settings.providers && settings.providers.MTN) || 'datahustle';
+  const pv = settings.providers || {};
+  const used = ['MTN', 'Telecel', 'AirtelTigo'].map((n) => pv[n] || 'datahustle');
   let dh = null;
   try { dh = Number(await getWalletBalance() || 0); } catch { dh = null; }
   let fd = null;
@@ -554,7 +555,8 @@ router.get('/wallet', async (req, res) => {
     datahustle: dh,
     fastdeals: fd,
     fastdealsConfigured: fastdeals.configured(),
-    active,
+    usesDatahustle: used.includes('datahustle'),
+    usesFastdeals: used.includes('fastdeals'),
     mockMode: process.env.DATAHUSTLE_MOCK_MODE === 'true',
     lowWalletThreshold: Number(settings.lowWalletThreshold || 0),
   });

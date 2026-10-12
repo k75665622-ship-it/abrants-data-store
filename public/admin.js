@@ -278,15 +278,14 @@
     var pill = $('#walletPill');
     api('/api/admin/wallet').then(function (w) {
       pill.classList.remove('err', 'low', 'mock');
-      var activeBal = w.active === 'fastdeals' ? w.fastdeals : w.datahustle;
-      var low = w.lowWalletThreshold > 0 && activeBal != null && activeBal < w.lowWalletThreshold;
+      var low = w.lowWalletThreshold > 0 && ((w.usesDatahustle && w.datahustle != null && w.datahustle < w.lowWalletThreshold) || (w.usesFastdeals && w.fastdeals != null && w.fastdeals < w.lowWalletThreshold));
       if (low) pill.classList.add('low');
       if (w.mockMode) pill.classList.add('mock');
       var parts = ['DataHustle ' + (w.datahustle == null ? '—' : money(w.datahustle))];
       if (w.fastdealsConfigured) parts.push('FastDeals ' + (w.fastdeals == null ? '—' : money(w.fastdeals)));
       pill.classList.add('stack');
       pill.innerHTML = (w.mockMode ? '<span class="wl">Mock mode</span>' : '') + parts.map(function (t) { return '<span class="wl">' + t + '</span>'; }).join('');
-      pill.title = 'Wallet balances. Orders are delivered by ' + (w.active === 'fastdeals' ? 'FastDealsGH' : 'DataHustle') + ' right now.';
+      pill.title = 'Wallet balances for each provider.';
     }).catch(function () {
       pill.classList.remove('low', 'mock');
       pill.classList.add('err');
@@ -765,7 +764,7 @@
   function loadProviders() {
     api('/api/admin/settings').then(function (s) {
       var p = s.providers || {};
-      var el = $('#provAll'); if (el) el.value = p.MTN || 'datahustle';
+      ['MTN', 'Telecel', 'AirtelTigo'].forEach(function (n) { var el = $('#prov' + n); if (el) el.value = p[n] || 'datahustle'; });
     }).catch(function () {});
   }
 
@@ -791,11 +790,14 @@
       .catch(function (err) { toast(err.message, 'error'); })
       .then(function () { setBusy(btn, false); });
   });
+  function setAllProv(v) { return function (e) { e.preventDefault(); ['MTN', 'Telecel', 'AirtelTigo'].forEach(function (n) { $('#prov' + n).value = v; }); }; }
+  $('#provAllDH').addEventListener('click', setAllProv('datahustle'));
+  $('#provAllFD').addEventListener('click', setAllProv('fastdeals'));
   $('#provSaveBtn').addEventListener('click', function () {
     var btn = this; setBusy(btn, true, 'Saving…');
-    var v = $('#provAll').value; var body = { providers: { MTN: v, Telecel: v, AirtelTigo: v } };
+    var body = { providers: { MTN: $('#provMTN').value, Telecel: $('#provTelecel').value, AirtelTigo: $('#provAirtelTigo').value } };
     api('/api/admin/settings', { method: 'PUT', body: JSON.stringify(body) })
-      .then(function () { toast('Saved. New orders will be delivered by '+($('#provAll').value==='fastdeals'?'FastDealsGH':'DataHustle')+'.', 'success'); })
+      .then(function () { toast('Saved. New orders will use your delivery choices.', 'success'); })
       .catch(function (err) { toast(err.message, 'error'); })
       .then(function () { setBusy(btn, false); });
   });
