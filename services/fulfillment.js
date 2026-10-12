@@ -2,21 +2,26 @@
  * Delivery and refund steps shared by paid orders (routes/api.js) and free-bundle
  * redemptions (routes/account.js).
  */
-const { purchaseData } = require('./datahustle');
+const providers = require('./providers');
+const fastdeals = require('./fastdeals');
 const { refundTransaction } = require('./paystack');
-const { updateOrder, transitionOrder, getOrder } = require('./orderStore');
+const { updateOrder, transitionOrder, getOrder, getSettings, getProcessingOrdersByProvider } = require('./orderStore');
 
 /**
  * Sends a paid (or gifted) order to the data provider. The order must already be in the
- * 'paid' state. Delivery is confirmed later by the provider's webhook.
+ * 'paid' state. Delivery is confirmed by the provider's webhook (DataHustle) or straight away / by polling (FastDealsGH).
  */
 async function deliverOrder(order) {
   const reference = order.reference;
   try {
-    const result = await purchaseData({ network: order.networkCode, phone: order.phone, capacityGB: order.capacityGB, reference });
+    const provider = providers.providerFor(await getSettings(), order.network);
+    const result = await providers.purchase(provider, order);
     if (result.accepted) {
+      // A provider that answers "delivered" straight away (FastDealsGH) finishes the order now;
+      // otherwise the order waits in 'processing' for the provider's confirmation.
       const changes = {
-        status: 'processing',
+        status: result.delivered ? 'fulfilled' : 'processing',
+        provider,
         providerReference: result.transactionReference,
         purchaseId: result.purchaseId,
       };
@@ -27,7 +32,7 @@ async function deliverOrder(order) {
       if (failed) await attemptCustomerRefund(reference);
     }
   } catch (err) {
-    console.error('DataHustle purchase error:', err.response?.data || err.message);
+    console.error('Provider purchase error:', err.response?.data || err.message);
     // A timeout/network error is ambiguous: the provider may have accepted the order even
     // though our request did not receive the response. Never auto-refund in that case.
     await transitionOrder(reference, 'paid', { status: 'delivery_review' }, 'delivery.review_required');
@@ -53,4 +58,26 @@ async function attemptCustomerRefund(reference) {
   }
 }
 
-module.exports = { deliverOrder, attemptCustomerRefund };
+/*
+ * FastDealsGH has no webhook, so orders it did not mark delivered straight away are re-checked.
+ * Called every couple of minutes.
+ */
+async function pollFastdealsOrders() {
+  if (!fastdeals.configured()) return;
+  const orders = await getProcessingOrdersByProvider('fastdeals', 45, 50);
+  for (const order of orders) {
+    try {
+      const state = await fastdeals.getOrderStatus(order.providerReference);
+      if (state === 'delivered') {
+        await transitionOrder(order.reference, 'processing', { status: 'fulfilled' }, 'delivery.completed');
+      } else if (state === 'failed') {
+        const failed = await transitionOrder(order.reference, 'processing', { status: 'delivery_failed' }, 'delivery.failed');
+        if (failed) await attemptCustomerRefund(failed.reference);
+      }
+    } catch (err) {
+      console.warn('FastDeals status check skipped', order.reference, err.response?.status || err.message);
+    }
+  }
+}
+
+module.exports = { deliverOrder, attemptCustomerRefund, pollFastdealsOrders };

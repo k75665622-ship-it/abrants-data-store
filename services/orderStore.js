@@ -30,6 +30,7 @@ const DEFAULT_SETTINGS = {
   supportWhatsapp: '',
   supportPhone: '',
   channelLink: '',
+  providers: { MTN: 'datahustle', Telecel: 'datahustle', AirtelTigo: 'datahustle' },
   maintenanceMode: false,
   maintenanceMessage: "We are doing a quick upgrade. Please check back in a few minutes.",
   lowWalletThreshold: 100,
@@ -124,6 +125,7 @@ async function initDb() {
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS refund_id TEXT;
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS refund_status TEXT;
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS admin_note TEXT;
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS provider TEXT NOT NULL DEFAULT 'datahustle';
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_id BIGINT;
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS offer_id BIGINT;
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS list_price_ghs NUMERIC(12,2);
@@ -175,6 +177,7 @@ function mapOrder(row) {
     offerId: row.offer_id == null ? null : Number(row.offer_id),
     listPriceGHS: row.list_price_ghs == null ? null : Number(row.list_price_ghs),
     source: row.source || 'store',
+    provider: row.provider || 'datahustle',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -238,6 +241,7 @@ const ORDER_UPDATE_COLUMNS = {
   providerCostGHS: 'provider_cost_ghs',
   paymentFeeGHS: 'payment_fee_ghs',
   adminNote: 'admin_note',
+  provider: 'provider',
 };
 
 function buildUpdate(changes) {
@@ -361,6 +365,16 @@ async function findOrderForProviderEvent({ transactionId, orderId, phone, networ
     if (r.rows.length === 1) return mapOrder(r.rows[0]);
   }
   return null;
+}
+
+// Orders a provider without a webhook still has to confirm (see services/fulfillment.js).
+async function getProcessingOrdersByProvider(provider, minAgeSeconds = 45, limit = 50) {
+  const r = await pool.query(
+    `SELECT * FROM orders WHERE provider = $1 AND status = 'processing' AND provider_reference IS NOT NULL
+       AND updated_at < NOW() - ($2 || ' seconds')::interval ORDER BY created_at ASC LIMIT $3`,
+    [provider, String(minAgeSeconds), limit]
+  );
+  return r.rows.map(mapOrder);
 }
 
 async function getOrderEvents(reference) {
@@ -861,7 +875,7 @@ module.exports = {
   getStalePendingOrders,
   deleteUnpaidOrder,
   createOrder, updateOrder, transitionOrder, claimOrderForFulfillment,
-  getOrder, getAllOrders, getOrdersPage, getOrderStats, getOrderEvents, findByProviderReference, findOrderForProviderEvent,
+  getOrder, getAllOrders, getOrdersPage, getOrderStats, getOrderEvents, findByProviderReference, findOrderForProviderEvent, getProcessingOrdersByProvider,
   getPlans, getPlan, createPlan, updatePlan, updatePlanPrice, updatePlanProviderCost, deletePlan,
   getSettings, saveSettings, createGiftOrder, pool,
   logAdminAction, getAuditLog,

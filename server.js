@@ -7,6 +7,7 @@ const adminRoutes = require('./routes/admin');
 const accountRoutes = require('./routes/account');
 const { initDb } = require('./services/orderStore');
 const { initCustomerDb } = require('./services/customers');
+const { pollFastdealsOrders } = require('./services/fulfillment');
 
 const app = express();
 app.disable('x-powered-by');
@@ -52,6 +53,9 @@ initDb()
       const sweep = () => apiRoutes.sweepPendingOrders().catch((e) => console.warn('Pending sweep failed:', e.message));
       setTimeout(sweep, 2 * 60 * 1000).unref();
       setInterval(sweep, 60 * 60 * 1000).unref();
+      // FastDealsGH has no webhook: re-check its unconfirmed orders every 2 minutes.
+      const poll = () => pollFastdealsOrders().catch((e) => console.warn('FastDeals poll failed:', e.message));
+      setInterval(poll, 2 * 60 * 1000).unref();
       if (process.env.DATAHUSTLE_MOCK_MODE === 'true') {
         console.log('DataHustle is in MOCK MODE - no real provider wallet purchase will be made.');
       }

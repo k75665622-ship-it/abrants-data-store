@@ -142,7 +142,7 @@
     if (name === 'bundles') loadPlans();
     if (name === 'customers' && window.AbrantsCustomers) window.AbrantsCustomers.load();
     if (name === 'numbers') loadBlocked();
-    if (name === 'settings') loadSettings();
+    if (name === 'settings') { loadSettings(); loadProviders(); }
     if (name === 'activity') loadAudit();
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -757,6 +757,36 @@
       $('#setMaintenanceMsg').value = s.maintenanceMessage || '';
     }).catch(function (err) { toast(err.message, 'error'); });
   }
+
+  function loadProviders() {
+    api('/api/admin/settings').then(function (s) {
+      var p = s.providers || {};
+      ['MTN', 'Telecel', 'AirtelTigo'].forEach(function (n) { var el = $('#prov' + n); if (el) el.value = p[n] || 'datahustle'; });
+    }).catch(function () {});
+  }
+  $('#provSaveBtn').addEventListener('click', function () {
+    var btn = this; setBusy(btn, true, 'Saving…');
+    var body = { providers: { MTN: $('#provMTN').value, Telecel: $('#provTelecel').value, AirtelTigo: $('#provAirtelTigo').value } };
+    api('/api/admin/settings', { method: 'PUT', body: JSON.stringify(body) })
+      .then(function () { toast('Delivery providers saved.', 'success'); })
+      .catch(function (err) { toast(err.message, 'error'); })
+      .then(function () { setBusy(btn, false); });
+  });
+  $('#fdCheckBtn').addEventListener('click', function () {
+    var btn = this; setBusy(btn, true, 'Checking…');
+    api('/api/admin/fastdeals').then(function (r) {
+      if (!r.keySet) { $('#fdResult').innerHTML = '<div class="alert-strip warn"><span class="ico">!</span><div>FastDealsGH is not connected yet. Add <b>FASTDEALS_API_KEY</b> in Render, then check again.</div></div>'; return; }
+      var rows = (r.plans || []).map(function (p) {
+        var ok = p.theirName != null;
+        var margin = ok && p.theirPrice != null ? (Number(p.ourPrice) - p.theirPrice) : null;
+        return '<div class="mini-card"><div class="mini-top"><strong>' + esc(p.network) + ' ' + esc(p.label) + '</strong><span>' + (ok ? '✓ matched' : '✗ no match') + '</span></div>' +
+          '<div class="sub">' + (ok ? esc(p.theirName) + ' · they charge ' + money(p.theirPrice) + ' · you sell at ' + money(p.ourPrice) + (margin != null ? ' · margin ' + money(margin) : '') : esc(p.problem || 'FastDealsGH has no plan of this size')) + '</div></div>';
+      }).join('');
+      $('#fdResult').innerHTML = '<div class="detail-grid"><div class="detail-box"><span>FastDealsGH wallet</span><strong>' + (r.balance == null ? '—' : money(r.balance)) + '</strong></div></div>' +
+        '<p class="muted" style="margin:12px 0 6px">How your bundles line up with theirs:</p>' + rows;
+    }).catch(function (err) { $('#fdResult').innerHTML = '<div class="alert-strip warn"><span class="ico">!</span><div>' + esc(err.message) + '</div></div>'; })
+      .then(function () { setBusy(btn, false); });
+  });
 
   function showWebhook(r) {
     var p = r.provider || {};
