@@ -506,6 +506,8 @@ router.put('/settings', async (req, res) => {
       }
       patch.providers = next;
     }
+    if (Array.isArray(body.pausedNetworks)) patch.pausedNetworks = ['MTN', 'Telecel', 'AirtelTigo'].filter((n) => body.pausedNetworks.includes(n));
+    if (body.pauseMessage != null) patch.pauseMessage = String(body.pauseMessage).trim().slice(0, 300);
     if (body.maintenanceMode != null) patch.maintenanceMode = Boolean(body.maintenanceMode);
     if (body.maintenanceMessage != null) patch.maintenanceMessage = String(body.maintenanceMessage).trim().slice(0, 200);
     if (body.lowWalletThreshold != null) {

@@ -5,7 +5,7 @@
 const providers = require('./providers');
 const fastdeals = require('./fastdeals');
 const { refundTransaction } = require('./paystack');
-const { updateOrder, transitionOrder, getOrder, getSettings, getProcessingOrdersByProvider } = require('./orderStore');
+const { updateOrder, transitionOrder, getOrder, getSettings, saveSettings, getProcessingOrdersByProvider } = require('./orderStore');
 
 /**
  * Sends a paid (or gifted) order to the data provider. The order must already be in the
@@ -36,6 +36,19 @@ async function deliverOrder(order) {
     // A timeout/network error is ambiguous: the provider may have accepted the order even
     // though our request did not receive the response. Never auto-refund in that case.
     await transitionOrder(reference, 'paid', { status: 'delivery_review' }, 'delivery.review_required');
+    // If the provider says the network is out of stock, stop selling it so more customers do not pay for it.
+    const text = String(err.response?.data?.message || err.response?.data?.error || err.message || '');
+    if (/out of stock/i.test(text)) {
+      try {
+        const network = (await getOrder(reference))?.network;
+        const settings = await getSettings();
+        const paused = Array.isArray(settings.pausedNetworks) ? settings.pausedNetworks : [];
+        if (network && !paused.includes(network)) {
+          await saveSettings({ pausedNetworks: [...paused, network] });
+          console.warn('Auto-paused ' + network + ' because the provider reported it is out of stock.');
+        }
+      } catch (e) { console.error('Auto-pause failed:', e.message); }
+    }
   }
 }
 

@@ -3,6 +3,9 @@
   'use strict';
 
   var ALL_PLANS = [];
+  var PAUSED = [];
+  var PAUSE_MSG = '';
+  function pauseText(network) { return (PAUSE_MSG || '{network} bundles are temporarily unavailable. You have not been charged.').replace(/\{network\}/g, network === 'Telecel' ? 'Telecel (Vodafone)' : network); }
   var ACTIVE_NETWORK = 'MTN';
   var SELECTED_PLAN = null;
   var SETTINGS = {};
@@ -107,6 +110,14 @@
           $('channelLink').href = data.channelLink;
           $('channelStrip').hidden = false;
         }
+        PAUSED = Array.isArray(data.pausedNetworks) ? data.pausedNetworks : [];
+        PAUSE_MSG = data.pauseMessage || '';
+        if (ALL_PLANS.length && PAUSED.length) {
+          var nets = [];
+          ALL_PLANS.forEach(function (pl) { if (nets.indexOf(pl.network) === -1) nets.push(pl.network); });
+          renderTabs(nets);
+          renderPlans();
+        }
         if (data.maintenanceMode) {
           toast(data.maintenanceMessage || 'The store is briefly closed for maintenance.', 'error');
         }
@@ -146,12 +157,16 @@
       var dot = network === 'MTN' ? 'mtn' : (network === 'Telecel' ? 'telecel' : 'airtel');
       return '<button class="' + cls + '" role="tab" aria-selected="' + (network === ACTIVE_NETWORK) +
         '" data-network="' + esc(network) + '"><span class="network-dot ' + dot + '"></span>' +
-        esc(network) + '<span class="count">' + count + '</span></button>';
+        esc(network) + (PAUSED.indexOf(network) !== -1 ? '<span class="count paused-tag">paused</span>' : '<span class="count">' + count + '</span>') + '</button>';
     }).join('');
   }
 
   function renderPlans() {
     var plans = ALL_PLANS.filter(function (p) { return p.network === ACTIVE_NETWORK; });
+    if (PAUSED.indexOf(ACTIVE_NETWORK) !== -1) {
+      plansGrid.innerHTML = '<div class="empty-state paused-state"><strong>' + esc(ACTIVE_NETWORK === 'Telecel' ? 'Telecel (Vodafone)' : ACTIVE_NETWORK) + ' is paused for now</strong>' + esc(pauseText(ACTIVE_NETWORK)) + '</div>';
+      return;
+    }
     if (!plans.length) {
       plansGrid.innerHTML = '<div class="empty-state"><strong>No bundles for this network yet</strong>Try another network above.</div>';
       return;

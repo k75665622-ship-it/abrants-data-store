@@ -130,6 +130,8 @@ router.get('/settings', async (req, res) => {
       channelLink: s.channelLink || '',
       maintenanceMode: Boolean(s.maintenanceMode),
       maintenanceMessage: s.maintenanceMessage,
+      pausedNetworks: Array.isArray(s.pausedNetworks) ? s.pausedNetworks : [],
+      pauseMessage: s.pauseMessage || '',
     });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Could not load store settings.' }); }
 });
@@ -149,6 +151,9 @@ router.post('/checkout', checkoutLimit, optionalCustomer(), async (req, res) => 
     const plan = plans.find((p) => p.id === planId);
 
     if (!plan) return res.status(400).json({ error: 'That bundle is no longer available. Please pick another one.' });
+    if ((settings.pausedNetworks || []).includes(plan.network)) {
+      return res.status(409).json({ error: String(settings.pauseMessage || '{network} bundles are temporarily unavailable. You have not been charged.').replace(/\{network\}/g, plan.network === 'Telecel' ? 'Telecel (Vodafone)' : plan.network) });
+    }
     if (!PHONE_RE.test(phone)) return res.status(400).json({ error: 'Enter a valid 10-digit phone number, e.g. 0551234567.' });
     if (!/^\S+@\S+\.\S+$/.test(email)) return res.status(400).json({ error: 'Enter a valid email address.' });
     if (await isNumberBlocked(phone)) return res.status(403).json({ error: 'This phone number is currently blocked from making purchases. Please contact support.' });
