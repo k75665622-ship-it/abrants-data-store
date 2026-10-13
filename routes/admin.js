@@ -46,8 +46,20 @@ router.get('/stats', async (req, res) => {
       lowWallet: wallet != null && settings.lowWalletThreshold > 0 && wallet < Number(settings.lowWalletThreshold),
       lowWalletThreshold: Number(settings.lowWalletThreshold || 0),
       maintenanceMode: Boolean(settings.maintenanceMode),
+      notices: Array.isArray(settings.adminAlerts) ? settings.adminAlerts : [],
+      pausedNetworks: Array.isArray(settings.pausedNetworks) ? settings.pausedNetworks : [],
     });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Could not load dashboard statistics.' }); }
+});
+
+router.post('/notices/dismiss', async (req, res) => {
+  try {
+    const id = String(req.body?.id || '');
+    const s = await getSettings();
+    const list = (Array.isArray(s.adminAlerts) ? s.adminAlerts : []).filter((a) => id !== 'all' && a.id !== id);
+    await saveSettings({ adminAlerts: list });
+    res.json({ ok: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Could not dismiss.' }); }
 });
 
 /* ---------------------------------------------------------------- */
@@ -505,8 +517,14 @@ router.put('/settings', async (req, res) => {
         next[net] = body.providers[net];
       }
       patch.providers = next;
+      patch.autoFailovers = {}; // the admin chose, so stop any automatic switch-back
     }
-    if (Array.isArray(body.pausedNetworks)) patch.pausedNetworks = ['MTN', 'Telecel', 'AirtelTigo'].filter((n) => body.pausedNetworks.includes(n));
+    if (Array.isArray(body.pausedNetworks)) {
+      patch.pausedNetworks = ['MTN', 'Telecel', 'AirtelTigo'].filter((n) => body.pausedNetworks.includes(n));
+      const cur = (await getSettings()).autoPaused || {};
+      patch.autoPaused = Object.fromEntries(Object.entries(cur).filter(([n]) => patch.pausedNetworks.includes(n)));
+    }
+    if (body.autoFailover != null) patch.autoFailover = Boolean(body.autoFailover);
     if (body.pauseMessage != null) patch.pauseMessage = String(body.pauseMessage).trim().slice(0, 300);
     if (body.maintenanceMode != null) patch.maintenanceMode = Boolean(body.maintenanceMode);
     if (body.maintenanceMessage != null) patch.maintenanceMessage = String(body.maintenanceMessage).trim().slice(0, 200);
