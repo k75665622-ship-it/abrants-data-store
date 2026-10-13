@@ -32,6 +32,9 @@ const DEFAULT_SETTINGS = {
   channelLink: '',
   providers: { MTN: 'datahustle', Telecel: 'datahustle', AirtelTigo: 'datahustle' },
   pausedNetworks: [],
+  outOfStock: {},
+  autoPaused: {},
+  adminAlerts: [],
   pauseMessage: "{network} bundles are temporarily out of stock with our supplier. We are sorting it out. Please try again later or choose another network. You have not been charged.",
   maintenanceMode: false,
   maintenanceMessage: "We are doing a quick upgrade. Please check back in a few minutes.",
@@ -892,7 +895,18 @@ async function deleteOldOrders(months) {
   return r.rowCount;
 }
 
+// Paid orders that a provider refused because the network was out of stock (nothing was bought).
+async function getOutOfStockOrders(network, limit = 20) {
+  const r = await pool.query(
+    `SELECT * FROM orders o
+      WHERE o.status = 'delivery_review' AND o.network = $1 AND o.provider_reference IS NULL AND o.refund_status IS NULL
+        AND (SELECT e.event_type FROM order_events e WHERE e.order_reference = o.reference ORDER BY e.created_at DESC, e.id DESC LIMIT 1) = 'delivery.out_of_stock'
+      ORDER BY o.created_at ASC LIMIT $2`, [network, limit]);
+  return r.rows.map(mapOrder);
+}
+
 module.exports = {
+  getOutOfStockOrders,
   countOldOrders, deleteOldOrders,
   initDb,
   getStalePendingOrders,

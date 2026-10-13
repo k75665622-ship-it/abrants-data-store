@@ -197,6 +197,13 @@
       '<polyline points="' + points + '" fill="none" stroke="#34d399" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>';
   }
 
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-dismiss-notice]');
+    if (!b) return;
+    api('/api/admin/notices/dismiss', { method: 'POST', body: JSON.stringify({ id: b.getAttribute('data-dismiss-notice') }) })
+      .then(function () { loadDashboard(); }).catch(function (err) { toast(err.message, 'error'); });
+  });
+
   function renderAlerts(s) {
     var html = '';
     if (s.lowWallet) {
@@ -204,6 +211,11 @@
         'Balance is ' + money(s.wallet) + ', below your ' + money(s.lowWalletThreshold) +
         ' threshold. Top up DataHustle so deliveries do not start failing.</div></div>';
     }
+    (s.notices || []).forEach(function (n) {
+      var cls = n.level === 'danger' ? 'alert-strip' : (n.level === 'info' ? 'alert-strip info' : 'alert-strip warn');
+      html += '<div class="' + cls + '"><span class="ico">' + (n.level === 'info' ? 'ℹ' : '⚠') + '</span><div>' + esc(n.text) +
+        '<br><button class="btn btn-ghost btn-sm" type="button" style="margin-top:8px" data-dismiss-notice="' + esc(n.id) + '">Got it</button></div></div>';
+    });
     if (s.maintenanceMode) {
       html += '<div class="alert-strip warn"><span class="ico">🛠</span><div><strong>Maintenance mode is ON.</strong><br>' +
         'Customers cannot start new checkouts right now. Turn it off in Settings when you are ready.</div></div>';
