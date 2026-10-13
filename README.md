@@ -283,10 +283,12 @@ Note: FastDeals has no idempotency key, so before retrying a timed-out order che
 
 ## 13. Out of stock
 
-The store never switches provider by itself, because the other provider's wallet may be empty or its prices different. Instead:
-1. If a provider answers "out of stock" for a network, the paid order waits under review and a message appears on the admin dashboard: switch that network to the other provider in Settings → Delivery provider.
-2. When you save the switch, the waiting orders for that network are sent to the new provider automatically.
-3. If both providers are out (or no other provider is set up), the network is paused for customers with the friendly "out of stock" message.
-4. The store checks again about every 15 minutes. When a provider accepts an order, the pause is removed by itself and customers can buy again.
+The store never switches provider by itself, because the other provider's wallet may be empty or its prices different. It protects customers instead:
+1. When a provider answers "out of stock" for a network (or its bundle list shows the network as out), that network is **paused for customers** with the friendly "out of stock" message, and a notice on the admin dashboard says why.
+2. Paid orders that were refused wait under review. If the other provider has stock, switch that network in Settings → Delivery provider: the pause lifts and the waiting orders are sent to the new provider automatically.
+3. Otherwise the store checks again about every 15 minutes (and every 10 minutes it looks at the provider's bundle list). When stock is back, the pause is removed by itself and a notice tells you.
+4. A network you pause by hand is never reopened automatically.
 
-Only a definite "out of stock" answer is handled this way. Timeouts are never retried automatically, to avoid buying the same bundle twice. A network you pause by hand is never reopened automatically.
+Only a definite "out of stock" answer is handled this way. Timeouts are never retried automatically, to avoid buying the same bundle twice.
+
+**Early warning.** About every 10 minutes the store asks DataHustle and FastDealsGH for their bundle lists and looks for a stock flag. Settings → Delivery provider → **Check stock** shows what each provider reports. Not every provider publishes stock; if it does not, the pause happens the moment an order is refused.

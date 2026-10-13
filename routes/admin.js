@@ -52,6 +52,11 @@ router.get('/stats', async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Could not load dashboard statistics.' }); }
 });
 
+router.get('/stock-check', async (req, res) => {
+  try { res.json(await require('../services/stockWatch').checkProviders()); }
+  catch (err) { console.error(err); res.status(502).json({ error: 'Could not check provider stock.' }); }
+});
+
 router.post('/notices/dismiss', async (req, res) => {
   try {
     const id = String(req.body?.id || '');
@@ -538,6 +543,14 @@ router.put('/settings', async (req, res) => {
     if (patch.providers) {
       const changed = Object.keys(patch.providers).filter((n) => (before[n] || 'datahustle') !== patch.providers[n]);
       if (changed.length) {
+        // Switching a network to another provider lifts an automatic out-of-stock pause for it.
+        const cur = (await getSettings()).autoPaused || {};
+        const lift = changed.filter((n) => cur[n]);
+        if (lift.length) {
+          const st = await getSettings();
+          const left = { ...cur }; lift.forEach((n) => delete left[n]);
+          await saveSettings({ pausedNetworks: (st.pausedNetworks || []).filter((n) => !lift.includes(n)), autoPaused: left });
+        }
         const { retryOutOfStockOrders } = require('../services/fulfillment');
         changed.reduce((chain, n) => chain.then(() => retryOutOfStockOrders(n)), Promise.resolve())
           .catch((e) => console.error('Re-sending waiting orders failed:', e.message));

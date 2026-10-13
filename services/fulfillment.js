@@ -76,27 +76,30 @@ async function addAlert(level, text) {
   await saveSettings({ adminAlerts: [entry, ...list].slice(0, 20) });
 }
 
-// Called when a provider says a network is out of stock. It never switches provider by itself:
-// it tells the admin to switch, and pauses the network for customers only when there is nowhere
-// left to send orders (the other provider also said "out of stock" recently, or is not set up).
+// Pauses a network for customers because its provider has no stock, and leaves a message for the admin.
+// It never switches provider: the admin decides that. The pause lifts by itself when stock is back
+// (or when the admin switches the network to another provider).
+async function pauseForStock(network, provider, how) {
+  const s = await getSettings();
+  const paused = Array.isArray(s.pausedNetworks) ? s.pausedNetworks : [];
+  if (paused.includes(network)) return false;
+  const other = provider === 'datahustle' ? 'fastdeals' : 'datahustle';
+  await saveSettings({
+    pausedNetworks: [...paused, network],
+    autoPaused: { ...(s.autoPaused || {}), [network]: new Date().toISOString() },
+  });
+  await addAlert('danger', `${netLabel(network)} was paused for customers automatically because ${provLabel(provider)} is out of stock (${how}). Customers see the "out of stock" message instead of the bundles. It reopens by itself when stock is back. If ${provLabel(other)} has stock, you can switch ${netLabel(network)} to it in Settings → Delivery provider (check its wallet first); that also reopens it. Orders already paid are waiting.`);
+  console.warn(`Auto-paused ${network}: ${provider} out of stock (${how})`);
+  return true;
+}
+
+// Called when a provider refuses an order because the network is out of stock.
 async function handleOutOfStock(network, failedProvider) {
   const s = await getSettings();
-  const now = Date.now();
-  const other = failedProvider === 'datahustle' ? 'fastdeals' : 'datahustle';
-  const seen = { ...((s.outOfStock || {})[network] || {}), [failedProvider]: new Date(now).toISOString() };
+  const seen = { ...((s.outOfStock || {})[network] || {}), [failedProvider]: new Date().toISOString() };
   await saveSettings({ outOfStock: { ...(s.outOfStock || {}), [network]: seen } });
-  const otherRecently = seen[other] && now - new Date(seen[other]).getTime() < 2 * HOUR;
-  if (!providerReady(other) || otherRecently) {
-    const paused = Array.isArray(s.pausedNetworks) ? s.pausedNetworks : [];
-    if (!paused.includes(network)) {
-      await saveSettings({ pausedNetworks: [...paused, network], autoPaused: { ...(s.autoPaused || {}), [network]: new Date(now).toISOString() } });
-      await addAlert('danger', `${netLabel(network)} is out of stock at ${otherRecently ? 'both DataHustle and FastDealsGH' : provLabel(failedProvider) + ' and there is no other provider set up'}, so it has been paused for customers with a friendly message. It reopens by itself when stock is back. Orders already paid are waiting under review.`);
-      console.warn(`Auto-paused ${network}: out of stock`);
-    }
-    return 'paused';
-  }
-  await addAlert('warn', `${netLabel(network)} is out of stock at ${provLabel(failedProvider)}. Go to Settings → Delivery provider and switch ${netLabel(network)} to ${provLabel(other)} (check its wallet first). Paid orders are waiting and will be sent there as soon as you save the switch.`);
-  return 'notified';
+  await pauseForStock(network, failedProvider, 'an order was refused');
+  return 'paused';
 }
 
 // A provider just accepted an order, so it has stock: clear its "out of stock" flag and, if the
@@ -136,6 +139,8 @@ async function autoRecoveryTick() {
   const s = await getSettings();
   for (const [net, at] of Object.entries(s.autoPaused || {})) {
     if (Date.now() - new Date(at).getTime() < REOPEN_AFTER_MS) continue;
+    const sw = s.stockWatch || {};
+    if (sw[providers.providerFor(s, net) + ':' + net] === 'out') continue; // the provider's own list still says out
     const waiting = await getOutOfStockOrders(net, 1);
     if (waiting.length) {
       // Test with a waiting order. If it is accepted the network reopens; if not, it is paused again.
@@ -193,4 +198,4 @@ async function pollFastdealsOrders() {
   }
 }
 
-module.exports = { deliverOrder, attemptCustomerRefund, pollFastdealsOrders, autoRecoveryTick, handleOutOfStock, retryOutOfStockOrders, isOutOfStock };
+module.exports = { pauseForStock, addAlert, deliverOrder, attemptCustomerRefund, pollFastdealsOrders, autoRecoveryTick, handleOutOfStock, retryOutOfStockOrders, isOutOfStock };
