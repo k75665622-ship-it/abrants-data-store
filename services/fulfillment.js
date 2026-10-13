@@ -29,6 +29,7 @@ async function deliverOrder(order) {
       };
       if (Number.isFinite(Number(result.priceGHS))) changes.providerCostGHS = Number(result.priceGHS);
       await updateOrder(reference, changes, 'provider.order_accepted');
+      await stockIsBack(order.network, provider).catch(() => {});
     } else {
       const failed = await transitionOrder(reference, 'paid', { status: 'delivery_failed' }, 'delivery.failed');
       if (failed) await attemptCustomerRefund(reference);
@@ -36,16 +37,11 @@ async function deliverOrder(order) {
   } catch (err) {
     console.error('Provider purchase error:', err.response?.data || err.message);
     if (isOutOfStock(err)) {
-      // "Out of stock" is a definite no from the provider (nothing was bought), so it is safe to
-      // send the same order to the other provider. Timeouts are different and are never retried by themselves.
+      // "Out of stock" is a definite no from the provider (nothing was bought). The order waits under
+      // review; the admin decides whether to switch provider. Timeouts are never treated this way.
       await transitionOrder(reference, 'paid', { status: 'delivery_review' }, 'delivery.out_of_stock');
       try {
-        const outcome = await handleOutOfStock(order.network, provider);
-        if (outcome === 'switched') {
-          const again = await transitionOrder(reference, 'delivery_review', { status: 'paid' }, 'delivery.requeued');
-          if (again) await deliverOrder(again);
-          await retryOutOfStockOrders(order.network, reference);
-        }
+        await handleOutOfStock(order.network, provider);
       } catch (e) { console.error('Out-of-stock handling failed:', e.message); }
       return;
     }
@@ -59,7 +55,6 @@ async function deliverOrder(order) {
 /* Out of stock: automatic switch to the other provider, and back     */
 /* ---------------------------------------------------------------- */
 const HOUR = 60 * 60 * 1000;
-const FLIP_GUARD_MS = 30 * 60 * 1000;
 const netLabel = (n) => (n === 'Telecel' ? 'Telecel (Vodafone)' : n);
 const provLabel = (p) => (p === 'fastdeals' ? 'FastDealsGH' : 'DataHustle');
 
@@ -81,37 +76,46 @@ async function addAlert(level, text) {
   await saveSettings({ adminAlerts: [entry, ...list].slice(0, 20) });
 }
 
-// Returns 'switched' (the network now uses the other provider) or 'paused' (nothing else to try).
+// Called when a provider says a network is out of stock. It never switches provider by itself:
+// it tells the admin to switch, and pauses the network for customers only when there is nowhere
+// left to send orders (the other provider also said "out of stock" recently, or is not set up).
 async function handleOutOfStock(network, failedProvider) {
   const s = await getSettings();
-  const current = providers.providerFor(s, network);
-  if (current !== failedProvider) return 'switched'; // already moved by an earlier order
+  const now = Date.now();
   const other = failedProvider === 'datahustle' ? 'fastdeals' : 'datahustle';
-  const earlier = (s.autoFailovers || {})[network];
-  const justSwitched = earlier && Date.now() - new Date(earlier.at).getTime() < FLIP_GUARD_MS;
-  if (s.autoFailover !== false && providerReady(other) && !justSwitched) {
-    await saveSettings({
-      providers: { ...(s.providers || {}), [network]: other },
-      autoFailovers: { ...(s.autoFailovers || {}), [network]: { from: failedProvider, to: other, at: new Date().toISOString() } },
-    });
-    await addAlert('warn', `${netLabel(network)} is out of stock at ${provLabel(failedProvider)}. The store switched to ${provLabel(other)} by itself and re-sent the waiting orders. It will try ${provLabel(failedProvider)} again in about an hour.`);
-    console.warn(`Auto-switched ${network}: ${failedProvider} -> ${other}`);
-    return 'switched';
-  }
-  const paused = Array.isArray(s.pausedNetworks) ? s.pausedNetworks : [];
-  if (!paused.includes(network)) {
-    const patch = { pausedNetworks: [...paused, network], autoPaused: { ...(s.autoPaused || {}), [network]: new Date().toISOString() } };
-    if (justSwitched) {
-      // Both providers are out, so undo the switch; the network will reopen and try again later.
-      patch.providers = { ...(s.providers || {}), [network]: earlier.from };
-      const left = { ...(s.autoFailovers || {}) }; delete left[network];
-      patch.autoFailovers = left;
+  const seen = { ...((s.outOfStock || {})[network] || {}), [failedProvider]: new Date(now).toISOString() };
+  await saveSettings({ outOfStock: { ...(s.outOfStock || {}), [network]: seen } });
+  const otherRecently = seen[other] && now - new Date(seen[other]).getTime() < 2 * HOUR;
+  if (!providerReady(other) || otherRecently) {
+    const paused = Array.isArray(s.pausedNetworks) ? s.pausedNetworks : [];
+    if (!paused.includes(network)) {
+      await saveSettings({ pausedNetworks: [...paused, network], autoPaused: { ...(s.autoPaused || {}), [network]: new Date(now).toISOString() } });
+      await addAlert('danger', `${netLabel(network)} is out of stock at ${otherRecently ? 'both DataHustle and FastDealsGH' : provLabel(failedProvider) + ' and there is no other provider set up'}, so it has been paused for customers with a friendly message. It reopens by itself when stock is back. Orders already paid are waiting under review.`);
+      console.warn(`Auto-paused ${network}: out of stock`);
     }
-    await saveSettings(patch);
-    await addAlert('danger', `${netLabel(network)} is out of stock and there is no other provider to use, so it has been paused for customers. It will reopen by itself and try again in about an hour. Orders already paid are waiting under review.`);
-    console.warn(`Auto-paused ${network}: out of stock`);
+    return 'paused';
   }
-  return 'paused';
+  await addAlert('warn', `${netLabel(network)} is out of stock at ${provLabel(failedProvider)}. Go to Settings → Delivery provider and switch ${netLabel(network)} to ${provLabel(other)} (check its wallet first). Paid orders are waiting and will be sent there as soon as you save the switch.`);
+  return 'notified';
+}
+
+// A provider just accepted an order, so it has stock: clear its "out of stock" flag and, if the
+// network was paused automatically, reopen it.
+async function stockIsBack(network, provider) {
+  const s = await getSettings();
+  const oos = { ...(s.outOfStock || {}) };
+  const had = oos[network] && oos[network][provider];
+  const wasPaused = (s.autoPaused || {})[network];
+  if (!had && !wasPaused) return;
+  if (had) { oos[network] = { ...oos[network] }; delete oos[network][provider]; }
+  const patch = { outOfStock: oos };
+  if (wasPaused) {
+    patch.pausedNetworks = (s.pausedNetworks || []).filter((n) => n !== network);
+    const left = { ...(s.autoPaused || {}) }; delete left[network];
+    patch.autoPaused = left;
+  }
+  await saveSettings(patch);
+  if (wasPaused) await addAlert('info', `${netLabel(network)} is back in stock at ${provLabel(provider)}. The pause message was removed and customers can buy again.`);
 }
 
 // Re-sends paid orders that a provider definitely refused for being out of stock.
@@ -124,27 +128,27 @@ async function retryOutOfStockOrders(network, exceptReference) {
   }
 }
 
-// Runs every few minutes: tries the first provider again an hour after a switch, and reopens
-// networks that were paused automatically.
+// Runs every few minutes: networks that were paused automatically are checked again after a short
+// wait. A waiting paid order is used as the test (it was already paid for), and if a provider accepts
+// it, stockIsBack() reopens the network. With no waiting order the network just reopens.
+const REOPEN_AFTER_MS = 15 * 60 * 1000;
 async function autoRecoveryTick() {
-  let s = await getSettings();
-  for (const [net, af] of Object.entries(s.autoFailovers || {})) {
-    if (Date.now() - new Date(af.at).getTime() < HOUR) continue;
-    const next = { ...(s.providers || {}) };
-    if (providers.providerFor(s, net) === af.to) next[net] = af.from; // leave it if the admin chose something else
-    const left = { ...(s.autoFailovers || {}) }; delete left[net];
-    await saveSettings({ providers: next, autoFailovers: left });
-    await addAlert('info', `${netLabel(net)} was moved back to ${provLabel(af.from)} to check whether it has stock again. If it is still out, the store will move to ${provLabel(af.to)} again by itself.`);
-    s = await getSettings();
-  }
+  const s = await getSettings();
   for (const [net, at] of Object.entries(s.autoPaused || {})) {
-    if (Date.now() - new Date(at).getTime() < HOUR) continue;
-    const paused = (s.pausedNetworks || []).filter((n) => n !== net);
-    const left = { ...(s.autoPaused || {}) }; delete left[net];
-    await saveSettings({ pausedNetworks: paused, autoPaused: left });
-    await addAlert('info', `${netLabel(net)} was reopened to customers to check whether stock is back.`);
-    await retryOutOfStockOrders(net); // if it is still out, this pauses it again
-    s = await getSettings();
+    if (Date.now() - new Date(at).getTime() < REOPEN_AFTER_MS) continue;
+    const waiting = await getOutOfStockOrders(net, 1);
+    if (waiting.length) {
+      // Test with a waiting order. If it is accepted the network reopens; if not, it is paused again.
+      const fresh = await getSettings();
+      const left = { ...(fresh.autoPaused || {}), [net]: new Date().toISOString() };
+      await saveSettings({ autoPaused: left }); // restart the wait; stockIsBack() clears it on success
+      await retryOutOfStockOrders(net);
+    } else {
+      const fresh = await getSettings();
+      const left = { ...(fresh.autoPaused || {}) }; delete left[net];
+      await saveSettings({ pausedNetworks: (fresh.pausedNetworks || []).filter((n) => n !== net), autoPaused: left });
+      await addAlert('info', `${netLabel(net)} was reopened to customers to check whether stock is back.`);
+    }
   }
 }
 

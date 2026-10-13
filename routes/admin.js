@@ -517,14 +517,12 @@ router.put('/settings', async (req, res) => {
         next[net] = body.providers[net];
       }
       patch.providers = next;
-      patch.autoFailovers = {}; // the admin chose, so stop any automatic switch-back
     }
     if (Array.isArray(body.pausedNetworks)) {
       patch.pausedNetworks = ['MTN', 'Telecel', 'AirtelTigo'].filter((n) => body.pausedNetworks.includes(n));
       const cur = (await getSettings()).autoPaused || {};
       patch.autoPaused = Object.fromEntries(Object.entries(cur).filter(([n]) => patch.pausedNetworks.includes(n)));
     }
-    if (body.autoFailover != null) patch.autoFailover = Boolean(body.autoFailover);
     if (body.pauseMessage != null) patch.pauseMessage = String(body.pauseMessage).trim().slice(0, 300);
     if (body.maintenanceMode != null) patch.maintenanceMode = Boolean(body.maintenanceMode);
     if (body.maintenanceMessage != null) patch.maintenanceMessage = String(body.maintenanceMessage).trim().slice(0, 200);
@@ -532,8 +530,19 @@ router.put('/settings', async (req, res) => {
       const t = Number(body.lowWalletThreshold);
       patch.lowWalletThreshold = Number.isFinite(t) && t >= 0 && t <= 100000 ? t : 0;
     }
+    const before = (await getSettings()).providers || {};
     const settings = await saveSettings(patch);
     await audit(req, 'settings.update', patch);
+    // When the admin switches a network to another provider, send that network's orders that were
+    // refused for being out of stock to the new provider (they were never bought, so this is safe).
+    if (patch.providers) {
+      const changed = Object.keys(patch.providers).filter((n) => (before[n] || 'datahustle') !== patch.providers[n]);
+      if (changed.length) {
+        const { retryOutOfStockOrders } = require('../services/fulfillment');
+        changed.reduce((chain, n) => chain.then(() => retryOutOfStockOrders(n)), Promise.resolve())
+          .catch((e) => console.error('Re-sending waiting orders failed:', e.message));
+      }
+    }
     res.json(settings);
   } catch (err) { console.error(err); res.status(500).json({ error: 'Could not save settings.' }); }
 });

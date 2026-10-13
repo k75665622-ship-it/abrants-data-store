@@ -281,11 +281,12 @@ Note: FastDeals has no idempotency key, so before retrying a timed-out order che
 - See `REVIEW_AND_CHANGES.md` for the full audit, what changed and why, and  
   the remaining known gaps.
 
-## 13. Out of stock: automatic switching
+## 13. Out of stock
 
-If a provider answers "out of stock" for a network, the store (when **Settings → automatic switch** is on):
-1. moves that network to the other provider and re-sends the waiting paid orders there,
-2. leaves a message on the admin dashboard ("Got it" to dismiss),
-3. about an hour later tries the first provider again (the next order tests it; if it is still out, the store switches again by itself).
+The store never switches provider by itself, because the other provider's wallet may be empty or its prices different. Instead:
+1. If a provider answers "out of stock" for a network, the paid order waits under review and a message appears on the admin dashboard: switch that network to the other provider in Settings → Delivery provider.
+2. When you save the switch, the waiting orders for that network are sent to the new provider automatically.
+3. If both providers are out (or no other provider is set up), the network is paused for customers with the friendly "out of stock" message.
+4. The store checks again about every 15 minutes. When a provider accepts an order, the pause is removed by itself and customers can buy again.
 
-If the other provider is not set up, or both are out, the network is **paused** for customers (with a friendly message) and reopens by itself after about an hour. Only a definite "out of stock" answer is retried automatically. Timeouts are never retried, to avoid buying the same bundle twice. Different provider prices can change your margin, so check profit after a switch.
+Only a definite "out of stock" answer is handled this way. Timeouts are never retried automatically, to avoid buying the same bundle twice. A network you pause by hand is never reopened automatically.
