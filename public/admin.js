@@ -815,6 +815,22 @@
       .catch(function (err) { toast(err.message, 'error'); })
       .then(function () { setBusy(btn, false); });
   });
+  $('#stockCheckBtn').addEventListener('click', function () {
+    var btn = this; setBusy(btn, true, 'Checking…');
+    api('/api/admin/stock-check').then(function (r) {
+      var names = { MTN: 'MTN', Telecel: 'Telecel (Vodafone)', AirtelTigo: 'AirtelTigo' };
+      var words = { ok: '✓ in stock', out: '✗ out of stock', partial: '◐ some bundles out', unknown: '? not shown by provider' };
+      var html = '';
+      [['datahustle', 'DataHustle'], ['fastdeals', 'FastDealsGH']].forEach(function (p) {
+        var d = r[p[0]];
+        if (!d) { html += '<div class="muted" style="margin-bottom:10px"><b>' + p[1] + '</b>: not connected.</div>'; return; }
+        if (d.error) { html += '<div class="muted" style="margin-bottom:10px"><b>' + p[1] + '</b>: could not check (' + esc(d.error) + ').</div>'; return; }
+        html += '<div style="margin-bottom:12px"><b>' + p[1] + '</b>' + Object.keys(names).map(function (n) { return '<div class="list-row"><div class="lr-main"><strong>' + names[n] + '</strong></div><div class="lr-value">' + words[d[n]] + '</div></div>'; }).join('') + '</div>';
+      });
+      html += '<p class="muted" style="font-size:13px">If a provider says "not shown", it does not publish stock. You will still get a message on this dashboard the moment an order is refused for being out of stock.</p>';
+      $('#stockResult').innerHTML = html;
+    }).catch(function (err) { toast(err.message, 'error'); }).then(function () { setBusy(btn, false); });
+  });
   $('#fdCheckBtn').addEventListener('click', function () {
     var btn = this; setBusy(btn, true, 'Checking…');
     api('/api/admin/fastdeals').then(function (r) {

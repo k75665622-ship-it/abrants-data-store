@@ -33,6 +33,7 @@ const DEFAULT_SETTINGS = {
   providers: { MTN: 'datahustle', Telecel: 'datahustle', AirtelTigo: 'datahustle' },
   pausedNetworks: [],
   outOfStock: {},
+  stockWatch: {},
   autoPaused: {},
   adminAlerts: [],
   pauseMessage: "{network} bundles are temporarily out of stock with our supplier. We are sorting it out. Please try again later or choose another network. You have not been charged.",

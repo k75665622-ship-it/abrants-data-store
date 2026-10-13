@@ -7,7 +7,8 @@ const adminRoutes = require('./routes/admin');
 const accountRoutes = require('./routes/account');
 const { initDb } = require('./services/orderStore');
 const { initCustomerDb } = require('./services/customers');
-const { pollFastdealsOrders, autoRecoveryTick } = require('./services/fulfillment');
+const { pollFastdealsOrders, autoRecoveryTick, addAlert } = require('./services/fulfillment');
+const { stockWatchTick } = require('./services/stockWatch');
 
 const app = express();
 app.disable('x-powered-by');
@@ -59,6 +60,10 @@ initDb()
       // Out of stock handling: try the first provider again / reopen paused networks after an hour.
       const recover = () => autoRecoveryTick().catch((e) => console.warn('Auto recovery failed:', e.message));
       setInterval(recover, 5 * 60 * 1000).unref();
+      // Early warning: look for a provider showing a network as out of stock (every 10 minutes).
+      const watch = () => stockWatchTick(addAlert).catch((e) => console.warn('Stock watch failed:', e.message));
+      setTimeout(watch, 3 * 60 * 1000).unref();
+      setInterval(watch, 10 * 60 * 1000).unref();
       if (process.env.DATAHUSTLE_MOCK_MODE === 'true') {
         console.log('DataHustle is in MOCK MODE - no real provider wallet purchase will be made.');
       }

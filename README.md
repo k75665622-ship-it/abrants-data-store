@@ -290,3 +290,5 @@ The store never switches provider by itself, because the other provider's wallet
 4. The store checks again about every 15 minutes. When a provider accepts an order, the pause is removed by itself and customers can buy again.
 
 Only a definite "out of stock" answer is handled this way. Timeouts are never retried automatically, to avoid buying the same bundle twice. A network you pause by hand is never reopened automatically.
+
+**Early warning.** About every 10 minutes the store asks DataHustle and FastDealsGH for their bundle lists and looks for a stock flag. If a provider newly shows a network as out of stock, a notice appears on the admin dashboard (and another when it is back), so you can warn customers or switch early. Settings → Delivery provider → **Check stock** shows what each provider reports. Not every provider publishes stock; if it does not, you are still told the moment an order is refused. Nothing is paused or switched by this check.

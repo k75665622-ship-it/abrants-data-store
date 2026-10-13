@@ -52,6 +52,11 @@ router.get('/stats', async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Could not load dashboard statistics.' }); }
 });
 
+router.get('/stock-check', async (req, res) => {
+  try { res.json(await require('../services/stockWatch').checkProviders()); }
+  catch (err) { console.error(err); res.status(502).json({ error: 'Could not check provider stock.' }); }
+});
+
 router.post('/notices/dismiss', async (req, res) => {
   try {
     const id = String(req.body?.id || '');

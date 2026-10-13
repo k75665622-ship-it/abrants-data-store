@@ -193,4 +193,4 @@ async function pollFastdealsOrders() {
   }
 }
 
-module.exports = { deliverOrder, attemptCustomerRefund, pollFastdealsOrders, autoRecoveryTick, handleOutOfStock, retryOutOfStockOrders, isOutOfStock };
+module.exports = { addAlert, deliverOrder, attemptCustomerRefund, pollFastdealsOrders, autoRecoveryTick, handleOutOfStock, retryOutOfStockOrders, isOutOfStock };
