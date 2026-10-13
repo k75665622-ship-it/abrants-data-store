@@ -94,7 +94,7 @@ async function checkProviders() {
 
 // Runs every 10 minutes. Posts one admin notice when a provider newly shows a network as out, and one
 // when it is back. Never pauses or switches anything.
-async function stockWatchTick(addAlert) {
+async function stockWatchTick(addAlert, pauseForStock) {
   const res = await checkProviders();
   const s = await getSettings();
   const prev = { ...(s.stockWatch || {}) };
@@ -106,10 +106,21 @@ async function stockWatchTick(addAlert) {
       const key = prov + ':' + n;
       const now = r[n];
       if (now === 'unknown') continue;
+      const assigned = (s.providers && s.providers[n]) === prov || (!(s.providers && s.providers[n]) && prov === 'datahustle');
       if (now === 'out' && prev[key] !== 'out') {
-        await addAlert('warn', `Early warning: ${provLabel(prov)} now shows ${label(n)} as out of stock. You may want to post a notice for customers, or switch ${label(n)} to the other provider in Settings once you have checked its wallet.`);
+        if (assigned && pauseForStock) {
+          await pauseForStock(n, prov, 'its bundle list shows it as out');
+        } else {
+          await addAlert('warn', `Early warning: ${provLabel(prov)} now shows ${label(n)} as out of stock. ${label(n)} is not delivered through ${provLabel(prov)} right now, so customers are not affected.`);
+        }
       } else if (now !== 'out' && prev[key] === 'out') {
         await addAlert('info', `${provLabel(prov)} shows ${label(n)} in stock again.`);
+      }
+      if (now !== 'out' && assigned && (s.autoPaused || {})[n]) {
+        const fresh = await getSettings();
+        const left = { ...(fresh.autoPaused || {}) }; delete left[n];
+        await saveSettings({ pausedNetworks: (fresh.pausedNetworks || []).filter((x) => x !== n), autoPaused: left });
+        await addAlert('info', `${label(n)} is back in stock at ${provLabel(prov)}. The pause message was removed and customers can buy again.`);
       }
       next[key] = now === 'out' ? 'out' : 'ok';
     }

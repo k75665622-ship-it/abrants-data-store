@@ -543,6 +543,14 @@ router.put('/settings', async (req, res) => {
     if (patch.providers) {
       const changed = Object.keys(patch.providers).filter((n) => (before[n] || 'datahustle') !== patch.providers[n]);
       if (changed.length) {
+        // Switching a network to another provider lifts an automatic out-of-stock pause for it.
+        const cur = (await getSettings()).autoPaused || {};
+        const lift = changed.filter((n) => cur[n]);
+        if (lift.length) {
+          const st = await getSettings();
+          const left = { ...cur }; lift.forEach((n) => delete left[n]);
+          await saveSettings({ pausedNetworks: (st.pausedNetworks || []).filter((n) => !lift.includes(n)), autoPaused: left });
+        }
         const { retryOutOfStockOrders } = require('../services/fulfillment');
         changed.reduce((chain, n) => chain.then(() => retryOutOfStockOrders(n)), Promise.resolve())
           .catch((e) => console.error('Re-sending waiting orders failed:', e.message));

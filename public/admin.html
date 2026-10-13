@@ -10,7 +10,7 @@
 <link rel="icon" type="image/svg+xml" href="/icon.svg" />
 <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png" />
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-<link rel="stylesheet" href="admin.css?v=9" />
+<link rel="stylesheet" href="admin.css?v=10" />
 </head>
 <body>
 
@@ -322,7 +322,7 @@
 
                 <label class="field" style="margin-bottom:16px"><span>WhatsApp channel or group link (shows a "Join" button on the store; leave empty to hide)</span><input id="setChannelLink" maxlength="300" placeholder="https://whatsapp.com/channel/..." inputmode="url" /></label>
 
-                <p class="muted" style="margin:6px 0 4px"><b>Out of stock?</b> The store pauses a network by itself only when both providers are out, and reopens it when stock is back. You can also pause one by hand here. Customers see the message below.</p>
+                <p class="muted" style="margin:6px 0 4px"><b>Out of stock?</b> When a provider runs out of a network, the store pauses that network by itself (it never switches provider), leaves a message on your dashboard, and reopens it when stock is back. You can also pause or reopen one by hand here. Customers see the message below.</p>
                 <label class="switch" style="margin:4px 0"><input type="checkbox" id="pauseMTN" /><span class="track"></span><span>Pause MTN</span></label>
                 <label class="switch" style="margin:4px 0"><input type="checkbox" id="pauseTelecel" /><span class="track"></span><span>Pause Telecel (Vodafone)</span></label>
                 <label class="switch" style="margin:4px 0"><input type="checkbox" id="pauseAirtelTigo" /><span class="track"></span><span>Pause AirtelTigo</span></label>
@@ -519,7 +519,7 @@
 
 <div class="toast-stack" id="toastStack" aria-live="polite"></div>
 
-<script src="admin.js?v=9"></script>
+<script src="admin.js?v=10"></script>
 <script src="admin-customers.js"></script>
 </body>
 </html>
