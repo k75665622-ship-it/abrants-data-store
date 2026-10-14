@@ -296,3 +296,7 @@ Only a definite "out of stock" answer is handled this way. Timeouts are never re
 ## 14. Customer pays the Paystack fee
 
 By default the Paystack fee (about 1.95%, set `PAYSTACK_FEE_RATE` to change it) is added on top at checkout, so it comes out of the customer's payment instead of your profit. The checkout shows "Bundle GH₵5.00 + payment fee GH₵0.10". The order keeps the bundle price, the fee the customer added, and the fee you bear (the real Paystack fee minus the part the customer paid, usually about zero), so profit figures stay correct. Refunds return everything the customer paid. Turn this off in Settings ("Customer pays the Paystack fee") to absorb the fee yourself. Orders made before this change are unaffected.
+
+## 15. First-time MTN buyers
+
+New MTN numbers must be verified by MTN before data can be delivered (DataHustle and FastDealsGH both queue them, up to 7 days). When a customer picks an MTN bundle for a number that has never received a bundle from this store, a pop-up explains this and asks "Yes, continue" or "No, go back" before payment starts. Numbers that already got a bundle here are not asked. Settings lets you switch the pop-up off or change its wording.

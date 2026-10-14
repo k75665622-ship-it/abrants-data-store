@@ -620,3 +620,16 @@ body.has-mobilebar{padding-bottom:82px}
 
 .summary-fee{margin-top:8px;color:#aeb8d0;font-size:12px;line-height:1.4}
 .summary-fee[hidden]{display:none}
+
+/* ---- First-time buyer confirmation ---- */
+.confirm{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;padding:18px}
+.confirm[hidden]{display:none}
+.confirm-backdrop{position:absolute;inset:0;background:rgba(8,12,24,.62);backdrop-filter:blur(3px)}
+.confirm-box{position:relative;width:100%;max-width:400px;background:#fff;border-radius:var(--r-xl);padding:24px 22px 20px;box-shadow:var(--shadow-lg);text-align:center}
+.confirm-icon{width:54px;height:54px;margin:0 auto 12px;border-radius:50%;background:#fff3c4;display:grid;place-items:center;font-size:26px}
+.confirm-box h3{font-family:var(--display);font-size:20px;margin:0 0 8px;color:var(--navy)}
+.confirm-box p{margin:0 0 18px;color:var(--muted);font-size:14.5px;line-height:1.55}
+.confirm-actions{display:grid;gap:10px}
+.confirm-yes,.confirm-no{min-height:50px;border-radius:var(--r-md);font:700 15.5px var(--body);cursor:pointer;border:0}
+.confirm-yes{background:var(--yellow);color:var(--navy);box-shadow:0 8px 20px rgba(255,190,0,.28)}
+.confirm-no{background:var(--cream);color:var(--navy)}

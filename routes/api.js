@@ -5,7 +5,7 @@ const { deliverOrder, attemptCustomerRefund } = require('../services/fulfillment
 const { optionalCustomer, listOffers, resolvePrice } = require('../services/customers');
 const {
   createOrder, updateOrder, transitionOrder, claimOrderForFulfillment,
-  getOrder, findByProviderReference, findOrderForProviderEvent, getPlans, isNumberBlocked,
+  getOrder, findByProviderReference, findOrderForProviderEvent, getPlans, isNumberBlocked, hasDeliveredOrder,
   getOrderHistoryByPhone, getRecentOrdersByPhone, getStalePendingOrders, deleteUnpaidOrder, getSettings, normalizePhone, PHONE_RE,
 } = require('../services/orderStore');
 
@@ -168,6 +168,10 @@ router.post('/checkout', checkoutLimit, optionalCustomer(), async (req, res) => 
     if (!PHONE_RE.test(phone)) return res.status(400).json({ error: 'Enter a valid 10-digit phone number, e.g. 0551234567.' });
     if (!/^\S+@\S+\.\S+$/.test(email)) return res.status(400).json({ error: 'Enter a valid email address.' });
     if (await isNumberBlocked(phone)) return res.status(403).json({ error: 'This phone number is currently blocked from making purchases. Please contact support.' });
+    // First-time MTN numbers may wait for MTN's verification: ask the customer to confirm before paying.
+    if (settings.firstTimeNoticeEnabled !== false && plan.network === 'MTN' && req.body?.confirmFirstTime !== true && !(await hasDeliveredOrder(phone))) {
+      return res.status(409).json({ firstTime: true, message: settings.firstTimeNotice || '' });
+    }
 
     // The price is always worked out here from the database, never taken from the browser.
     const offers = req.customer ? await listOffers(req.customer.id, { onlyUsable: true }) : [];
