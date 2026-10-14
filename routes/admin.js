@@ -529,6 +529,8 @@ router.put('/settings', async (req, res) => {
       patch.autoPaused = Object.fromEntries(Object.entries(cur).filter(([n]) => patch.pausedNetworks.includes(n)));
     }
     if (body.pauseMessage != null) patch.pauseMessage = String(body.pauseMessage).trim().slice(0, 300);
+    if (body.firstTimeNoticeEnabled != null) patch.firstTimeNoticeEnabled = Boolean(body.firstTimeNoticeEnabled);
+    if (body.firstTimeNotice != null) patch.firstTimeNotice = String(body.firstTimeNotice).trim().slice(0, 500);
     if (body.customerPaysFee != null) patch.customerPaysFee = Boolean(body.customerPaysFee);
     if (body.maintenanceMode != null) patch.maintenanceMode = Boolean(body.maintenanceMode);
     if (body.maintenanceMessage != null) patch.maintenanceMessage = String(body.maintenanceMessage).trim().slice(0, 200);

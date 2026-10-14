@@ -33,6 +33,8 @@ const DEFAULT_SETTINGS = {
   providers: { MTN: 'datahustle', Telecel: 'datahustle', AirtelTigo: 'datahustle' },
   pausedNetworks: [],
   customerPaysFee: true,
+  firstTimeNoticeEnabled: true,
+  firstTimeNotice: "A brand-new MTN number must be verified by MTN before data can be delivered, and this can take up to 7 days. If your number is not verified yet, your data may arrive late. Do you want to continue?",
   outOfStock: {},
   stockWatch: {},
   autoPaused: {},
@@ -911,7 +913,14 @@ async function getOutOfStockOrders(network, limit = 20) {
   return r.rows.map(mapOrder);
 }
 
+// True when this number has already received a bundle from the store (so it has been verified before).
+async function hasDeliveredOrder(phone) {
+  const r = await pool.query("SELECT 1 FROM orders WHERE phone = $1 AND status = 'fulfilled' LIMIT 1", [phone]);
+  return r.rowCount > 0;
+}
+
 module.exports = {
+  hasDeliveredOrder,
   getOutOfStockOrders,
   countOldOrders, deleteOldOrders,
   initDb,

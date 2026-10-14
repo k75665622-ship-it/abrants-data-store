@@ -307,16 +307,26 @@
       return;
     }
 
+    startCheckout(phone, email, false);
+  });
+
+  // Sends the customer to Paystack. For a first-time MTN number the server first asks us to get a "yes".
+  function startCheckout(phone, email, confirmed) {
     setBusy(payBtn, true, 'Starting secure payment…');
     fetch('/api/checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ planId: SELECTED_PLAN.id, phone: phone, email: email })
+      body: JSON.stringify({ planId: SELECTED_PLAN.id, phone: phone, email: email, confirmFirstTime: confirmed === true })
     })
       .then(function (res) {
-        return res.json().then(function (data) { return { ok: res.ok, data: data }; });
+        return res.json().then(function (data) { return { ok: res.ok, status: res.status, data: data }; });
       })
       .then(function (result) {
+        if (result.status === 409 && result.data.firstTime) {
+          setBusy(payBtn, false);
+          askFirstTime(result.data.message, function () { startCheckout(phone, email, true); });
+          return;
+        }
         if (!result.ok) throw new Error(result.data.error || 'Something went wrong. Please try again.');
         try { localStorage.setItem('abrants_email', email); } catch (e) { /* private mode */ }
         toast('Taking you to secure payment…', 'success');
@@ -326,7 +336,18 @@
         setBusy(payBtn, false);
         showError(err.message);
       });
-  });
+  }
+
+  function askFirstTime(message, onYes) {
+    var box = $('firstTimeConfirm');
+    $('ftText').textContent = message || 'A brand-new MTN number must be verified by MTN before data can be delivered. This can take up to 7 days. Do you want to continue?';
+    box.hidden = false;
+    var yes = $('ftYes'), no = $('ftNo');
+    function close() { box.hidden = true; yes.onclick = null; no.onclick = null; }
+    yes.onclick = function () { close(); onYes(); };
+    no.onclick = function () { close(); };
+    yes.focus();
+  }
 
   /* -------------------------------------------------------------- init */
 

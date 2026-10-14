@@ -231,6 +231,19 @@
   </div>
 </div>
 
+<div class="confirm" id="firstTimeConfirm" hidden role="dialog" aria-modal="true" aria-labelledby="ftTitle">
+  <div class="confirm-backdrop"></div>
+  <div class="confirm-box">
+    <div class="confirm-icon" aria-hidden="true">📶</div>
+    <h3 id="ftTitle">First time on this number?</h3>
+    <p id="ftText"></p>
+    <div class="confirm-actions">
+      <button type="button" class="confirm-yes" id="ftYes">Yes, continue</button>
+      <button type="button" class="confirm-no" id="ftNo">No, go back</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="false"></div>
 
 <script src="/js/app.js"></script>
