@@ -292,3 +292,7 @@ The store never switches provider by itself, because the other provider's wallet
 Only a definite "out of stock" answer is handled this way. Timeouts are never retried automatically, to avoid buying the same bundle twice.
 
 **Early warning.** About every 10 minutes the store asks DataHustle and FastDealsGH for their bundle lists and looks for a stock flag. Settings → Delivery provider → **Check stock** shows what each provider reports. Not every provider publishes stock; if it does not, the pause happens the moment an order is refused.
+
+## 14. Customer pays the Paystack fee
+
+By default the Paystack fee (about 1.95%, set `PAYSTACK_FEE_RATE` to change it) is added on top at checkout, so it comes out of the customer's payment instead of your profit. The checkout shows "Bundle GH₵5.00 + payment fee GH₵0.10". The order keeps the bundle price, the fee the customer added, and the fee you bear (the real Paystack fee minus the part the customer paid, usually about zero), so profit figures stay correct. Refunds return everything the customer paid. Turn this off in Settings ("Customer pays the Paystack fee") to absorb the fee yourself. Orders made before this change are unaffected.

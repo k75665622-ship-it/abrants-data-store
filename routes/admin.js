@@ -258,7 +258,7 @@ router.post('/orders/:reference/refund', async (req, res) => {
     if (['refunding', 'refunded'].includes(order.status) || ['pending', 'processing', 'processed', 'queued'].includes(order.refundStatus || '')) {
       return res.status(409).json({ error: 'This order has already been refunded or a refund is in progress. Do not refund it again.' });
     }
-    const refund = await refundTransaction(order.reference, order.priceGHS);
+    const refund = await refundTransaction(order.reference, order.chargeGHS ?? order.priceGHS);
     const updated = await updateOrder(order.reference, {
       status: 'refunding', refundId: refund?.id ? String(refund.id) : null,
       refundStatus: refund?.status || 'pending',
@@ -529,6 +529,7 @@ router.put('/settings', async (req, res) => {
       patch.autoPaused = Object.fromEntries(Object.entries(cur).filter(([n]) => patch.pausedNetworks.includes(n)));
     }
     if (body.pauseMessage != null) patch.pauseMessage = String(body.pauseMessage).trim().slice(0, 300);
+    if (body.customerPaysFee != null) patch.customerPaysFee = Boolean(body.customerPaysFee);
     if (body.maintenanceMode != null) patch.maintenanceMode = Boolean(body.maintenanceMode);
     if (body.maintenanceMessage != null) patch.maintenanceMessage = String(body.maintenanceMessage).trim().slice(0, 200);
     if (body.lowWalletThreshold != null) {
