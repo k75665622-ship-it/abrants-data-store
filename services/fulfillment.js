@@ -164,7 +164,7 @@ async function attemptCustomerRefund(reference) {
   // use up the customer's offer, so they can simply try again.
   if (order.source === 'gift' || Number(order.priceGHS) <= 0) return;
   try {
-    const refund = await refundTransaction(reference, order.priceGHS);
+    const refund = await refundTransaction(reference, order.chargeGHS ?? order.priceGHS);
     await updateOrder(reference, {
       status: 'refunding',
       refundId: refund?.id ? String(refund.id) : null,

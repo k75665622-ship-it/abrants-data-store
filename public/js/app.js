@@ -212,7 +212,13 @@
     SELECTED_PLAN = plan;
     $('ckPlanLabel').textContent = plan.label;
     $('ckNetwork').textContent = plan.network + ' · delivered to your number';
-    $('ckPrice').textContent = money(plan.priceGHS);
+    // Paystack's fee is paid by the customer on top of the bundle price (same rounding as the server).
+    var feeRate = Number(SETTINGS.paymentFeeRate) > 0 ? Number(SETTINGS.paymentFeeRate) : 0.0195;
+    var total = SETTINGS.customerPaysFee === false ? Number(plan.priceGHS) : Math.ceil(Math.round(Number(plan.priceGHS) * 100 / (1 - feeRate) * 1e6) / 1e6) / 100;
+    var fee = Math.round((total - Number(plan.priceGHS)) * 100) / 100;
+    $('ckPrice').textContent = money(total);
+    var feeEl = $('ckFee');
+    if (fee > 0) { feeEl.textContent = 'Bundle ' + money(plan.priceGHS) + ' + payment fee ' + money(fee) + ' (charged by Paystack)'; feeEl.hidden = false; } else { feeEl.hidden = true; }
     $('ckValidity').textContent = 'Valid ' + (plan.validity || '30 days');
     var sp = $('ckSpecial');
     if (plan.special && plan.listPriceGHS) {

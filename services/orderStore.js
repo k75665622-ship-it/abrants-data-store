@@ -32,6 +32,7 @@ const DEFAULT_SETTINGS = {
   channelLink: '',
   providers: { MTN: 'datahustle', Telecel: 'datahustle', AirtelTigo: 'datahustle' },
   pausedNetworks: [],
+  customerPaysFee: true,
   outOfStock: {},
   stockWatch: {},
   autoPaused: {},
@@ -128,6 +129,7 @@ async function initDb() {
   await pool.query(`
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS provider_cost_ghs NUMERIC(12,2);
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_fee_ghs NUMERIC(12,2);
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_fee_ghs NUMERIC(12,2) NOT NULL DEFAULT 0;
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS refund_id TEXT;
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS refund_status TEXT;
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS admin_note TEXT;
@@ -167,6 +169,8 @@ function mapOrder(row) {
     priceGHS: Number(row.price_ghs),
     providerCostGHS: row.provider_cost_ghs == null ? null : Number(row.provider_cost_ghs),
     paymentFeeGHS: row.payment_fee_ghs == null ? null : Number(row.payment_fee_ghs),
+    customerFeeGHS: Number(row.customer_fee_ghs || 0),
+    chargeGHS: Math.round((Number(row.price_ghs) + Number(row.customer_fee_ghs || 0)) * 100) / 100,
     estimatedProfitGHS: row.provider_cost_ghs == null
       ? null
       : Number(row.price_ghs) - Number(row.provider_cost_ghs) - Number(row.payment_fee_ghs || 0),
@@ -200,8 +204,8 @@ async function createOrder(order) {
   const result = await pool.query(`
     INSERT INTO orders
       (reference, plan_id, network, network_code, capacity_gb, label, price_ghs, provider_cost_ghs, payment_fee_ghs,
-       phone, email, status, customer_id, offer_id, list_price_ghs, source)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'pending',$12,$13,$14,'store')
+       phone, email, status, customer_id, offer_id, list_price_ghs, source, customer_fee_ghs)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'pending',$12,$13,$14,'store',$15)
     ON CONFLICT (reference) DO NOTHING
     RETURNING *
   `, [
@@ -209,6 +213,7 @@ async function createOrder(order) {
     order.capacityGB, order.label, order.priceGHS, order.providerCostGHS ?? null,
     order.paymentFeeGHS ?? null, order.phone, order.email || null,
     order.customerId ?? null, order.offerId ?? null, order.listPriceGHS ?? null,
+    Number(order.customerFeeGHS || 0),
   ]);
   // Safe to call twice for the same reference (e.g. webhook and status page at the same moment).
   if (!result.rows[0]) return getOrder(order.reference);
@@ -299,7 +304,7 @@ async function claimOrderForFulfillment(reference, payment = {}) {
         updated_at=NOW()
     WHERE reference=$1
       AND status='pending'
-      AND price_ghs = $3
+      AND ROUND(price_ghs + customer_fee_ghs, 2) = ROUND($3::numeric, 2)
     RETURNING *
   `, [
     reference,

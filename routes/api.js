@@ -83,10 +83,19 @@ function orderFromMetadata(reference, tx) {
   return {
     reference, ...o,
     capacityGB: Number(o.capacityGB), priceGHS: price,
-    providerCostGHS: num(o.providerCostGHS), paymentFeeGHS: num(o.paymentFeeGHS),
+    providerCostGHS: num(o.providerCostGHS), paymentFeeGHS: num(o.paymentFeeGHS), customerFeeGHS: num(o.customerFeeGHS) || 0,
     customerId: num(o.customerId), offerId: num(o.offerId), listPriceGHS: num(o.listPriceGHS),
     email: o.email || '',
   };
+}
+
+// Paystack charges its fee out of what the customer pays. To make the customer carry it, the amount we
+// ask Paystack to collect is the bundle price grossed up so that, after Paystack's cut, we keep the price.
+function feeRate() { const r = Number(process.env.PAYSTACK_FEE_RATE || 0.0195); return Number.isFinite(r) && r >= 0 && r < 0.5 ? r : 0.0195; }
+function chargeFor(priceGHS, customerPays) {
+  const price = Number(priceGHS);
+  if (!customerPays) return price;
+  return Math.ceil(Math.round((price * 100) / (1 - feeRate()) * 1e6) / 1e6) / 100; // round up to the pesewa
 }
 
 function paymentMatchesOrder(tx, order) {
@@ -94,7 +103,7 @@ function paymentMatchesOrder(tx, order) {
   return tx.status === 'success'
     && String(tx.reference) === String(order.reference)
     && String(tx.currency || '').toUpperCase() === 'GHS'
-    && Math.round(amountGHS * 100) === Math.round(Number(order.priceGHS) * 100);
+    && Math.round(amountGHS * 100) === Math.round((Number(order.priceGHS) + Number(order.customerFeeGHS || 0)) * 100);
 }
 
 // Only bundles that are switched on in the admin dashboard are shown to customers.
@@ -132,6 +141,8 @@ router.get('/settings', async (req, res) => {
       maintenanceMessage: s.maintenanceMessage,
       pausedNetworks: Array.isArray(s.pausedNetworks) ? s.pausedNetworks : [],
       pauseMessage: s.pauseMessage || '',
+      customerPaysFee: s.customerPaysFee !== false,
+      paymentFeeRate: feeRate(),
     });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Could not load store settings.' }); }
 });
@@ -164,20 +175,24 @@ router.post('/checkout', checkoutLimit, optionalCustomer(), async (req, res) => 
     const priceGHS = quote.priceGHS;
 
     const reference = `DB-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
-    const estimatedPaymentFeeGHS = Math.round(priceGHS * Number(process.env.PAYSTACK_FEE_RATE || 0.0195) * 100) / 100;
+    const customerPays = settings.customerPaysFee !== false;
+    const chargeGHS = chargeFor(priceGHS, customerPays);
+    const customerFeeGHS = Math.round((chargeGHS - priceGHS) * 100) / 100;
+    // The fee Paystack takes from the amount charged, minus the part the customer added. Close to zero.
+    const estimatedPaymentFeeGHS = Math.round((chargeGHS * feeRate() - customerFeeGHS) * 100) / 100;
 
     // Nothing is saved yet: the order is created only when Paystack confirms the payment.
     const orderFields = {
       planId: plan.id, network: plan.network, networkCode: plan.networkCode,
       capacityGB: plan.capacityGB, label: plan.label, priceGHS,
-      providerCostGHS: plan.providerCostGHS ?? null, paymentFeeGHS: estimatedPaymentFeeGHS,
+      providerCostGHS: plan.providerCostGHS ?? null, paymentFeeGHS: estimatedPaymentFeeGHS, customerFeeGHS,
       phone, email,
       customerId: req.customer ? req.customer.id : null, offerId: quote.offerId ?? null, listPriceGHS: plan.priceGHS,
     };
 
     const origin = `${req.protocol}://${req.get('host')}`;
     const tx = await initializeTransaction({
-      email, amountGHS: priceGHS, reference,
+      email, amountGHS: chargeGHS, reference,
       metadata: { phone, network: plan.network, label: plan.label, planId: plan.id, abrants: (() => { const d = JSON.stringify(orderFields); return { d, sig: signOrderText(reference, d) }; })() },
       callbackUrl: `${origin}/order-status.html`,
     });
@@ -353,7 +368,7 @@ async function confirmAndFulfill(reference, eventData = null) {
     if (!tx || tx.status !== 'success') return;
     const fields = orderFromMetadata(reference, tx);
     if (!fields) { console.warn('Paystack payment has no valid order details, ignored:', reference); return; }
-    if (String(tx.currency || '').toUpperCase() !== 'GHS' || Math.round(Number(tx.amount)) !== Math.round(Number(fields.priceGHS) * 100)) {
+    if (String(tx.currency || '').toUpperCase() !== 'GHS' || Math.round(Number(tx.amount)) !== Math.round((Number(fields.priceGHS) + Number(fields.customerFeeGHS || 0)) * 100)) {
       console.warn('Paystack payment amount does not match the order, ignored:', reference);
       return;
     }
@@ -362,7 +377,7 @@ async function confirmAndFulfill(reference, eventData = null) {
   }
 
   // Always verify server-to-server before delivering digital value.
-  if (!tx || tx.status !== 'success' || Number(tx.amount) / 100 !== Number(order.priceGHS) || String(tx.currency || '').toUpperCase() !== 'GHS') {
+  if (!tx || tx.status !== 'success' || Math.round(Number(tx.amount)) !== Math.round((Number(order.priceGHS) + Number(order.customerFeeGHS || 0)) * 100) || String(tx.currency || '').toUpperCase() !== 'GHS') {
     tx = await verifyTransaction(reference);
   }
   if (!paymentMatchesOrder(tx, order)) {
@@ -370,7 +385,8 @@ async function confirmAndFulfill(reference, eventData = null) {
     return;
   }
 
-  const actualFeeGHS = Number.isFinite(Number(tx.fees)) ? Number(tx.fees) / 100 : null;
+  // Paystack's real fee, minus the part the customer paid on top. What is left is what the store bears.
+  const actualFeeGHS = Number.isFinite(Number(tx.fees)) ? Math.round((Number(tx.fees) / 100 - Number(order.customerFeeGHS || 0)) * 100) / 100 : null;
   order = await claimOrderForFulfillment(reference, {
     amountGHS: Number(tx.amount) / 100,
     currency: tx.currency,

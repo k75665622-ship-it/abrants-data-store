@@ -434,9 +434,11 @@
         '<div class="detail-grid">' +
           '<div class="detail-box"><span>Customer</span><strong>' + esc(o.phone) + '</strong></div>' +
           '<div class="detail-box"><span>Email</span><strong>' + esc(o.email || '—') + '</strong></div>' +
-          '<div class="detail-box"><span>Customer paid</span><strong>' + money(o.priceGHS) + '</strong></div>' +
+          '<div class="detail-box"><span>Customer paid</span><strong>' + money(o.chargeGHS != null ? o.chargeGHS : o.priceGHS) + '</strong></div>' +
+          '<div class="detail-box"><span>Bundle price</span><strong>' + money(o.priceGHS) + '</strong></div>' +
+          '<div class="detail-box"><span>Fee added by customer</span><strong>' + money(o.customerFeeGHS || 0) + '</strong></div>' +
           '<div class="detail-box"><span>Provider cost</span><strong>' + (o.providerCostGHS == null ? '—' : money(o.providerCostGHS)) + '</strong></div>' +
-          '<div class="detail-box"><span>Paystack fee</span><strong>' + (o.paymentFeeGHS == null ? '—' : money(o.paymentFeeGHS)) + '</strong></div>' +
+          '<div class="detail-box"><span>Paystack fee you pay</span><strong>' + (o.paymentFeeGHS == null ? '—' : money(o.paymentFeeGHS)) + '</strong></div>' +
           '<div class="detail-box"><span>Est. profit</span><strong class="' + ((o.estimatedProfitGHS || 0) < 0 ? 'neg' : 'pos') + '">' +
             (o.estimatedProfitGHS == null ? '—' : money(o.estimatedProfitGHS)) + '</strong></div>' +
           '<div class="detail-box"><span>Bundle</span><strong>' + esc(o.label) + ' · ' + esc(o.network) + '</strong></div>' +
@@ -770,6 +772,7 @@
       $('#setLowWallet').value = s.lowWalletThreshold || 0;
       ['MTN', 'Telecel', 'AirtelTigo'].forEach(function (n) { $('#pause' + n).checked = (s.pausedNetworks || []).indexOf(n) !== -1; });
       $('#setPauseMsg').value = s.pauseMessage || '';
+      $('#setCustomerFee').checked = s.customerPaysFee !== false;
       $('#setMaintenance').checked = Boolean(s.maintenanceMode);
       $('#setMaintenanceMsg').value = s.maintenanceMessage || '';
     }).catch(function (err) { toast(err.message, 'error'); });
@@ -893,6 +896,7 @@
       lowWalletThreshold: Number($('#setLowWallet').value || 0),
       pausedNetworks: ['MTN', 'Telecel', 'AirtelTigo'].filter(function (n) { return $('#pause' + n).checked; }),
       pauseMessage: $('#setPauseMsg').value.trim(),
+      customerPaysFee: $('#setCustomerFee').checked,
       maintenanceMode: $('#setMaintenance').checked,
       maintenanceMessage: $('#setMaintenanceMsg').value.trim()
     };
