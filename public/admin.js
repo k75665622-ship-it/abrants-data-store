@@ -775,6 +775,8 @@
       $('#setCustomerFee').checked = s.customerPaysFee !== false;
       $('#setFirstTime').checked = s.firstTimeNoticeEnabled !== false;
       $('#setFirstTimeMsg').value = s.firstTimeNotice || '';
+      $('#setNumberCheck').checked = s.numberCheckEnabled !== false;
+      $('#setUnverifiedMsg').value = s.unverifiedNotice || '';
       $('#setMaintenance').checked = Boolean(s.maintenanceMode);
       $('#setMaintenanceMsg').value = s.maintenanceMessage || '';
     }).catch(function (err) { toast(err.message, 'error'); });
@@ -819,6 +821,17 @@
       .then(function () { toast('Saved. New orders will use your delivery choices.', 'success'); })
       .catch(function (err) { toast(err.message, 'error'); })
       .then(function () { setBusy(btn, false); });
+  });
+  $('#verifyBtn').addEventListener('click', function () {
+    var btn = this, phone = $('#verifyPhone').value.replace(/\D/g, '');
+    if (!/^0\d{9}$/.test(phone)) { toast('Enter a valid 10-digit number.', 'error'); return; }
+    setBusy(btn, true, 'Checking…');
+    api('/api/admin/verify-number?phone=' + encodeURIComponent(phone)).then(function (r) {
+      var txt = r.status === 'verified' ? '✓ Verified. MTN data can be delivered to this number.'
+        : r.status === 'unverified' ? '✗ Not verified yet. It is queued for verification, which can take up to 7 days.' + (r.message ? ' (' + esc(r.message) + ')' : '')
+        : '? Could not tell (' + esc(r.reason || 'no answer') + '). Try again in a moment.';
+      $('#verifyResult').innerHTML = '<div class="alert-strip ' + (r.status === 'verified' ? 'info' : 'warn') + '"><span class="ico">' + (r.status === 'verified' ? '✓' : '!') + '</span><div><b>' + esc(phone) + '</b><br>' + txt + '</div></div>';
+    }).catch(function (err) { toast(err.message, 'error'); }).then(function () { setBusy(btn, false); });
   });
   $('#stockCheckBtn').addEventListener('click', function () {
     var btn = this; setBusy(btn, true, 'Checking…');
@@ -901,6 +914,8 @@
       customerPaysFee: $('#setCustomerFee').checked,
       firstTimeNoticeEnabled: $('#setFirstTime').checked,
       firstTimeNotice: $('#setFirstTimeMsg').value.trim(),
+      numberCheckEnabled: $('#setNumberCheck').checked,
+      unverifiedNotice: $('#setUnverifiedMsg').value.trim(),
       maintenanceMode: $('#setMaintenance').checked,
       maintenanceMessage: $('#setMaintenanceMsg').value.trim()
     };

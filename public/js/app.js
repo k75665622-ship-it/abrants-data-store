@@ -324,7 +324,7 @@
       .then(function (result) {
         if (result.status === 409 && result.data.firstTime) {
           setBusy(payBtn, false);
-          askFirstTime(result.data.message, function () { startCheckout(phone, email, true); });
+          askFirstTime(result.data.message, function () { startCheckout(phone, email, true); }, result.data.title);
           return;
         }
         if (!result.ok) throw new Error(result.data.error || 'Something went wrong. Please try again.');
@@ -338,8 +338,9 @@
       });
   }
 
-  function askFirstTime(message, onYes) {
+  function askFirstTime(message, onYes, title) {
     var box = $('firstTimeConfirm');
+    $('ftTitle').textContent = title || 'First time on this number?';
     $('ftText').textContent = message || 'A brand-new MTN number must be verified by MTN before data can be delivered. This can take up to 7 days. Do you want to continue?';
     box.hidden = false;
     var yes = $('ftYes'), no = $('ftNo');

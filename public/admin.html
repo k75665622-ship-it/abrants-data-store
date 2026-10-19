@@ -10,7 +10,7 @@
 <link rel="icon" type="image/svg+xml" href="/icon.svg" />
 <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png" />
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-<link rel="stylesheet" href="admin.css?v=12" />
+<link rel="stylesheet" href="admin.css?v=13" />
 </head>
 <body>
 
@@ -332,7 +332,12 @@
                   <input type="checkbox" id="setFirstTime" /><span class="track"></span>
                   <span>Ask first-time MTN buyers to confirm before paying</span>
                 </label>
-                <label class="field" style="margin:8px 0 16px"><span>Message they see</span><textarea id="setFirstTimeMsg" rows="4" maxlength="500"></textarea></label>
+                <label class="field" style="margin:8px 0 16px"><span>Message when we cannot check the number</span><textarea id="setFirstTimeMsg" rows="4" maxlength="500"></textarea></label>
+                <label class="switch" style="margin:6px 0 4px">
+                  <input type="checkbox" id="setNumberCheck" /><span class="track"></span>
+                  <span>Check whether the MTN number is verified (uses FastDealsGH)</span>
+                </label>
+                <label class="field" style="margin:8px 0 16px"><span>Message when the number is not verified</span><textarea id="setUnverifiedMsg" rows="4" maxlength="500"></textarea></label>
 
                 <label class="switch" style="margin:6px 0 4px">
                   <input type="checkbox" id="setCustomerFee" /><span class="track"></span>
@@ -380,6 +385,11 @@
               </div>
               <div id="fdResult" style="margin-top:14px"></div>
               <div id="stockResult" style="margin-top:14px"></div>
+              <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--line)">
+                <label class="field" style="margin-bottom:10px"><span>Check if an MTN number is verified</span><input id="verifyPhone" type="tel" inputmode="numeric" maxlength="10" placeholder="0241234567" /></label>
+                <button class="btn btn-ghost btn-sm" type="button" id="verifyBtn">Check number</button>
+                <div id="verifyResult" style="margin-top:12px"></div>
+              </div>
             </div>
           </div>
 
@@ -531,7 +541,7 @@
 
 <div class="toast-stack" id="toastStack" aria-live="polite"></div>
 
-<script src="admin.js?v=12"></script>
+<script src="admin.js?v=13"></script>
 <script src="admin-customers.js"></script>
 </body>
 </html>

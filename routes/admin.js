@@ -57,6 +57,18 @@ router.get('/stock-check', async (req, res) => {
   catch (err) { console.error(err); res.status(502).json({ error: 'Could not check provider stock.' }); }
 });
 
+router.get('/verify-number', async (req, res) => {
+  try {
+    const phone = normalizePhone(req.query.phone);
+    if (!PHONE_RE.test(phone)) return res.status(400).json({ error: 'Enter a valid 10-digit phone number.' });
+    const nc = require('../services/numberCheck');
+    if (!nc.available()) return res.status(400).json({ error: 'FastDealsGH is not connected yet. Add FASTDEALS_API_KEY in Render first.' });
+    const r = await nc.checkNumber(phone, { fresh: true });
+    await audit(req, 'number.verify', { phone, status: r.status });
+    res.json({ phone, ...r });
+  } catch (err) { console.error(err); res.status(502).json({ error: 'Could not check this number.' }); }
+});
+
 router.post('/notices/dismiss', async (req, res) => {
   try {
     const id = String(req.body?.id || '');
@@ -529,6 +541,8 @@ router.put('/settings', async (req, res) => {
       patch.autoPaused = Object.fromEntries(Object.entries(cur).filter(([n]) => patch.pausedNetworks.includes(n)));
     }
     if (body.pauseMessage != null) patch.pauseMessage = String(body.pauseMessage).trim().slice(0, 300);
+    if (body.numberCheckEnabled != null) patch.numberCheckEnabled = Boolean(body.numberCheckEnabled);
+    if (body.unverifiedNotice != null) patch.unverifiedNotice = String(body.unverifiedNotice).trim().slice(0, 500);
     if (body.firstTimeNoticeEnabled != null) patch.firstTimeNoticeEnabled = Boolean(body.firstTimeNoticeEnabled);
     if (body.firstTimeNotice != null) patch.firstTimeNotice = String(body.firstTimeNotice).trim().slice(0, 500);
     if (body.customerPaysFee != null) patch.customerPaysFee = Boolean(body.customerPaysFee);

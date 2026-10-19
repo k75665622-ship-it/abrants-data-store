@@ -1,5 +1,6 @@
 const express = require('express');
 const crypto = require('crypto');
+const { checkNumber } = require('../services/numberCheck');
 const { initializeTransaction, verifyTransaction } = require('../services/paystack');
 const { deliverOrder, attemptCustomerRefund } = require('../services/fulfillment');
 const { optionalCustomer, listOffers, resolvePrice } = require('../services/customers');
@@ -168,9 +169,18 @@ router.post('/checkout', checkoutLimit, optionalCustomer(), async (req, res) => 
     if (!PHONE_RE.test(phone)) return res.status(400).json({ error: 'Enter a valid 10-digit phone number, e.g. 0551234567.' });
     if (!/^\S+@\S+\.\S+$/.test(email)) return res.status(400).json({ error: 'Enter a valid email address.' });
     if (await isNumberBlocked(phone)) return res.status(403).json({ error: 'This phone number is currently blocked from making purchases. Please contact support.' });
-    // First-time MTN numbers may wait for MTN's verification: ask the customer to confirm before paying.
+    // An MTN number that is not verified may wait days for data. Ask the customer to confirm before paying.
+    // Numbers that already received a bundle here are fine. Otherwise FastDealsGH tells us if it is verified.
     if (settings.firstTimeNoticeEnabled !== false && plan.network === 'MTN' && req.body?.confirmFirstTime !== true && !(await hasDeliveredOrder(phone))) {
-      return res.status(409).json({ firstTime: true, message: settings.firstTimeNotice || '' });
+      const check = settings.numberCheckEnabled !== false ? await checkNumber(phone) : { status: 'unknown' };
+      if (check.status !== 'verified') {
+        const unverified = check.status === 'unverified';
+        return res.status(409).json({
+          firstTime: true, unverified,
+          title: unverified ? 'This number is not verified yet' : 'First time on this number?',
+          message: (unverified ? settings.unverifiedNotice : settings.firstTimeNotice) || '',
+        });
+      }
     }
 
     // The price is always worked out here from the database, never taken from the browser.
