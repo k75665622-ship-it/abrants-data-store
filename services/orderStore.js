@@ -34,6 +34,8 @@ const DEFAULT_SETTINGS = {
   pausedNetworks: [],
   customerPaysFee: true,
   firstTimeNoticeEnabled: true,
+  numberCheckEnabled: true,
+  unverifiedNotice: "This MTN number is not verified yet. MTN has to verify it before data can be delivered, and this can take up to 7 days. If you continue, your data may arrive late. Do you want to continue?",
   firstTimeNotice: "A brand-new MTN number must be verified by MTN before data can be delivered, and this can take up to 7 days. If your number is not verified yet, your data may arrive late. Do you want to continue?",
   outOfStock: {},
   stockWatch: {},
@@ -94,6 +96,11 @@ async function initDb() {
       price_ghs NUMERIC(12,2) NOT NULL,
       provider_cost_ghs NUMERIC(12,2),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS verified_numbers (
+      phone TEXT PRIMARY KEY,
+      verified_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
     CREATE TABLE IF NOT EXISTS blocked_numbers (

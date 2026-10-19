@@ -300,3 +300,15 @@ By default the Paystack fee (about 1.95%, set `PAYSTACK_FEE_RATE` to change it) 
 ## 15. First-time MTN buyers
 
 New MTN numbers must be verified by MTN before data can be delivered (DataHustle and FastDealsGH both queue them, up to 7 days). When a customer picks an MTN bundle for a number that has never received a bundle from this store, a pop-up explains this and asks "Yes, continue" or "No, go back" before payment starts. Numbers that already got a bundle here are not asked. Settings lets you switch the pop-up off or change its wording.
+
+## 16. Checking MTN numbers before payment (FastDealsGH)
+
+When a customer picks an MTN bundle for a number we have never delivered to, the store asks FastDealsGH
+whether that number is verified by MTN.
+
+- **Verified** → no pop-up, straight to payment (remembered, so it is not checked again).
+- **Not verified** → pop-up: "This number is not verified yet… can take up to 7 days. Continue?"
+- **Could not check** (no key, slow, error) → the normal "First time on this number?" pop-up. Buying is never blocked.
+
+Needs `FASTDEALS_API_KEY` in Render. Settings → "Check if an MTN number is verified" lets you test any number.
+Switch and message are editable in Settings.
