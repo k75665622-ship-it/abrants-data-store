@@ -36,6 +36,8 @@ const DEFAULT_SETTINGS = {
   firstTimeNoticeEnabled: true,
   numberCheckEnabled: true,
   unverifiedNotice: "This MTN number is not verified yet. MTN has to verify it before data can be delivered, and this can take up to 7 days. If you continue, your data may arrive late. Do you want to continue?",
+  // Result checkers and AFA (FastDealsGH): selling prices and on/off, per checker code.
+  services: { checkers: {}, afa: { price: null, enabled: false } },
   firstTimeNotice: "A brand-new MTN number must be verified by MTN before data can be delivered, and this can take up to 7 days. If your number is not verified yet, your data may arrive late. Do you want to continue?",
   outOfStock: {},
   stockWatch: {},
@@ -378,13 +380,29 @@ async function findOrderForProviderEvent({ transactionId, orderId, phone, networ
   const cap = Number(capacity);
   if (PHONE_RE.test(p) && Number.isFinite(cap)) {
     const r = await pool.query(
-      `SELECT * FROM orders WHERE phone = $1 AND capacity_gb = $2 AND status = 'processing'
+      `SELECT * FROM orders WHERE phone = $1 AND capacity_gb = $2 AND status IN ('processing','delivery_review')
          AND ($3::text IS NULL OR network_code = $3) ORDER BY created_at ASC LIMIT 2`,
       [p, cap, network || null]
     );
     if (r.rows.length === 1) return mapOrder(r.rows[0]);
   }
   return null;
+}
+
+// DataHustle orders still waiting for the "delivered" update well after they were sent.
+const STUCK_SQL = `provider = 'datahustle' AND status = 'processing' AND updated_at < NOW() - ($1 || ' minutes')::interval`;
+async function countStuckOrders(minutes = 20) {
+  const r = await pool.query(`SELECT COUNT(*)::int AS n FROM orders WHERE ${STUCK_SQL}`, [String(minutes)]);
+  return r.rows[0].n;
+}
+// Marks those orders delivered (the admin confirmed DataHustle shows them delivered).
+async function markStuckDelivered(minutes = 20) {
+  const r = await pool.query(`SELECT reference FROM orders WHERE ${STUCK_SQL} ORDER BY created_at LIMIT 200`, [String(minutes)]);
+  let done = 0;
+  for (const { reference } of r.rows) {
+    if (await transitionOrder(reference, 'processing', { status: 'fulfilled' }, 'delivery.marked_by_admin')) done++;
+  }
+  return done;
 }
 
 // Orders a provider without a webhook still has to confirm (see services/fulfillment.js).
@@ -928,6 +946,7 @@ async function hasDeliveredOrder(phone) {
 
 module.exports = {
   hasDeliveredOrder,
+  countStuckOrders, markStuckDelivered,
   getOutOfStockOrders,
   countOldOrders, deleteOldOrders,
   initDb,

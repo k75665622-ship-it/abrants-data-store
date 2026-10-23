@@ -40,6 +40,7 @@ app.use((req, res, next) => {
 });
 
 app.use('/api/admin', adminRoutes);
+app.use('/api/services', require('./routes/services').pub);
 app.use('/api/account', accountRoutes);
 app.use('/api', apiRoutes);
 app.use(express.static(path.join(__dirname, 'public')));
@@ -47,6 +48,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 const PORT = process.env.PORT || 3000;
 initDb()
   .then(() => initCustomerDb())
+  .then(() => require('./services/serviceOrders').initServiceDb())
   .then(() => {
     app.listen(PORT, () => {
       console.log(`Abrants Data Store running on http://localhost:${PORT}`);
@@ -64,6 +66,15 @@ initDb()
       const watch = () => stockWatchTick(addAlert, pauseForStock).catch((e) => console.warn('Stock watch failed:', e.message));
       setTimeout(watch, 3 * 60 * 1000).unref();
       setInterval(watch, 10 * 60 * 1000).unref();
+      // Result checkers and AFA: resend unanswered orders, follow AFA reviews, drop unpaid checkouts.
+      const services = require('./services/serviceOrders');
+      setInterval(() => services.tick().catch((e) => console.warn('Services tick failed:', e.message)), 2 * 60 * 1000).unref();
+      setInterval(() => services.sweep().catch((e) => console.warn('Services sweep failed:', e.message)), 30 * 60 * 1000).unref();
+      // Keep DataHustle's delivery updates switched on (it turns them off by itself after failures).
+      const { webhookWatchTick } = require('./services/webhookWatch');
+      const hook = () => webhookWatchTick(addAlert).catch((e) => console.warn('Webhook watch failed:', e.message));
+      setTimeout(hook, 60 * 1000).unref();
+      setInterval(hook, 10 * 60 * 1000).unref();
       if (process.env.DATAHUSTLE_MOCK_MODE === 'true') {
         console.log('DataHustle is in MOCK MODE - no real provider wallet purchase will be made.');
       }

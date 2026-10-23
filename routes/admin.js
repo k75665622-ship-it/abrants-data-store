@@ -17,6 +17,7 @@ const {
   setPassword, setCustomerStatus, setCustomerNote, passwordProblem,
 } = require('../services/customers');
 const crypto = require('crypto');
+const store = require('../services/orderStore');
 
 const router = express.Router();
 
@@ -36,7 +37,7 @@ router.use(requireAdmin);
 
 router.get('/stats', async (req, res) => {
   try {
-    const [stats, settings] = await Promise.all([getOrderStats(), getSettings()]);
+    const [stats, settings, stuck] = await Promise.all([getOrderStats(), getSettings(), store.countStuckOrders().catch(() => 0)]);
     let wallet = null;
     try { wallet = Number(await getWalletBalance() || 0); } catch { wallet = null; }
     res.json({
@@ -48,6 +49,7 @@ router.get('/stats', async (req, res) => {
       maintenanceMode: Boolean(settings.maintenanceMode),
       notices: Array.isArray(settings.adminAlerts) ? settings.adminAlerts : [],
       pausedNetworks: Array.isArray(settings.pausedNetworks) ? settings.pausedNetworks : [],
+      stuck,
     });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Could not load dashboard statistics.' }); }
 });
@@ -68,6 +70,16 @@ router.get('/verify-number', async (req, res) => {
     res.json({ phone, ...r });
   } catch (err) { console.error(err); res.status(502).json({ error: 'Could not check this number.' }); }
 });
+
+router.post('/orders/mark-stuck-delivered', async (req, res) => {
+  try {
+    const count = await store.markStuckDelivered();
+    await audit(req, 'orders.mark_stuck_delivered', { count });
+    res.json({ count });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Could not update the orders.' }); }
+});
+
+router.use('/services', require('./services').admin(audit));
 
 router.post('/notices/dismiss', async (req, res) => {
   try {

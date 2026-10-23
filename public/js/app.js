@@ -385,4 +385,16 @@
   loadSettings();
   loadPlans();
   loadMe();
+  // Result checkers & AFA entry tiles (only when something is on sale).
+  fetch('/api/services').then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+    if (!d) return;
+    var chk = d.checkers || [];
+    if (chk.length) {
+      var low = Math.min.apply(null, chk.map(function (c) { return c.price; }));
+      $('moreChkText').textContent = chk.map(function (c) { return c.name; }).join(', ') + ' from GH₵' + low.toFixed(2);
+      $('moreChk').hidden = false;
+    }
+    if (d.afa) { $('moreAfaText').textContent = 'GH₵' + Number(d.afa.price).toFixed(2); $('moreAfa').hidden = false; }
+    if (chk.length || d.afa) $('moreStrip').hidden = false;
+  }).catch(function () {});
 })();
