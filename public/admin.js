@@ -141,6 +141,7 @@
     if (name === 'orders') { loadOrders(); loadStats(); }
     if (name === 'bundles') loadPlans();
     if (name === 'customers' && window.AbrantsCustomers) window.AbrantsCustomers.load();
+    if (name === 'services' && window.AbrantsServices) window.AbrantsServices.load();
     if (name === 'numbers') loadBlocked();
     if (name === 'settings') { loadSettings(); loadProviders(); }
     if (name === 'activity') loadAudit();
@@ -198,6 +199,22 @@
   }
 
   document.addEventListener('click', function (e) {
+    var m = e.target.closest('[data-mark-stuck]');
+    if (m) {
+      if (!confirm('Mark these orders as delivered? Only do this if DataHustle shows them delivered.')) return;
+      setBusy(m, true, 'Saving…');
+      api('/api/admin/orders/mark-stuck-delivered', { method: 'POST', body: '{}' })
+        .then(function (r) { toast(r.count + ' marked delivered.', 'success'); loadDashboard(); })
+        .catch(function (err) { toast(err.message, 'error'); setBusy(m, false); });
+      return;
+    }
+    if (e.target.closest('[data-view-processing]')) {
+      var chip = document.querySelector('[data-status="processing"]');
+      var tab = document.querySelector('.side-link[data-section="orders"]');
+      if (tab) tab.click();
+      if (chip) chip.click();
+      return;
+    }
     var b = e.target.closest('[data-dismiss-notice]');
     if (!b) return;
     api('/api/admin/notices/dismiss', { method: 'POST', body: JSON.stringify({ id: b.getAttribute('data-dismiss-notice') }) })
@@ -210,6 +227,13 @@
       html += '<div class="alert-strip"><span class="ico">⚠</span><div><strong>Provider wallet is running low.</strong><br>' +
         'Balance is ' + money(s.wallet) + ', below your ' + money(s.lowWalletThreshold) +
         ' threshold. Top up DataHustle so deliveries do not start failing.</div></div>';
+    }
+    if (s.stuck > 0) {
+      html += '<div class="alert-strip warn"><span class="ico">⏳</span><div><strong>' + s.stuck + ' order' + (s.stuck === 1 ? '' : 's') +
+        ' stuck on Processing</strong><br>If DataHustle shows ' + (s.stuck === 1 ? 'it' : 'them') + ' delivered:' +
+        '<div class="row-actions" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">' +
+        '<button class="btn btn-primary btn-sm" type="button" data-mark-stuck>Mark delivered</button>' +
+        '<button class="btn btn-ghost btn-sm" type="button" data-view-processing>View</button></div></div></div>';
     }
     (s.notices || []).forEach(function (n) {
       var cls = n.level === 'danger' ? 'alert-strip' : (n.level === 'info' ? 'alert-strip info' : 'alert-strip warn');

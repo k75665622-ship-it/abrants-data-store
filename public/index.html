@@ -18,7 +18,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="/css/style.css" />
+<link rel="stylesheet" href="/css/style.css?v=2" />
 </head>
 <body class="has-mobilebar">
 
@@ -92,7 +92,6 @@
   <section class="shop wrap" id="bundles">
     <div class="section-heading">
       <div><p class="section-kicker">CHOOSE YOUR NETWORK</p><h2>Pick a bundle</h2></div>
-      <p>Tap any plan to check out — it takes under a minute.</p>
     </div>
 
     <a class="offer-banner" id="offerBanner" href="/account.html" hidden>
@@ -107,6 +106,15 @@
       <div class="skeleton"></div><div class="skeleton"></div>
       <div class="skeleton"></div><div class="skeleton"></div>
     </div>
+  </section>
+
+  <section class="more-strip wrap" id="moreStrip" hidden>
+    <a class="more-tile" href="/services.html#checkers" id="moreChk" hidden>
+      <span class="more-ico" aria-hidden="true">🎓</span><span><b>Result checkers</b><small id="moreChkText"></small></span>
+    </a>
+    <a class="more-tile" href="/services.html#afa" id="moreAfa" hidden>
+      <span class="more-ico" aria-hidden="true">🪪</span><span><b>AFA registration</b><small id="moreAfaText"></small></span>
+    </a>
   </section>
 
   <section class="why-section">
@@ -168,6 +176,7 @@
     <nav class="footer-links">
       <a href="#bundles">Buy data</a>
       <a href="/order-status.html">Track order</a>
+      <a href="/services.html">Checkers &amp; AFA</a>
       <a href="/account.html">My account</a>
       <a href="#faq">FAQ</a>
     </nav>
@@ -221,7 +230,6 @@
         <label class="field" for="emailInput">
           <span>Email for your receipt</span>
           <input type="email" id="emailInput" placeholder="you@example.com" autocomplete="email" enterkeyhint="go" />
-          <span class="field-hint">We send your order reference here.</span>
         </label>
         <button class="pay-btn" id="payBtn">Continue to payment <span aria-hidden="true">→</span></button>
         <p class="secure-note">🔒 Payments are securely processed by Paystack.</p>
@@ -246,6 +254,6 @@
 
 <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="false"></div>
 
-<script src="/js/app.js"></script>
+<script src="/js/app.js?v=2"></script>
 </body>
 </html>

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0b1020" />
+<meta name="description" content="Buy WAEC and BECE result checkers and register for MTN AFA. Pay with Mobile Money or card." />
+<meta name="format-detection" content="telephone=no" />
+<title>Result checkers & AFA — Abrants Data Store</title>
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/svg+xml" href="/icon.svg" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/style.css" />
+<link rel="stylesheet" href="/css/services.css?v=1" />
+</head>
+<body class="has-mobilebar sv-page">
+
+<header class="site-header">
+  <div class="wrap nav">
+    <a class="brand" href="/" aria-label="Abrants Data Store home">
+      <img class="brand-logo" src="/icon.svg" alt="" width="38" height="38" />
+      <span><strong>ABRANTS</strong><small>DATA STORE</small></span>
+    </a>
+    <div class="nav-actions">
+      <a href="/" class="track-link">Buy data</a>
+    </div>
+  </div>
+</header>
+
+<section class="sv-top">
+  <div class="wrap sv-col">
+    <h1>Result checkers &amp; AFA</h1>
+    <div class="sv-switch" id="svSwitch" role="tablist" aria-label="What do you want?" hidden>
+      <button role="tab" id="tabChk" aria-controls="paneChk" aria-selected="true" data-tab="checkers">Result checker</button>
+      <button role="tab" id="tabAfa" aria-controls="paneAfa" aria-selected="false" data-tab="afa">AFA registration</button>
+    </div>
+  </div>
+</section>
+
+<main class="wrap sv-col sv-main">
+  <div id="svLoading" class="sv-loading"><span class="spinner"></span></div>
+
+  <!-- Result checkers -->
+  <form id="paneChk" class="sv-pane" role="tabpanel" aria-labelledby="tabChk" novalidate hidden>
+    <fieldset class="sv-tickets" id="chkList">
+      <legend class="sr-only">Choose a checker</legend>
+    </fieldset>
+
+    <div class="sv-qty" id="chkQtyRow">
+      <span id="chkQtyLabel">How many</span>
+      <div class="stepper" role="group" aria-labelledby="chkQtyLabel">
+        <button type="button" id="qtyMinus" aria-label="One less">−</button>
+        <output id="qtyOut" aria-live="polite">1</output>
+        <button type="button" id="qtyPlus" aria-label="One more">+</button>
+      </div>
+    </div>
+
+    <label class="field"><span>Phone number</span>
+      <input type="tel" name="phone" id="chkPhone" inputmode="numeric" maxlength="10" placeholder="0241234567" autocomplete="tel-national" /></label>
+    <label class="field"><span>Email</span>
+      <input type="email" name="email" id="chkEmail" placeholder="you@example.com" autocomplete="email" /></label>
+
+    <button class="pay-btn" type="submit" id="chkPay">Pay</button>
+    <p class="sv-fee" id="chkFee" hidden></p>
+    <p class="ck-error" id="chkError" role="alert" hidden></p>
+  </form>
+
+  <!-- AFA registration -->
+  <form id="paneAfa" class="sv-pane" role="tabpanel" aria-labelledby="tabAfa" novalidate hidden>
+    <div class="sv-grid">
+      <label class="field sv-wide"><span>Full name on Ghana Card</span>
+        <input name="fullName" autocomplete="name" maxlength="80" placeholder="Kofi Mensah" /></label>
+      <label class="field"><span>Ghana Card number</span>
+        <input name="ghanaCard" maxlength="15" placeholder="GHA-123456789-0" autocapitalize="characters" spellcheck="false" /></label>
+      <label class="field"><span>Date of birth</span>
+        <input name="dob" type="date" min="1915-01-01" /></label>
+      <label class="field"><span>Phone number</span>
+        <input name="phone" type="tel" inputmode="numeric" maxlength="10" placeholder="0241234567" autocomplete="tel-national" /></label>
+      <label class="field"><span>Region</span>
+        <select name="region" id="afaRegion"><option value="">Choose</option></select></label>
+      <label class="field"><span>Town</span>
+        <input name="location" maxlength="60" placeholder="Madina" autocomplete="address-level2" /></label>
+      <label class="field"><span>Occupation (optional)</span>
+        <input name="occupation" maxlength="60" placeholder="Trader" /></label>
+      <label class="field sv-wide"><span>Email</span>
+        <input name="email" type="email" placeholder="you@example.com" autocomplete="email" /></label>
+    </div>
+    <button class="pay-btn" type="submit" id="afaPay">Pay</button>
+    <p class="sv-fee" id="afaFee" hidden></p>
+    <p class="ck-error" id="afaError" role="alert" hidden></p>
+  </form>
+
+  <div id="svEmpty" class="sv-empty" hidden>
+    <p>Nothing on sale here right now.</p>
+    <a class="pay-btn" href="/">Buy data instead</a>
+  </div>
+
+  <!-- After payment -->
+  <section id="svResult" class="sv-result" aria-live="polite" hidden></section>
+
+  <nav id="svRecent" class="sv-recent" aria-label="Your recent purchases" hidden></nav>
+
+  <a class="sv-help" id="svHelp" href="#" target="_blank" rel="noopener" hidden>Chat with support</a>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap footer-bottom">
+    <span>© <span id="year">2026</span> Abrants Data Store</span>
+    <span>Payments by Paystack</span>
+  </div>
+</footer>
+
+<div class="mobilebar">
+  <a class="bar-cta" href="/">Buy data</a>
+  <a class="bar-icon" href="/order-status.html" aria-label="Track a data order">🔍</a>
+  <a class="bar-icon" href="/account.html" aria-label="My account">👤</a>
+</div>
+
+<div class="toast-stack" id="toastStack" aria-live="polite"></div>
+<script src="/js/services.js?v=1"></script>
+</body>
+</html>

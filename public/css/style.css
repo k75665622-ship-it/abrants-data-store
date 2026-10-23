@@ -339,6 +339,19 @@ input,select,textarea{font:inherit;color:inherit}
 }
 .ck-error[hidden]{display:none}
 
+/* ------------------------------------------------ Checkers & AFA entry tiles */
+.more-strip{display:grid;gap:10px;margin:6px auto 34px}
+.more-strip[hidden],.more-tile[hidden]{display:none}
+@media (min-width:600px){.more-strip{grid-template-columns:1fr 1fr}}
+.more-tile{
+  display:flex;align-items:center;gap:14px;padding:16px 18px;border-radius:var(--r-md);
+  background:var(--navy);color:#fff;min-height:74px;
+}
+.more-tile b{display:block;font:700 17px/1.2 var(--display)}
+.more-tile small{display:block;color:var(--yellow);font-size:13px;font-weight:600;margin-top:3px}
+.more-ico{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:22px;background:#1c2643;flex:none}
+.more-tile::after{content:"›";margin-left:auto;font-size:26px;color:#8d97ad;line-height:1}
+
 /* ------------------------------------------------------- Content sections */
 .why-section{background:#fff;padding:52px 0;border-block:1px solid var(--line)}
 .centered{text-align:center;align-items:center}

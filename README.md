@@ -312,3 +312,26 @@ whether that number is verified by MTN.
 
 Needs `FASTDEALS_API_KEY` in Render. Settings → "Check if an MTN number is verified" lets you test any number.
 Switch and message are editable in Settings.
+
+## 17. Orders stuck on "Processing" (DataHustle)
+
+DataHustle tells the store an order is delivered through its webhook, and it switches the webhook off by
+itself after repeated failures (for example while the site restarts). The store now:
+
+- checks every 10 minutes and switches DataHustle's delivery updates back on if they are off;
+- warns on the dashboard if updates arrive with the wrong `DATAHUSTLE_WEBHOOK_SECRET`;
+- shows "N orders stuck on Processing" (DataHustle orders older than 20 minutes) with **Mark delivered**;
+- accepts a "delivered" update for an order that was under review after a timeout.
+
+## 18. Result checkers and AFA registration (FastDealsGH API v2)
+
+Page: `/services.html` (linked from the home page when something is on sale). Admin: **Checkers & AFA**.
+
+- Prices: FastDealsGH sets what they charge you (shown as *Cost*); you set your selling price. The difference is your profit.
+  A product is only sold when it has a price, is switched on, is in stock and your price is above the cost.
+- Payment first (Paystack), then the order goes to FastDealsGH with the order reference as the Idempotency-Key,
+  so retries never charge twice. Checker PINs show straight away; AFA is checked every 10 minutes until approved/rejected.
+- Sold out / invalid details → automatic Paystack refund. Wallet too low → "stuck" + dashboard alert; top up and press Retry.
+- Privacy: Ghana Card number and date of birth are wiped once FastDealsGH has reviewed the registration;
+  unpaid checkouts (with their details) are deleted after 2 hours (48 hours at most).
+- Uses the same `FASTDEALS_API_KEY`. Sandbox: use a `fdg_test_…` key.

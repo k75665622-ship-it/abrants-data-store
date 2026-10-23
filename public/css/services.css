@@ -1,0 +1,144 @@
+/* Result checkers & AFA page. Builds on style.css (header, fields, pay button, toasts). */
+
+.sv-col{max-width:600px}
+.sv-top{background:var(--navy);color:#fff;padding:26px 0 4px}
+.sv-top.with-tabs{padding-bottom:0}
+.sv-top h1{font:700 clamp(27px,7.4vw,38px)/1.05 var(--display);letter-spacing:-.035em;margin:0 0 22px}
+
+/* Segmented switch sits on the edge of the navy band */
+.sv-switch{
+  display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;
+  background:#1c2643;border-radius:16px 16px 0 0;
+}
+.sv-switch[hidden]{display:none}
+.sv-switch.single{grid-template-columns:1fr}
+.sv-switch button{
+  min-height:46px;border-radius:12px 12px 0 0;font-weight:700;font-size:14.5px;color:#aeb7cb;
+}
+.sv-switch button[aria-selected="true"]{background:var(--cream);color:var(--navy)}
+.sv-switch button[hidden]{display:none}
+
+.sv-main{padding-top:22px;padding-bottom:40px}
+.sv-loading{display:grid;place-items:center;min-height:180px}
+.sv-loading[hidden]{display:none}
+.sv-pane[hidden],.sv-result[hidden],.sv-empty[hidden],.sv-recent[hidden],.sv-help[hidden]{display:none}
+
+/* ------------------------------------------------ checker tickets (scratch-card stubs) */
+.sv-tickets{border:0;margin:0 0 18px;padding:0;display:grid;gap:10px}
+@media (min-width:480px){.sv-tickets{grid-template-columns:1fr 1fr}}
+.ticket{position:relative;display:block;cursor:pointer}
+.ticket input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.ticket-body{
+  display:grid;grid-template-columns:1fr auto;align-items:stretch;min-height:76px;
+  background:#fff;border:1.5px solid var(--line);border-radius:14px;overflow:hidden;
+  transition:border-color .15s ease,background .15s ease;
+}
+.ticket-name{display:flex;align-items:center;gap:10px;padding:14px 16px;font:700 21px/1.1 var(--display);letter-spacing:-.01em}
+.ticket-name::before{
+  content:"";width:9px;align-self:stretch;margin:-14px 0 -14px -16px;flex:none;
+  background:repeating-linear-gradient(135deg,#d9dee8 0 5px,#eef1f6 5px 10px);
+}
+.ticket-price{
+  display:flex;align-items:center;padding:0 16px;font:600 17px var(--display);white-space:nowrap;
+  border-left:2px dashed var(--line);position:relative;
+}
+.ticket-price::before,.ticket-price::after{
+  content:"";position:absolute;left:-8px;width:14px;height:14px;border-radius:50%;background:var(--cream);
+  border:1.5px solid var(--line);
+}
+.ticket-price::before{top:-9px}.ticket-price::after{bottom:-9px}
+.ticket input:checked + .ticket-body{background:var(--navy);border-color:var(--navy);color:#fff}
+.ticket input:checked + .ticket-body .ticket-name::before{background:repeating-linear-gradient(135deg,var(--yellow) 0 5px,var(--yellow-2) 5px 10px)}
+.ticket input:checked + .ticket-body .ticket-price{color:var(--yellow);border-left-color:#33405f}
+.ticket input:checked + .ticket-body .ticket-price::before,
+.ticket input:checked + .ticket-body .ticket-price::after{border-color:var(--navy)}
+.ticket input:focus-visible + .ticket-body{outline:3px solid rgba(59,130,246,.55);outline-offset:2px}
+.ticket-left{font:500 12px var(--body);color:#c2410c;margin-left:auto}
+.ticket input:checked + .ticket-body .ticket-left{color:#fdba74}
+
+/* quantity */
+.sv-qty{display:flex;align-items:center;justify-content:space-between;margin:0 0 16px;font-size:12.5px;font-weight:700;color:#4d566b}
+.stepper{display:flex;align-items:center;background:#fff;border:1px solid #dde2ec;border-radius:var(--r)}
+.stepper button{width:48px;height:48px;font-size:22px;color:var(--navy)}
+.stepper button:disabled{color:#c5cad6;cursor:not-allowed}
+.stepper output{min-width:34px;text-align:center;font:700 18px var(--display);color:var(--ink)}
+
+/* AFA form */
+.sv-grid{display:grid;gap:0 12px}
+@media (min-width:560px){.sv-grid{grid-template-columns:1fr 1fr}.sv-wide{grid-column:1/-1}}
+.field select{
+  display:block;width:100%;min-height:52px;padding:14px 40px 14px 14px;border:1px solid #dde2ec;border-radius:var(--r);
+  background:#fafbfd url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%2369718a' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 15px center;
+  font-size:16px;outline:none;appearance:none;-webkit-appearance:none;
+}
+.field select:focus{border-color:#93a1bb;background-color:#fff;box-shadow:0 0 0 4px rgba(147,161,187,.14)}
+.field input[type="date"]{min-height:52px;-webkit-appearance:none;appearance:none}
+.field.bad input,.field.bad select{border-color:#e5484d;background:#fff7f7}
+
+.sv-fee{margin:10px 0 0;text-align:center;font-size:12px;color:#7a8297}
+.sv-fee[hidden]{display:none}
+
+/* empty */
+.sv-empty{text-align:center;padding:30px 0}
+.sv-empty p{font:600 18px var(--display);margin:0 0 16px}
+
+/* ------------------------------------------------ result */
+.sv-result h2{font:700 24px/1.15 var(--display);letter-spacing:-.025em;margin:4px 0 6px}
+.sv-result .sv-sub{color:var(--muted);font-size:14px;margin:0 0 18px}
+.sv-waiting{display:flex;align-items:center;gap:12px;padding:22px 0}
+.sv-waiting h2{margin:0}
+
+.pins{display:grid;gap:12px;margin:0 0 16px}
+.pin-card{
+  display:grid;grid-template-columns:14px 1fr;background:var(--navy);color:#fff;border-radius:16px;overflow:hidden;
+  animation:reveal .45s cubic-bezier(.22,1,.36,1) both;
+}
+.pin-card:nth-child(2){animation-delay:.08s}.pin-card:nth-child(3){animation-delay:.16s}
+.pin-card:nth-child(4){animation-delay:.24s}.pin-card:nth-child(5){animation-delay:.32s}
+.pin-card::before{content:"";background:repeating-linear-gradient(135deg,var(--yellow) 0 6px,var(--yellow-2) 6px 12px)}
+.pin-rows{padding:14px 16px;display:grid;gap:10px}
+.pin-row{display:flex;align-items:center;gap:10px;justify-content:space-between}
+.pin-row dt{font-size:12px;color:#8d97ad;min-width:44px}
+.pin-row dd{margin:0;flex:1;min-width:0;font:600 17px var(--display);letter-spacing:.04em;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.pin-row.pin dd{font-size:clamp(22px,6.6vw,28px);color:var(--yellow);letter-spacing:.08em}
+.copy-btn{flex:none;min-height:38px;padding:0 12px;border-radius:10px;border:1px solid #33405f;color:#dfe5f1;font-size:13px;font-weight:700}
+.copy-btn.done{border-color:var(--green);color:#7ee2b4}
+@keyframes reveal{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
+
+.sv-actions{display:grid;gap:10px}
+.sv-actions .ghost-btn{
+  min-height:50px;border-radius:var(--r);display:flex;align-items:center;justify-content:center;
+  border:1px solid #cfd5e1;background:#fff;font-weight:700;font-size:15px;color:var(--navy);
+}
+
+.afa-steps{list-style:none;margin:6px 0 18px;padding:0;display:grid;gap:0}
+.afa-steps li{display:grid;grid-template-columns:28px 1fr;gap:12px;align-items:start;position:relative;padding-bottom:18px}
+.afa-steps li:last-child{padding-bottom:0}
+.afa-steps li::after{content:"";position:absolute;left:13px;top:28px;bottom:2px;width:2px;background:var(--line)}
+.afa-steps li:last-child::after{display:none}
+.afa-steps .dot{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-size:14px;font-weight:800;background:#fff;border:2px solid var(--line);color:#a6adbd}
+.afa-steps .done .dot{background:var(--green);border-color:var(--green);color:#fff}
+.afa-steps .now .dot{border-color:var(--yellow-2);background:#fff8d6;color:#8a5a00}
+.afa-steps .done::after{background:var(--green)}
+.afa-steps b{display:block;font-size:15px;line-height:28px}
+.afa-steps small{display:block;color:var(--muted);font-size:13px;margin-top:-2px}
+
+.afa-id{background:#e9f8f0;border:1.5px solid #9fe0c0;border-radius:16px;padding:16px;margin:0 0 16px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.afa-id span{font-size:12px;color:#0a7a47;font-weight:700}
+.afa-id strong{display:block;font:700 26px var(--display);letter-spacing:.04em;color:#064e3b}
+
+.sv-note{border-radius:14px;padding:14px 16px;margin:0 0 16px;font-size:14px;background:#fff6d9;border:1px solid #f4dc8b;color:#5c4400}
+.sv-note.bad{background:#fdecea;border-color:#f7c9c5;color:#7a1d17}
+.sv-ref{font-size:12px;color:#8d95a8;margin:16px 0 0;overflow-wrap:anywhere}
+
+/* recent purchases */
+.sv-recent{margin-top:28px;border-top:1px solid var(--line);padding-top:16px}
+.sv-recent h3{font:700 15px var(--display);margin:0 0 8px}
+.sv-recent a{display:flex;justify-content:space-between;gap:10px;padding:12px 0;border-bottom:1px solid var(--line-2);font-size:14px;font-weight:600}
+.sv-recent a small{color:var(--muted);font-weight:500}
+
+.sv-help{display:block;text-align:center;margin-top:22px;font-size:14px;font-weight:700;color:var(--navy);text-decoration:underline;text-underline-offset:3px}
+
+.sv-page .footer-bottom{border-top:0;padding-top:0}
+
+@media (prefers-reduced-motion:reduce){.pin-card{animation:none}}

@@ -2,7 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const { checkNumber } = require('../services/numberCheck');
 const { initializeTransaction, verifyTransaction } = require('../services/paystack');
-const { deliverOrder, attemptCustomerRefund } = require('../services/fulfillment');
+const { deliverOrder, attemptCustomerRefund, addAlert } = require('../services/fulfillment');
 const { optionalCustomer, listOffers, resolvePrice } = require('../services/customers');
 const {
   createOrder, updateOrder, transitionOrder, claimOrderForFulfillment,
@@ -90,14 +90,7 @@ function orderFromMetadata(reference, tx) {
   };
 }
 
-// Paystack charges its fee out of what the customer pays. To make the customer carry it, the amount we
-// ask Paystack to collect is the bundle price grossed up so that, after Paystack's cut, we keep the price.
-function feeRate() { const r = Number(process.env.PAYSTACK_FEE_RATE || 0.0195); return Number.isFinite(r) && r >= 0 && r < 0.5 ? r : 0.0195; }
-function chargeFor(priceGHS, customerPays) {
-  const price = Number(priceGHS);
-  if (!customerPays) return price;
-  return Math.ceil(Math.round((price * 100) / (1 - feeRate()) * 1e6) / 1e6) / 100; // round up to the pesewa
-}
+const { feeRate, chargeFor } = require('../services/fees');
 
 function paymentMatchesOrder(tx, order) {
   const amountGHS = Number(tx.amount) / 100;
@@ -273,7 +266,13 @@ router.post('/webhook/paystack', async (req, res) => {
   if (!event) return res.status(400).json({ error: 'Invalid JSON.' });
 
   try {
-    if (event.event === 'charge.success' && event.data?.reference) {
+    const ref = String(event.data?.reference || event.data?.transaction_reference || '');
+    if (ref.startsWith('SV-')) {
+      // Result checkers and AFA registration.
+      const services = require('../services/serviceOrders');
+      if (event.event === 'charge.success') await services.confirmPayment(ref, event.data);
+      else if (event.event?.startsWith('refund.')) await services.refundEvent(ref, event.event);
+    } else if (event.event === 'charge.success' && event.data?.reference) {
       await confirmAndFulfill(event.data.reference, event.data);
     } else if (event.event?.startsWith('refund.') && event.data?.transaction_reference) {
       await handlePaystackRefundEvent(event.event, event.data.transaction_reference, event.data);
@@ -293,6 +292,9 @@ router.post('/webhook/datahustle', async (req, res) => {
   const expected = crypto.createHmac('sha256', process.env.DATAHUSTLE_WEBHOOK_SECRET || '').update(raw).digest('hex');
   if (!safeEqualHex(expected, signature)) {
     console.warn('DataHustle webhook rejected: signature did not match. Check DATAHUSTLE_WEBHOOK_SECRET in Render.' + (signature ? '' : ' (no signature header)') + (process.env.DATAHUSTLE_WEBHOOK_SECRET ? '' : ' [secret is NOT set]'));
+    if (signature) {
+      addAlert('danger', 'DataHustle delivery updates are being rejected: the webhook secret does not match. Copy the webhook secret from DataHustle into DATAHUSTLE_WEBHOOK_SECRET in Render.').catch(() => {});
+    }
     return res.status(401).json({ error: 'Invalid signature' });
   }
 
@@ -314,9 +316,13 @@ router.post('/webhook/datahustle', async (req, res) => {
     // 'processing'. Accept the event from either 'processing' or 'paid' so a fast
     // webhook is never silently dropped.
     const advance = async (changes, eventType) => {
-      const fromProcessing = await transitionOrder(order.reference, 'processing', changes, eventType);
-      if (fromProcessing) return fromProcessing;
-      return transitionOrder(order.reference, 'paid', changes, eventType);
+      for (const from of ['processing', 'paid', 'delivery_review']) {
+        // delivery_review: our request timed out but DataHustle did accept and deliver it.
+        if (from === 'delivery_review' && eventType !== 'delivery.completed') continue;
+        const moved = await transitionOrder(order.reference, from, changes, eventType);
+        if (moved) return moved;
+      }
+      return null;
     };
 
     if (body.event === 'order.completed') {
