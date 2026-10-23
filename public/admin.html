@@ -10,7 +10,7 @@
 <link rel="icon" type="image/svg+xml" href="/icon.svg" />
 <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png" />
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-<link rel="stylesheet" href="admin.css?v=15" />
+<link rel="stylesheet" href="admin.css?v=16" />
 </head>
 <body>
 
@@ -202,7 +202,6 @@
 
         <!-- ---------------------- CHECKERS & AFA ---------------------- -->
         <section id="section-services" class="admin-section hidden">
-          <div class="section-head"><div><h2>Checkers &amp; AFA</h2></div></div>
           <div id="svcAlert"></div>
           <div class="detail-grid" id="svcStats" style="grid-template-columns:repeat(2,minmax(0,1fr))"></div>
           <div class="panel" style="margin-top:14px">
@@ -448,13 +447,19 @@
   </div>
 
   <!-- Mobile bottom tab bar -->
-  <nav class="appnav" id="appnav">
-    <button class="active" data-section="overview"><span class="ico">◧</span>Home</button>
-    <button data-section="orders"><span class="ico">☰</span>Orders</button>
-    <button data-section="bundles"><span class="ico">₵</span>Bundles</button>
-    <button data-section="services"><span class="ico">✎</span>Checkers</button>
-    <button data-section="customers"><span class="ico">☺</span>Customers</button>
-    <button data-section="settings"><span class="ico">⚙</span>Settings</button>
+  <nav class="appnav" id="appnav" aria-label="Sections">
+    <button type="button" class="nav-arrow left" id="navLeft" aria-label="Scroll sections left" hidden>‹</button>
+    <div class="appnav-track" id="appnavTrack">
+      <button class="active" data-section="overview"><span class="ico">◧</span>Home</button>
+      <button data-section="orders"><span class="ico">☰</span>Orders</button>
+      <button data-section="bundles"><span class="ico">₵</span>Bundles</button>
+      <button data-section="services"><span class="ico">✎</span>Checkers</button>
+      <button data-section="customers"><span class="ico">☺</span>Customers</button>
+      <button data-section="numbers"><span class="ico">⊘</span>Blocked</button>
+      <button data-section="settings"><span class="ico">⚙</span>Settings</button>
+      <button data-section="activity"><span class="ico">≡</span>Activity</button>
+    </div>
+    <button type="button" class="nav-arrow right" id="navRight" aria-label="Scroll sections right">›</button>
   </nav>
 </div>
 
@@ -569,7 +574,7 @@
 
 <div class="toast-stack" id="toastStack" aria-live="polite"></div>
 
-<script src="admin.js?v=15"></script>
+<script src="admin.js?v=16"></script>
 <script src="admin-customers.js"></script>
 <script src="admin-services.js?v=1"></script>
 </body>

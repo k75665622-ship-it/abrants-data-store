@@ -339,18 +339,32 @@ input,select,textarea{font:inherit;color:inherit}
 }
 .ck-error[hidden]{display:none}
 
-/* ------------------------------------------------ Checkers & AFA entry tiles */
-.more-strip{display:grid;gap:10px;margin:6px auto 34px}
-.more-strip[hidden],.more-tile[hidden]{display:none}
-@media (min-width:600px){.more-strip{grid-template-columns:1fr 1fr}}
-.more-tile{
-  display:flex;align-items:center;gap:14px;padding:16px 18px;border-radius:var(--r-md);
-  background:var(--navy);color:#fff;min-height:74px;
+/* ------------------------------------------------------- Service tiles */
+.services{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:-22px;position:relative;z-index:2;padding-bottom:6px}
+.svc-tile{
+  --c:#3b82f6;--c-soft:#e7efff;
+  position:relative;overflow:hidden;display:flex;flex-direction:column;gap:2px;
+  min-height:128px;padding:16px 16px 14px;border-radius:22px;background:#fff;
+  border:1px solid var(--line);box-shadow:var(--shadow-sm);
+  transition:transform .15s ease,box-shadow .15s ease;
 }
-.more-tile b{display:block;font:700 17px/1.2 var(--display)}
-.more-tile small{display:block;color:var(--yellow);font-size:13px;font-weight:600;margin-top:3px}
-.more-ico{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:22px;background:#1c2643;flex:none}
-.more-tile::after{content:"›";margin-left:auto;font-size:26px;color:#8d97ad;line-height:1}
+.svc-tile::after{content:"";position:absolute;right:-34px;top:-34px;width:104px;height:104px;border-radius:50%;background:var(--c-soft);opacity:.9}
+.svc-tile:active{transform:scale(.98)}
+.svc-ico{
+  position:relative;z-index:1;width:46px;height:46px;border-radius:15px;display:grid;place-items:center;
+  background:var(--c-soft);color:var(--c);margin-bottom:12px;
+}
+.svc-tile b{position:relative;z-index:1;font:700 16px/1.2 var(--display);letter-spacing:-.01em}
+.svc-tile small{position:relative;z-index:1;font-size:12.5px;line-height:1.35;color:var(--muted);font-weight:500}
+.t-chk{--c:#7c3aed;--c-soft:#efe7ff}
+.t-afa{--c:#0e9f6e;--c-soft:#e1f6ec}
+.t-track{--c:#e08a00;--c-soft:#fff1d4}
+.svc-tile.soon small{color:#a6adbd}
+.svc-tile.soon .svc-ico{filter:grayscale(.6);opacity:.75}
+@media (min-width:700px){
+  .services{grid-template-columns:repeat(4,1fr);margin-top:-30px}
+}
+@media (hover:hover){.svc-tile:hover{transform:translateY(-3px);box-shadow:var(--shadow)}}
 
 /* ------------------------------------------------------- Content sections */
 .why-section{background:#fff;padding:52px 0;border-block:1px solid var(--line)}
@@ -500,6 +514,8 @@ body.has-mobilebar{padding-bottom:82px}
 .account-link .dot{position:absolute;top:5px;right:5px;width:9px;height:9px;border-radius:50%;background:#ff5a5f;border:2px solid var(--navy)}
 .account-link .dot[hidden]{display:none}
 .track-link{display:inline-flex;align-items:center;min-height:40px}
+.track-link.nav-svc{display:none}
+@media (min-width:700px){.track-link.nav-svc{display:inline-flex}}
 
 .offer-banner{
   display:flex;align-items:center;gap:12px;margin:0 0 12px;padding:13px 14px;min-height:56px;

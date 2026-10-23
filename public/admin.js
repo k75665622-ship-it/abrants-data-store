@@ -26,6 +26,7 @@
     overview: ['Store dashboard', 'Everything important, in one place.'],
     orders: ['Orders', 'Search payments, retry deliveries and issue refunds.'],
     bundles: ['Bundles & pricing', 'Control what you sell and what it costs.'],
+    services: ['Checkers & AFA', 'Set prices, follow orders and retry stuck ones.'],
     customers: ['Customers & promos', 'See who buys the most and reward them.'],
     numbers: ['Blocked numbers', 'Stop specific numbers from buying.'],
     settings: ['Settings', 'Storefront content and support details.'],
@@ -123,15 +124,33 @@
 
   /* ----------------------------------------------------------- navigation */
 
+  (function tabArrows() {
+    var track = $('#appnavTrack'), left = $('#navLeft'), right = $('#navRight');
+    if (!track) return;
+    function sync() {
+      left.hidden = track.scrollLeft < 4;
+      right.hidden = track.scrollLeft + track.clientWidth >= track.scrollWidth - 4;
+    }
+    left.addEventListener('click', function () { track.scrollBy({ left: -track.clientWidth * 0.7 }); });
+    right.addEventListener('click', function () { track.scrollBy({ left: track.clientWidth * 0.7 }); });
+    track.addEventListener('scroll', sync, { passive: true });
+    window.addEventListener('resize', sync);
+    if (window.ResizeObserver) new ResizeObserver(sync).observe(track);
+    setTimeout(sync, 0);
+  })();
+
   function switchSection(name) {
     state.section = name;
     $$('.admin-section').forEach(function (el) { el.classList.add('hidden'); });
     var target = $('#section-' + name);
     if (target) target.classList.remove('hidden');
 
-    $$('.side-link, .appnav button').forEach(function (btn) {
+    $$('.side-link, .appnav-track button').forEach(function (btn) {
       btn.classList.toggle('active', btn.dataset.section === name);
     });
+
+    var activeTab = $('.appnav-track button.active');
+    if (activeTab && activeTab.scrollIntoView) activeTab.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
 
     var meta = SECTION_META[name] || SECTION_META.overview;
     $('#pageTitle').textContent = meta[0];
@@ -209,9 +228,8 @@
       return;
     }
     if (e.target.closest('[data-view-processing]')) {
+      switchSection('orders');
       var chip = document.querySelector('[data-status="processing"]');
-      var tab = document.querySelector('.side-link[data-section="orders"]');
-      if (tab) tab.click();
       if (chip) chip.click();
       return;
     }
