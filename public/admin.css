@@ -598,9 +598,21 @@ img.brand-mark{background:none;box-shadow:none;object-fit:contain;display:block;
 .field em{font-style:normal;font-weight:500;color:var(--muted-2)}
 
 /* Six tabs on the phone bar: tighten so every label fits at 320px */
-.appnav{grid-template-columns:repeat(6,minmax(0,1fr));padding-inline:2px}
-.appnav button{font-size:9.5px;padding:7px 1px;min-width:0}
-.appnav button .ico{font-size:17px}
+.appnav{display:flex;align-items:stretch;padding-inline:2px;gap:0}
+@media (min-width:1000px){.appnav{display:none}}
+.appnav-track{
+  flex:1;min-width:0;display:flex;gap:2px;overflow-x:auto;scroll-snap-type:x proximity;
+  scrollbar-width:none;-ms-overflow-style:none;scroll-behavior:smooth;overscroll-behavior-x:contain;
+}
+.appnav-track::-webkit-scrollbar{display:none}
+.appnav-track button{flex:0 0 auto;min-width:68px;font-size:10px;padding:7px 6px;scroll-snap-align:center}
+.appnav-track button .ico{font-size:18px}
+.appnav .nav-arrow{
+  flex:none;width:30px;display:grid;place-items:center;font-size:26px;line-height:1;padding:0 0 3px;
+  color:var(--accent);background:rgba(11,14,21,.96);border-radius:var(--r-sm);
+}
+.appnav .nav-arrow[hidden]{display:none}
+.appnav .nav-arrow:active{background:var(--amber-soft)}
 
 /* Big, easy-to-tap checkbox */
 .chk{position:relative;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;cursor:pointer;flex:none}
