@@ -220,7 +220,7 @@
   document.addEventListener('click', function (e) {
     var m = e.target.closest('[data-mark-stuck]');
     if (m) {
-      if (!confirm('Mark these orders as delivered? Only do this if DataHustle shows them delivered.')) return;
+      if (!confirm('Mark these orders as delivered? Only do this if DataHustle or FastDealsGH shows them delivered.')) return;
       setBusy(m, true, 'Saving…');
       api('/api/admin/orders/mark-stuck-delivered', { method: 'POST', body: '{}' })
         .then(function (r) { toast(r.count + ' marked delivered.', 'success'); loadDashboard(); })
@@ -248,7 +248,7 @@
     }
     if (s.stuck > 0) {
       html += '<div class="alert-strip warn"><span class="ico">⏳</span><div><strong>' + s.stuck + ' order' + (s.stuck === 1 ? '' : 's') +
-        ' stuck on Processing</strong><br>If DataHustle shows ' + (s.stuck === 1 ? 'it' : 'them') + ' delivered:' +
+        ' stuck on Processing</strong><br>If your provider shows ' + (s.stuck === 1 ? 'it' : 'them') + ' delivered:' +
         '<div class="row-actions" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">' +
         '<button class="btn btn-primary btn-sm" type="button" data-mark-stuck>Mark delivered</button>' +
         '<button class="btn btn-ghost btn-sm" type="button" data-view-processing>View</button></div></div></div>';

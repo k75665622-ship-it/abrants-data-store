@@ -4,6 +4,7 @@
  */
 const crypto = require('crypto');
 const providers = require('./providers');
+const work = require('./workHints');
 const fastdeals = require('./fastdeals');
 const { refundTransaction } = require('./paystack');
 const { updateOrder, transitionOrder, getOrder, getSettings, saveSettings, getProcessingOrdersByProvider, getOutOfStockOrders } = require('./orderStore');
@@ -178,11 +179,12 @@ async function attemptCustomerRefund(reference) {
 
 /*
  * FastDealsGH has no webhook, so orders it did not mark delivered straight away are re-checked.
- * Called every couple of minutes.
+ * Called every couple of minutes, but only looks in the database while orders are waiting.
  */
 async function pollFastdealsOrders() {
-  if (!fastdeals.configured()) return;
+  if (!fastdeals.configured() || !work.pending('provider-poll')) return;
   const orders = await getProcessingOrdersByProvider('fastdeals', 45, 50);
+  if (!orders.length) { work.done('provider-poll'); return; }
   for (const order of orders) {
     try {
       const state = await fastdeals.getOrderStatus(order.providerReference);

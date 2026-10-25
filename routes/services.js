@@ -98,6 +98,7 @@ pub.get('/order/:reference', limit(60), async (req, res) => {
     if (o.status === 'pending') {
       try { o = (await svc.confirmPayment(ref, await verifyTransaction(ref))) || o; } catch { /* not paid yet */ }
     }
+    if (o.status === 'submitted') o = await svc.refreshAfa(o);
     res.setHeader('Cache-Control', 'no-store');
     res.json(svc.publicView(o));
   } catch (err) { console.error(err); res.status(500).json({ error: 'Could not load the order.' }); }
