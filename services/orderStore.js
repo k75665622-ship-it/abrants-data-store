@@ -4,6 +4,7 @@ if (!process.env.DATABASE_URL) {
   throw new Error('DATABASE_URL is required. Create a PostgreSQL database and add DATABASE_URL to your environment.');
 }
 
+const work = require('./workHints');
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.DATABASE_SSL === 'false' ? false : { rejectUnauthorized: false },
@@ -280,6 +281,7 @@ function buildUpdate(changes) {
 }
 
 async function updateOrder(reference, changes, eventType = 'order.updated') {
+  if (changes && changes.status === 'processing') work.mark('provider-poll');
   const { fields, values, next } = buildUpdate(changes);
   if (!fields.length) return getOrder(reference);
   fields.push('updated_at = NOW()');
@@ -337,6 +339,7 @@ async function claimOrderForFulfillment(reference, payment = {}) {
 }
 
 async function transitionOrder(reference, fromStatus, changes, eventType = 'order.updated') {
+  if (changes && changes.status === 'processing') work.mark('provider-poll');
   const { fields, values, next } = buildUpdate(changes);
   if (!fields.length) return null;
   fields.push('updated_at = NOW()');
@@ -389,8 +392,8 @@ async function findOrderForProviderEvent({ transactionId, orderId, phone, networ
   return null;
 }
 
-// DataHustle orders still waiting for the "delivered" update well after they were sent.
-const STUCK_SQL = `provider = 'datahustle' AND status = 'processing' AND updated_at < NOW() - ($1 || ' minutes')::interval`;
+// Orders still waiting for the provider's "delivered" answer well after they were sent.
+const STUCK_SQL = `status = 'processing' AND updated_at < NOW() - ($1 || ' minutes')::interval`;
 async function countStuckOrders(minutes = 20) {
   const r = await pool.query(`SELECT COUNT(*)::int AS n FROM orders WHERE ${STUCK_SQL}`, [String(minutes)]);
   return r.rows[0].n;
@@ -406,11 +409,14 @@ async function markStuckDelivered(minutes = 20) {
 }
 
 // Orders a provider without a webhook still has to confirm (see services/fulfillment.js).
-async function getProcessingOrdersByProvider(provider, minAgeSeconds = 45, limit = 50) {
+async function getProcessingOrdersByProvider(provider, minAgeSeconds = 45, limit = 50, maxAgeHours = 24) {
+  // Orders older than a day stop being re-checked (they show as "stuck" on the dashboard instead),
+  // so one order the provider never answers cannot keep the database awake forever.
   const r = await pool.query(
     `SELECT * FROM orders WHERE provider = $1 AND status = 'processing' AND provider_reference IS NOT NULL
-       AND updated_at < NOW() - ($2 || ' seconds')::interval ORDER BY created_at ASC LIMIT $3`,
-    [provider, String(minAgeSeconds), limit]
+       AND updated_at < NOW() - ($2 || ' seconds')::interval AND created_at > NOW() - ($4 || ' hours')::interval
+     ORDER BY created_at ASC LIMIT $3`,
+    [provider, String(minAgeSeconds), limit, String(maxAgeHours)]
   );
   return r.rows.map(mapOrder);
 }
@@ -765,14 +771,24 @@ async function seedSettings() {
   `, [JSON.stringify(DEFAULT_SETTINGS)]);
 }
 
-async function getSettings() {
+// Settings are read on almost every request and by the background checks, but only ever change through
+// saveSettings() in this server. Keeping them in memory means an idle store does not wake the database
+// (see services/workHints.js). Pass { fresh: true } to read the database (done before every change).
+const SETTINGS_CACHE_MS = Number(process.env.SETTINGS_CACHE_MS ?? 6 * 60 * 60 * 1000);
+let settingsCache = null; // { at, value }
+const copy = (v) => JSON.parse(JSON.stringify(v));
+
+async function getSettings(opts = {}) {
+  if (!opts.fresh && settingsCache && Date.now() - settingsCache.at < SETTINGS_CACHE_MS) return copy(settingsCache.value);
   const result = await pool.query("SELECT value FROM store_settings WHERE key = 'store'");
   const stored = result.rows[0]?.value || {};
-  return { ...DEFAULT_SETTINGS, ...stored };
+  const value = { ...DEFAULT_SETTINGS, ...stored };
+  settingsCache = { at: Date.now(), value };
+  return copy(value);
 }
 
 async function saveSettings(patch) {
-  const current = await getSettings();
+  const current = await getSettings({ fresh: true });
   const next = { ...current };
   for (const key of Object.keys(DEFAULT_SETTINGS)) {
     if (Object.prototype.hasOwnProperty.call(patch, key)) next[key] = patch[key];
@@ -781,7 +797,8 @@ async function saveSettings(patch) {
     INSERT INTO store_settings (key, value, updated_at) VALUES ('store', $1::jsonb, NOW())
     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
   `, [JSON.stringify(next)]);
-  return next;
+  settingsCache = { at: Date.now(), value: copy(next) };
+  return copy(next);
 }
 
 /* ------------------------------------------------------------------ */

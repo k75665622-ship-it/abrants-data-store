@@ -514,12 +514,13 @@ router.delete('/blocked-numbers/:phone', async (req, res) => {
 /* ---------------------------------------------------------------- */
 
 router.get('/settings', async (req, res) => {
-  try { res.json(await getSettings()); }
+  try { res.json(await getSettings({ fresh: true })); }
   catch (err) { console.error(err); res.status(500).json({ error: 'Could not load settings.' }); }
 });
 
 router.put('/settings', async (req, res) => {
   try {
+    await getSettings({ fresh: true }); // start from what is really saved, not the in-memory copy
     const body = req.body || {};
     const patch = {};
     if (body.storeName != null) patch.storeName = String(body.storeName).trim().slice(0, 60) || 'Abrants Data Store';

@@ -15,6 +15,7 @@ const fd = require('./fdv2');
 const { verifyTransaction, refundTransaction } = require('./paystack');
 const { addAlert } = require('./fulfillment');
 const { round2 } = require('./fees');
+const work = require('./workHints');
 
 const STATUSES = ['pending', 'paid', 'sending', 'completed', 'submitted', 'approved', 'rejected', 'review', 'refunding', 'refunded', 'failed'];
 const RETRYABLE = new Set(['network', 'request_in_progress', 'rate_limited', 'maintenance', 'bad_response']);
@@ -92,6 +93,11 @@ async function move(reference, from, changes = {}) {
   const froms = Array.isArray(from) ? from : [from];
   vals.push(froms);
   const r = await pool.query(`UPDATE service_orders SET ${sets.join(', ')} WHERE reference = $${vals.length - 1} AND status = ANY($${vals.length}) RETURNING *`, vals);
+  if (r.rows[0]) {
+    // Tell the background job there is something to follow up (see services/workHints.js).
+    if (changes.status === 'paid' || changes.status === 'sending') work.mark('svc-send');
+    if (changes.status === 'submitted') work.mark('svc-afa');
+  }
   return mapRow(r.rows[0]);
 }
 
@@ -158,6 +164,7 @@ function newReference(kind) {
 }
 
 async function createPending(o) {
+  work.mark('svc-sweep');
   await pool.query(
     `INSERT INTO service_orders (reference, kind, item_code, item_name, checker_type_id, quantity, price_ghs, customer_fee_ghs,
        cost_ghs, payment_fee_ghs, phone, email, customer_id, afa)
@@ -259,29 +266,55 @@ async function retry(reference) {
 
 /* ------------------------------------------------------------ background */
 
+// Asks FastDealsGH whether an AFA registration was approved. Returns the updated order, or null if unchanged.
+async function checkAfaOrder(o) {
+  try {
+    const d = await fd.getAfa(o.providerReference);
+    const st = String(d.status || '').toLowerCase();
+    if (st === 'approved') return await move(o.reference, 'submitted', { status: 'approved', afaId: d.afa_id || null, afa: scrubAfa(o.afa) });
+    if (st === 'rejected') return await move(o.reference, 'submitted', { status: 'rejected', note: d.rejection_reason || 'Rejected', afa: scrubAfa(o.afa) });
+    await pool.query('UPDATE service_orders SET updated_at = NOW() WHERE reference = $1', [o.reference]);
+  } catch (e) { console.warn('AFA status check failed:', o.reference, e.code || e.message); }
+  return null;
+}
+
+// A customer looking at their AFA order gets a fresh answer (at most every 2 minutes per order).
+async function refreshAfa(o) {
+  if (!o || o.status !== 'submitted' || !o.providerReference || !fd.available()) return o;
+  if (Date.now() - new Date(o.updatedAt).getTime() < 2 * 60 * 1000) return o;
+  return (await checkAfaOrder(o)) || (await getServiceOrder(o.reference)) || o;
+}
+
+const afaEveryMs = () => Number(process.env.AFA_CHECK_MINUTES ?? 60) * 60 * 1000;
+let lastAfaCheck = 0;
+
+// Runs every 2 minutes, but only touches the database while there is something to follow up.
 async function tick() {
   if (!fd.available()) return;
   // 1. Paid but not yet sent (or the last try got no answer): send again with the same key.
-  const paid = await pool.query(`SELECT * FROM service_orders WHERE status = 'paid' AND updated_at < NOW() - INTERVAL '60 seconds' ORDER BY created_at LIMIT 20`);
-  for (const r of paid.rows) await deliver(mapRow(r)).catch((e) => console.warn('Service retry failed:', e.message));
-  // A send that crashed half-way (server restart) is put back in the queue.
-  await pool.query(`UPDATE service_orders SET status = 'paid', updated_at = NOW() WHERE status = 'sending' AND updated_at < NOW() - INTERVAL '10 minutes'`);
-  // 2. AFA registrations waiting for review: ask about each at most every 10 minutes.
-  const afa = await pool.query(`SELECT * FROM service_orders WHERE status = 'submitted' AND provider_reference IS NOT NULL AND updated_at < NOW() - INTERVAL '10 minutes' ORDER BY updated_at LIMIT 20`);
-  for (const r of afa.rows) {
-    const o = mapRow(r);
-    try {
-      const d = await fd.getAfa(o.providerReference);
-      const st = String(d.status || '').toLowerCase();
-      if (st === 'approved') await move(o.reference, 'submitted', { status: 'approved', afaId: d.afa_id || null, afa: scrubAfa(o.afa) });
-      else if (st === 'rejected') await move(o.reference, 'submitted', { status: 'rejected', note: d.rejection_reason || 'Rejected', afa: scrubAfa(o.afa) });
-      else await pool.query('UPDATE service_orders SET updated_at = NOW() WHERE reference = $1', [o.reference]);
-    } catch (e) { console.warn('AFA status check failed:', o.reference, e.code || e.message); }
+  if (work.pending('svc-send')) {
+    // A send that crashed half-way (server restart) is put back in the queue.
+    await pool.query(`UPDATE service_orders SET status = 'paid', updated_at = NOW() WHERE status = 'sending' AND updated_at < NOW() - INTERVAL '10 minutes'`);
+    const open = await pool.query(`SELECT * FROM service_orders WHERE status IN ('paid','sending') ORDER BY created_at LIMIT 20`);
+    if (!open.rows.length) work.done('svc-send');
+    for (const r of open.rows) {
+      if (r.status !== 'paid' || Date.now() - new Date(r.updated_at).getTime() < 60 * 1000) continue;
+      await deliver(mapRow(r)).catch((e) => console.warn('Service retry failed:', e.message));
+    }
+  }
+  // 2. AFA registrations under review: ask FastDealsGH about once an hour. Approval takes a while, and a
+  //    customer who opens their order page gets a fresh answer straight away (refreshAfa).
+  if (work.pending('svc-afa') && Date.now() - lastAfaCheck >= afaEveryMs()) {
+    lastAfaCheck = Date.now();
+    const afa = await pool.query(`SELECT * FROM service_orders WHERE status = 'submitted' AND provider_reference IS NOT NULL ORDER BY updated_at LIMIT 20`);
+    if (!afa.rows.length) work.done('svc-afa');
+    for (const r of afa.rows) await checkAfaOrder(mapRow(r));
   }
 }
 
 // Checkouts that were never paid are removed after 2 hours (this also deletes any AFA details).
 async function sweep() {
+  if (!work.pending('svc-sweep')) return;
   const r = await pool.query(`SELECT reference FROM service_orders WHERE status = 'pending' AND created_at < NOW() - INTERVAL '2 hours' ORDER BY created_at LIMIT 50`);
   for (const { reference } of r.rows) {
     try {
@@ -294,6 +327,8 @@ async function sweep() {
   }
   // Never keep personal details of an unpaid checkout for more than 2 days, even if Paystack cannot be reached.
   await pool.query(`DELETE FROM service_orders WHERE status = 'pending' AND created_at < NOW() - INTERVAL '48 hours'`);
+  const left = await pool.query(`SELECT 1 FROM service_orders WHERE status = 'pending' LIMIT 1`);
+  if (!left.rowCount) work.done('svc-sweep');
 }
 
 /* ------------------------------------------------------------ views */
@@ -329,5 +364,5 @@ async function listServiceOrders({ status, search, limit = 50 } = {}) {
 
 module.exports = {
   initServiceDb, catalog, cleanAfa, newReference, createPending, confirmPayment, deliver, refund, refundEvent, retry,
-  tick, sweep, getServiceOrder, publicView, listServiceOrders, REGIONS, STATUSES,
+  tick, sweep, refreshAfa, getServiceOrder, publicView, listServiceOrders, REGIONS, STATUSES,
 };

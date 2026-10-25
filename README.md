@@ -335,3 +335,19 @@ Page: `/services.html` (linked from the home page when something is on sale). Ad
 - Privacy: Ghana Card number and date of birth are wiped once FastDealsGH has reviewed the registration;
   unpaid checkouts (with their details) are deleted after 2 hours (48 hours at most).
 - Uses the same `FASTDEALS_API_KEY`. Sandbox: use a `fdg_test_…` key.
+
+## 19. Letting the database sleep (Neon free plan: 100 compute hours a month)
+
+Neon only counts compute while the database is awake, and puts it to sleep after 5 quiet minutes. If the
+monthly allowance runs out, Neon switches the database off until the next billing period and the store stops.
+
+The background checks therefore only touch the database while they have something to do
+(`services/workHints.js`): code that creates work (an order waiting for FastDealsGH, a paid checker, an AFA
+under review, an unpaid checkout) marks it in memory, and the check stops once nothing is left.
+
+- Store settings are kept in memory (they only change through this server); changes always read the database first.
+- FastDealsGH orders are re-checked every 2 minutes for up to a day, then show as "stuck" on the dashboard.
+- AFA reviews are checked about once an hour (`AFA_CHECK_MINUTES`); customers opening their order get a fresh answer.
+- Unpaid data checkouts are tidied once a day; the order page stops auto-refreshing after about 10 minutes.
+
+When nobody is shopping and nothing is waiting, the database is not touched and can sleep.

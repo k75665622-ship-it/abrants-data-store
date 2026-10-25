@@ -86,6 +86,24 @@
     renderStepper(status);
   }
 
+  // Check often at first, then slower, and stop after about 10 minutes (a forgotten open tab should not
+  // keep asking forever). "Check again" starts over.
+  var polls = 0;
+  function schedule(ms) {
+    clearTimeout(pollTimer);
+    polls += 1;
+    if (polls > 72) { showCheckAgain(); return; }
+    pollTimer = setTimeout(poll, polls <= 40 ? ms : 15000);
+  }
+  function showCheckAgain() {
+    if ($('checkAgain')) return;
+    var b = document.createElement('button');
+    b.type = 'button'; b.id = 'checkAgain'; b.className = 'copy-btn'; b.textContent = 'Check again';
+    b.style.marginTop = '12px';
+    b.addEventListener('click', function () { b.remove(); polls = 0; poll(); });
+    statusCard.appendChild(b);
+  }
+
   function poll() {
     if (!reference) return;
     fetch('/api/order/' + encodeURIComponent(reference))
@@ -96,15 +114,9 @@
       .then(function (order) {
         if (!order) return;
         renderStatus(order.status, reference);
-        if (['pending', 'paid', 'processing'].indexOf(order.status) !== -1) {
-          clearTimeout(pollTimer);
-          pollTimer = setTimeout(poll, 3000);
-        }
+        if (['pending', 'paid', 'processing'].indexOf(order.status) !== -1) schedule(3000);
       })
-      .catch(function () {
-        clearTimeout(pollTimer);
-        pollTimer = setTimeout(poll, 4000);
-      });
+      .catch(function () { schedule(4000); });
   }
 
   function renderHistory(rows) {

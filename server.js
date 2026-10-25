@@ -52,11 +52,13 @@ initDb()
   .then(() => {
     app.listen(PORT, () => {
       console.log(`Abrants Data Store running on http://localhost:${PORT}`);
-      // Tidy up unpaid checkouts: a couple of minutes after start, then every hour.
+      // The background checks below only touch the database when there is work waiting, so the
+      // database can sleep while the store is quiet (see services/workHints.js).
+      // Tidy up unpaid checkouts: a couple of minutes after start, then once a day.
       const sweep = () => apiRoutes.sweepPendingOrders().catch((e) => console.warn('Pending sweep failed:', e.message));
       setTimeout(sweep, 2 * 60 * 1000).unref();
-      setInterval(sweep, 60 * 60 * 1000).unref();
-      // FastDealsGH has no webhook: re-check its unconfirmed orders every 2 minutes.
+      setInterval(sweep, 24 * 60 * 60 * 1000).unref();
+      // FastDealsGH has no webhook: re-check its unconfirmed orders every 2 minutes (only while there are some).
       const poll = () => pollFastdealsOrders().catch((e) => console.warn('FastDeals poll failed:', e.message));
       setInterval(poll, 2 * 60 * 1000).unref();
       // Out of stock handling: try the first provider again / reopen paused networks after an hour.
