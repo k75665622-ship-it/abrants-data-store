@@ -354,13 +354,18 @@ When nobody is shopping and nothing is waiting, the database is not touched and 
 
 ## 20. The home page opens with the get-started content
 
-`public/index.html`, top to bottom: the "Data. Results. AFA." first screen (Create free account / Start buying),
-"What you can do here", "What is MTN AFA?" (`#afa`), "How buying works", the members promo (guests only), and then
-the store: "Pick a bundle" (`#bundles`), why Abrants, FAQ (`#faq`).
+`public/index.html`, top to bottom (the layout the client asked for):
+- A short first screen: "Data. Results. AFA.", one sentence, and **Explore our services**. It is the same for everyone and
+  does not change after the page loads.
+- **What do you need today?** (`#services`): Buy data, Result checkers (live names and lowest price), MTN AFA registration
+  (yellow, full width, opens the AFA explanation), and Need help? (WhatsApp, or a call link if only a phone number is set
+  in admin; hidden when neither is set).
+- "What is MTN AFA?" (`#afa`), "How buying works", the members promo (guests only), then the store: "Pick a bundle"
+  (`#bundles`), why Abrants, FAQ (`#faq`).
 
-- Logged-in customers see "Start buying" as the main button instead of "Create free account".
-- Result checker prices, the AFA fee and the AFA button follow what is on sale (`public/js/app.js`).
+Notes:
 - The AFA bundle details are what MTN's AFA menu showed in October 2026 (monthly, no data: GH₵10 for 258 MTN minutes,
   30 minutes to other networks, 500 CUG minutes and 25 SMS, 30 days). MTN's help centre still lists older GH₵6 bundles.
-  Update `public/index.html` when MTN changes the offer. The text does not say AFA is only for farmers (client's choice).
+  Update `public/index.html` (the AFA card and the AFA section) when MTN changes the offer. The text does not say AFA is
+  only for farmers (client's choice).
 - There used to be a separate `/welcome.html`; old links to it open the home page (`/welcome.html#afa` lands on the AFA part).

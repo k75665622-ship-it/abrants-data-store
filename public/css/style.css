@@ -107,7 +107,8 @@ input,select,textarea{font:inherit;color:inherit}
 .delivery-pill i{width:7px;height:7px;border-radius:50%;background:var(--green);margin-right:8px;box-shadow:0 0 0 4px rgba(18,183,106,.16)}
 
 /* -------------------------------------------------------------------- Hero */
-/* The first screen: three words, what the store does, and two ways in. */
+/* The first screen: three words, what the store does, and one way in. Kept short so the
+   services below are already in view on a phone. */
 .hero{
   position:relative;overflow:hidden;color:#fff;
   background:
@@ -115,15 +116,10 @@ input,select,textarea{font:inherit;color:inherit}
     radial-gradient(70% 60% at 0% 100%,rgba(255,210,28,.10) 0%,transparent 60%),
     var(--navy);
 }
-.hero-inner{
-  display:flex;flex-direction:column;justify-content:flex-end;padding-top:40px;padding-bottom:30px;
-  /* phones: fill the screen between the header and the bottom bar */
-  min-height:min(calc(100vh - var(--header-h) - 82px),760px);
-  min-height:min(calc(100svh - var(--header-h) - 82px),760px);
-}
+.hero-inner{display:flex;flex-direction:column;padding-top:30px;padding-bottom:34px}
 .hero-words{
   margin:0;display:flex;flex-direction:column;
-  font:700 clamp(64px,21vw,168px)/.88 var(--display);letter-spacing:-.055em;
+  font:700 clamp(52px,15vw,112px)/.9 var(--display);letter-spacing:-.055em;
 }
 .hero-words span{display:block;animation:hero-rise .7s cubic-bezier(.22,1,.36,1) both}
 .hero-words span:nth-child(2){color:var(--yellow);animation-delay:.08s}
@@ -133,20 +129,17 @@ input,select,textarea{font:inherit;color:inherit}
   .hero-words span:nth-child(3){color:transparent;-webkit-text-stroke:2px var(--yellow)}
 }
 @keyframes hero-rise{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:none}}
-.hero-copy{margin-top:26px}
-.hero-copy>p{margin:0;max-width:34em;color:#adb6c9;font-size:16px;line-height:1.6}
-.hero-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}
-.primary-cta,.secondary-cta{
+.hero-copy{margin-top:18px}
+.hero-copy>p{margin:0;max-width:34em;color:#adb6c9;font-size:15.5px;line-height:1.6}
+.hero-cta{display:flex;width:100%;margin-top:18px}
+.primary-cta{
   flex:1 1 auto;min-width:150px;
   display:inline-flex;align-items:center;justify-content:center;gap:8px;
   min-height:52px;padding:14px 20px;border-radius:var(--r);
   font-weight:700;font-size:15px;
 }
-.primary-cta[hidden],.secondary-cta[hidden]{display:none}
 .primary-cta{background:linear-gradient(180deg,var(--yellow),var(--yellow-2));color:var(--navy)}
 .primary-cta:active{transform:translateY(1px)}
-.secondary-cta{border:1px solid rgba(255,255,255,.18);color:#fff}
-.secondary-cta:active{background:rgba(255,255,255,.08)}
 
 /* ------------------------------------------------------------- Shop / tabs */
 .shop{padding-block:38px 56px}
@@ -307,21 +300,57 @@ input,select,textarea{font:inherit;color:inherit}
 .home-section{padding-top:40px}
 .home-section>h2{font:700 26px/1.15 var(--display);letter-spacing:-.03em;margin:0 0 16px}
 
-/* What you can do here */
-.do-list{list-style:none;margin:0;padding:0;background:#fff;border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden}
-.do-list li+li{border-top:1px solid var(--line-2)}
-.do-list a{display:flex;align-items:center;gap:14px;padding:16px;min-height:76px}
-.do-list a:active{background:var(--cream)}
-.do-ico{flex:none;width:44px;height:44px;border-radius:14px;display:grid;place-items:center;background:var(--c-soft,#e7efff);color:var(--c,#3b82f6)}
-.t-chk{--c:#7c3aed;--c-soft:#efe7ff}
-.t-afa{--c:#0e9f6e;--c-soft:#e1f6ec}
-.t-track{--c:#e08a00;--c-soft:#fff1d4}
-.do-txt{flex:1;min-width:0}
-.do-txt b{display:block;font:700 16.5px/1.25 var(--display)}
-.do-txt small{display:block;margin-top:3px;color:var(--muted);font-size:13.5px;line-height:1.45}
-.do-go{flex:none;color:#a3abbd}
-.do-down{transform:rotate(90deg)}
-@media (hover:hover){.do-list a:hover{background:#fafbfd}}
+/* What do you need today? One card per service, coloured by service; the action sits at the
+   bottom of every card. MTN AFA wears MTN's yellow and gets the full width. */
+.need-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.need{
+  --c:#2563eb;--c-soft:#e8efff;
+  position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:flex-start;gap:6px;
+  min-height:192px;padding:18px 16px 16px;border-radius:22px;background:#fff;border:1px solid var(--line);
+  transition:border-color .15s ease,transform .15s ease;
+}
+.need[hidden]{display:none}
+.need::after{content:"";position:absolute;right:-38px;top:-38px;width:112px;height:112px;border-radius:50%;background:var(--c-soft);pointer-events:none}
+.need>*{position:relative;z-index:1}
+.need-ico{display:grid;place-items:center;width:46px;height:46px;border-radius:15px;background:var(--c-soft);color:var(--c);margin-bottom:8px}
+.need b{font:700 18px/1.2 var(--display);letter-spacing:-.01em}
+.need-txt{color:var(--muted);font-size:13.5px;line-height:1.45}
+.need-go{display:inline-flex;align-items:center;gap:6px;margin-top:auto;padding-top:12px;font-weight:700;font-size:14.5px;color:var(--c)}
+.need-go svg{transition:transform .15s ease}
+a.need:active{transform:scale(.985)}
+@media (hover:hover){
+  a.need:hover{border-color:#c9d0de}
+  a.need:hover .need-go svg{transform:translateX(3px)}
+}
+.need-chk{--c:#7c3aed;--c-soft:#f0e9ff}
+
+.need-afa{
+  grid-column:1/-1;min-height:0;padding:20px 18px 18px;color:var(--navy);
+  background:linear-gradient(140deg,var(--yellow),var(--yellow-2));border-color:transparent;
+}
+/* the hero's outlined "AFA." again, as a watermark */
+.need-afa::after{
+  content:"AFA";top:auto;right:-8px;bottom:-30px;width:auto;height:auto;border-radius:0;background:none;
+  font:700 136px/1 var(--display);letter-spacing:-.05em;color:transparent;-webkit-text-stroke:2px rgba(11,16,32,.12);
+}
+.need-afa .need-ico{background:var(--navy);color:var(--yellow)}
+.need-afa b{font-size:15px;font-family:var(--body)}
+.need-hook{font:700 23px/1.15 var(--display);letter-spacing:-.025em;max-width:15em;text-wrap:balance}
+.need-afa .need-txt{color:#503f00;max-width:32em}
+.need-afa .need-go{margin-top:14px;padding:12px 18px;border-radius:999px;background:var(--navy);color:var(--yellow)}
+
+.need-help{
+  --c:#12a150;--c-soft:#e5f7ec;
+  grid-column:1/-1;min-height:0;display:grid;grid-template-columns:auto 1fr;align-items:center;gap:12px 14px;
+}
+.need-help::after{display:none}
+.need-help .need-ico{margin:0}
+.need-help-txt{display:flex;flex-direction:column;gap:2px}
+.need-help-btn{
+  grid-column:1/-1;display:flex;align-items:center;justify-content:center;gap:8px;min-height:50px;padding:0 22px;
+  border-radius:var(--r);background:var(--c);color:#fff;font-weight:700;font-size:15px;
+}
+.need-help-btn:active{transform:translateY(1px)}
 
 /* How buying works */
 .buy-steps{list-style:none;counter-reset:st;margin:0;padding:0;display:grid;gap:10px}
@@ -425,6 +454,12 @@ input,select,textarea{font:inherit;color:inherit}
   border:1px solid var(--line);background:#fff;font-size:19px;
 }
 body.has-mobilebar{padding-bottom:82px}
+/* Small phones: keep "Buy data now" on one line */
+@media (max-width:359px){
+  .mobilebar{gap:8px}
+  .mobilebar .bar-icon{width:44px;height:44px;font-size:17px}
+  .mobilebar .bar-cta{font-size:14px;white-space:nowrap}
+}
 
 /* ---------------------------------------------------------------- Toasts */
 .toast-stack{
@@ -540,21 +575,20 @@ body.has-mobilebar{padding-bottom:82px}
 @media (min-width:900px){
   :root{--header-h:74px}
   .delivery-pill{display:inline-flex}
-  .hero-inner{
-    display:grid;grid-template-columns:1.25fr .75fr;align-items:end;column-gap:40px;
-    min-height:min(calc(100vh - var(--header-h)),700px);padding-top:56px;padding-bottom:64px;
-  }
-  .hero-words{font-size:clamp(96px,13vw,168px)}
-  .hero-copy{margin:0 0 14px}
+  .hero-inner{display:grid;grid-template-columns:1.2fr .8fr;align-items:end;column-gap:48px;padding-top:56px;padding-bottom:60px}
+  .hero-words{font-size:clamp(96px,11vw,150px)}
+  .hero-copy{margin:0 0 10px}
   .hero-copy>p{font-size:17px}
-  .hero-actions{flex-wrap:nowrap}
-  .primary-cta,.secondary-cta{flex:0 0 auto;min-width:0}
+  .hero-cta{display:inline-flex;width:auto;padding-inline:28px}
   .home-section{padding-top:64px}
   .home-section>h2{font-size:34px}
-  .do-list{display:grid;grid-template-columns:1fr 1fr}
-  .do-list li+li{border-top:0}
-  .do-list li:nth-child(n+3){border-top:1px solid var(--line-2)}
-  .do-list li:nth-child(even){border-left:1px solid var(--line-2)}
+  .need-grid{gap:16px}
+  .need{min-height:200px;padding:22px 24px 20px}
+  .need-afa{min-height:0;padding:28px 32px 26px}
+  .need-afa::after{font-size:230px;right:-14px;bottom:-56px}
+  .need-hook{font-size:32px;max-width:none}
+  .need-help{grid-column:1/-1;grid-template-columns:auto 1fr auto;min-height:0;padding:18px 20px}
+  .need-help-btn{grid-column:auto}
   .shop{padding-block:56px 72px}
   .section-heading{flex-direction:row;align-items:flex-end;justify-content:space-between;gap:20px}
   .section-heading.centered{justify-content:center}
@@ -633,17 +667,17 @@ body.has-mobilebar{padding-bottom:82px}
 .afa-lead{margin:0 0 18px;color:var(--muted);font-size:15px;line-height:1.6;max-width:42em}
 .afa-packs{display:grid;gap:12px}
 .afa-pack{border-radius:var(--r-lg);padding:18px;background:var(--cream);border:1px solid var(--line-2)}
-.afa-pack.main{background:#e9f8f0;border-color:#c9ecd9}
+.afa-pack.main{background:#fff8dc;border-color:#ffe39a}
 .afa-pack h3{margin:0;font:600 14px var(--body);color:var(--muted)}
-.afa-pack.main h3{color:#0a7a47}
+.afa-pack.main h3{color:#7a5d00}
 .afa-big{margin:6px 0 12px;font:700 40px/1 var(--display);letter-spacing:-.04em}
 .afa-big span{font:600 15px var(--body);letter-spacing:0;color:#4d566b}
 .afa-pack ul{list-style:none;margin:0;padding:0;display:grid;gap:7px;font-size:14px;color:#2b3245}
 .afa-pack li{display:flex;gap:9px;align-items:baseline}
-.afa-pack li::before{content:"";flex:none;width:5px;height:5px;border-radius:50%;background:#0e9f6e;transform:translateY(-2px)}
+.afa-pack li::before{content:"";flex:none;width:5px;height:5px;border-radius:50%;background:#e0a800;transform:translateY(-2px)}
 .afa-pack .afa-more{margin-top:10px;font-size:15px}
 .afa-pack .afa-more li::before{background:#a3abbd}
-.afa-price{margin:14px 0 0;padding-top:12px;border-top:1px solid rgba(15,20,34,.08);font-weight:700;font-size:14px;color:#0a7a47}
+.afa-price{margin:14px 0 0;padding-top:12px;border-top:1px solid rgba(15,20,34,.08);font-weight:700;font-size:14px;color:#7a5d00}
 .afa-pack:not(.main) .afa-price{color:var(--muted);font-weight:600}
 .afa-how-title{margin:24px 0 12px;font:700 18px var(--display)}
 .afa-how{list-style:none;counter-reset:afa;margin:0 0 20px;padding:0;display:grid;gap:14px}
