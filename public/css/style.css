@@ -357,16 +357,10 @@ input,select,textarea{font:inherit;color:inherit}
 .t-chk{--c:#7c3aed;--c-soft:#efe7ff}
 .t-afa{--c:#0e9f6e;--c-soft:#e1f6ec}
 .t-track{--c:#e08a00;--c-soft:#fff1d4}
-.t-bill{--c:#0284c7;--c-soft:#e0f2fe}
-/* Phones: data (the main product) gets a full-width tile, the other four sit two by two */
-.svc-tile.t-data{grid-column:1/-1;min-height:0;display:grid;grid-template-columns:auto 1fr;column-gap:14px;align-items:center}
-.svc-tile.t-data .svc-ico{grid-row:span 2;margin-bottom:0}
 .svc-tile.soon small{color:#a6adbd}
 .svc-tile.soon .svc-ico{filter:grayscale(.6);opacity:.75}
 @media (min-width:700px){
-  .services{grid-template-columns:repeat(5,1fr);margin-top:-30px}
-  .svc-tile.t-data{grid-column:auto;display:flex;min-height:128px}
-  .svc-tile.t-data .svc-ico{margin-bottom:12px}
+  .services{grid-template-columns:repeat(4,1fr);margin-top:-30px}
 }
 @media (hover:hover){.svc-tile:hover{border-color:#c9d0de}}
 

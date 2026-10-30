@@ -7,11 +7,11 @@
 
 /* Segmented switch sits on the edge of the navy band */
 .sv-switch{
-  display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:4px;padding:4px;
+  display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;
   background:#1c2643;border-radius:16px 16px 0 0;
 }
 .sv-switch[hidden]{display:none}
-.sv-switch.single{grid-auto-columns:1fr}
+.sv-switch.single{grid-template-columns:1fr}
 .sv-switch button{
   min-height:46px;border-radius:12px 12px 0 0;font-weight:700;font-size:14.5px;color:#aeb7cb;
 }
@@ -143,51 +143,6 @@
 
 @media (prefers-reduced-motion:reduce){.pin-card{animation:none}}
 
-/* ------------------------------------------------ bills (bills.html) */
-.bl-check-row{display:flex;gap:8px}
-.bl-check-row input{flex:1;min-width:0}
-.bl-check{
-  flex:none;min-height:52px;padding:0 18px;border-radius:var(--r);background:var(--navy);color:#fff;font-weight:700;font-size:15px;
-}
-.bl-check:disabled{opacity:.6;cursor:not-allowed}
-.bl-who{
-  display:flex;align-items:center;gap:12px;margin:-2px 0 14px;padding:14px 14px;border-radius:var(--r-md);
-  background:var(--green-soft);border:1px solid #bfe9d3;
-}
-.bl-who[hidden],.bl-due[hidden],#blRest[hidden]{display:none}
-.bl-tick{flex:none;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:var(--green);color:#fff;font-weight:800}
-.bl-who-txt{flex:1;min-width:0}
-.bl-who-txt strong{display:block;font:700 16px/1.25 var(--display);overflow-wrap:anywhere}
-.bl-who-txt small{display:block;color:#3d6b55;font-size:13px;margin-top:2px}
-.bl-change{flex:none;font-size:13px;font-weight:700;color:var(--navy);text-decoration:underline;text-underline-offset:2px;min-height:40px;padding:0 4px}
-.bl-due{margin:-4px 0 14px;font-size:14px;color:#4d566b}
-.bl-due b{color:var(--ink)}
-.bl-chips{display:flex;flex-wrap:wrap;gap:8px;margin:-4px 0 16px}
-.bl-chips button{
-  min-height:40px;padding:0 14px;border-radius:999px;background:#fff;border:1px solid var(--line);
-  font-weight:700;font-size:14px;color:#4b5468;
-}
-.bl-chips button[aria-pressed="true"]{background:var(--navy);border-color:var(--navy);color:#fff}
-
-.bl-paid{list-style:none;margin:0 0 16px;padding:0;background:#fff;border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden}
-.bl-paid li{display:flex;justify-content:space-between;gap:12px;padding:13px 16px;font-size:14px}
-.bl-paid li+li{border-top:1px solid var(--line-2)}
-.bl-paid span{color:var(--muted)}
-.bl-paid b{text-align:right;overflow-wrap:anywhere}
-.bl-done{display:flex;align-items:center;gap:12px;margin:4px 0 16px}
-.bl-done .bl-tick{width:44px;height:44px;font-size:20px}
-.bl-done h2{margin:0}
-.bl-providers{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 16px}
-.bl-providers[hidden]{display:none}
-.bl-providers button{
-  min-height:48px;border-radius:var(--r);background:#fff;border:1px solid var(--line);
-  font:700 15px var(--display);color:#4b5468;
-}
-.bl-providers button[aria-pressed="true"]{background:var(--navy);border-color:var(--navy);color:#fff}
-
 /* Short pages: the footer stays at the bottom of the screen instead of floating mid-page */
 .sv-page{min-height:100vh;min-height:100svh;display:flex;flex-direction:column}
 .sv-page>main{flex:1 0 auto;width:100%}
-
-/* The meter field: input and Check button on one line */
-.field>span.bl-check-row{display:flex;gap:8px;margin:0;font-size:inherit;font-weight:inherit;color:inherit}

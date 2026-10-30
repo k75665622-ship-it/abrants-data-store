@@ -39,8 +39,6 @@ const DEFAULT_SETTINGS = {
   unverifiedNotice: "This MTN number is not verified yet. MTN has to verify it before data can be delivered, and this can take up to 7 days. If you continue, your data may arrive late. Do you want to continue?",
   // Result checkers and AFA (FastDealsGH): selling prices and on/off, per checker code.
   services: { checkers: {}, afa: { price: null, enabled: false } },
-  // Electricity, water and TV bills (Techlink): on/off, our service fee (GH₵ + %), allowed amounts.
-  bills: { ecg: { enabled: false, fee: 1, feePercent: 0, min: 5, max: 1000 }, water: { enabled: false, fee: 1, feePercent: 0, min: 5, max: 2000 }, tv: { enabled: false, fee: 1, feePercent: 0, min: 5, max: 2000 }, techlinkFeePercent: 0 },
   firstTimeNotice: "A brand-new MTN number must be verified by MTN before data can be delivered, and this can take up to 7 days. If your number is not verified yet, your data may arrive late. Do you want to continue?",
   outOfStock: {},
   stockWatch: {},
