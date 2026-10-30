@@ -3,9 +3,16 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<meta name="theme-color" content="#0b1020" />
+<meta name="theme-color" content="#0b0b0b" />
 <meta name="description" content="Buy MTN, Telecel and AirtelTigo data bundles in Ghana in seconds. Secure Mobile Money and card payment, instant delivery to your number." />
 <meta name="format-detection" content="telephone=no" />
+<script>
+  // First visit: show the get-started page once (welcome.js remembers it). Links with a #section or
+  // ?query (shared bundles, Paystack returns) always open the store directly.
+  try {
+    if ((location.pathname === '/' || location.pathname === '/index.html') && !location.hash && !location.search && !localStorage.getItem('abrants-welcomed')) location.replace('/welcome.html');
+  } catch (e) { /* storage blocked: just show the store */ }
+</script>
 <title>Abrants Data Store — Fast, affordable data bundles</title>
 <meta property="og:title" content="Abrants Data Store — Fast, affordable data" />
 <meta property="og:description" content="Buy MTN, Telecel and AirtelTigo data bundles in seconds." />
@@ -18,7 +25,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="/css/style.css?v=3" />
+<link rel="stylesheet" href="/css/style.css?v=4" />
 </head>
 <body class="has-mobilebar">
 
@@ -188,6 +195,7 @@
       <a href="#bundles">Buy data</a>
       <a href="/order-status.html">Track order</a>
       <a href="/services.html">Checkers &amp; AFA</a>
+      <a href="/welcome.html">How it works</a>
       <a href="/account.html">My account</a>
       <a href="#faq">FAQ</a>
     </nav>
@@ -266,6 +274,6 @@
 
 <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="false"></div>
 
-<script src="/js/app.js?v=3"></script>
+<script src="/js/app.js?v=4"></script>
 </body>
 </html>
