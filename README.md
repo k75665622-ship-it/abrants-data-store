@@ -351,3 +351,13 @@ under review, an unpaid checkout) marks it in memory, and the check stops once n
 - Unpaid data checkouts are tidied once a day; the order page stops auto-refreshing after about 10 minutes.
 
 When nobody is shopping and nothing is waiting, the database is not touched and can sleep.
+
+## 20. Gray & black look and the get-started page
+
+- Colours live in `:root` of `public/css/style.css` (`--black`, `--char`, `--page`, `--accent` …). Actions are
+  black on light backgrounds and white on black ones. Network dots keep their brand colours, and green / amber / red
+  keep their meaning (delivered, attention, problem). The logo and app icons are black and silver.
+- `public/welcome.html` explains the store (data, result checkers, MTN AFA) and offers "Create free account" or
+  "Start buying". A first visit to `/` opens it once (`abrants-welcomed` in the browser's storage); links with a
+  `#section` or `?query` always open the store. It is linked as "How it works" in the footer.
+- The AFA facts on it come from MTN Ghana's help centre (GH₵6 for 30 days; *1848#). Update them if MTN changes the offer.
