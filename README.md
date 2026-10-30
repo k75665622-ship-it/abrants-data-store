@@ -360,4 +360,6 @@ When nobody is shopping and nothing is waiting, the database is not touched and 
 - `public/welcome.html` explains the store (data, result checkers, MTN AFA) and offers "Create free account" or
   "Start buying". A first visit to `/` opens it once (`abrants-welcomed` in the browser's storage); links with a
   `#section` or `?query` always open the store. It is linked as "How it works" in the footer.
-- The AFA facts on it come from MTN Ghana's help centre (GH₵6 for 30 days; *1848#). Update them if MTN changes the offer.
+- The AFA bundle details on it are what MTN's AFA menu showed in October 2026 (monthly, no data: GH₵10 for 258 MTN minutes,
+  30 minutes to other networks, 500 CUG minutes and 25 SMS, 30 days). MTN's help centre still lists older GH₵6 bundles.
+  Update `public/welcome.html` when MTN changes the offer.
