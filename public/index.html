@@ -4,18 +4,11 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="theme-color" content="#0b1020" />
-<meta name="description" content="Buy MTN, Telecel and AirtelTigo data bundles in Ghana in seconds. Secure Mobile Money and card payment, instant delivery to your number." />
+<meta name="description" content="Buy MTN, Telecel and AirtelTigo data bundles, WASSCE and BECE result checkers, and register for MTN AFA. Pay with Mobile Money or card." />
 <meta name="format-detection" content="telephone=no" />
-<script>
-  // First visit: show the get-started page once (welcome.js remembers it). Links with a #section or
-  // ?query (shared bundles, Paystack returns) always open the store directly.
-  try {
-    if ((location.pathname === '/' || location.pathname === '/index.html') && !location.hash && !location.search && !localStorage.getItem('abrants-welcomed')) location.replace('/welcome.html');
-  } catch (e) { /* storage blocked: just show the store */ }
-</script>
 <title>Abrants Data Store — Fast, affordable data bundles</title>
-<meta property="og:title" content="Abrants Data Store — Fast, affordable data" />
-<meta property="og:description" content="Buy MTN, Telecel and AirtelTigo data bundles in seconds." />
+<meta property="og:title" content="Abrants Data Store — Data, result checkers and MTN AFA" />
+<meta property="og:description" content="Buy data bundles, get result checker PINs and register for MTN AFA. Pay with Mobile Money or card." />
 <meta property="og:type" content="website" />
 <link rel="manifest" href="/manifest.webmanifest" />
 <link rel="icon" href="/favicon.ico" sizes="any" />
@@ -25,7 +18,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="/css/style.css?v=8" />
+<link rel="stylesheet" href="/css/style.css?v=9" />
 </head>
 <body class="has-mobilebar">
 
@@ -97,6 +90,48 @@
   </a>
 </section>
 
+<section class="afa-section wrap" id="afa" aria-labelledby="afaTitle">
+  <div class="afa-card">
+    <h2 id="afaTitle">What is MTN AFA?</h2>
+    <p class="afa-lead">AFA is a low-cost MTN calling bundle for farmers registered on MTN's AFA programme. Once you are registered, you pick a monthly or weekly bundle, with or without data, from MTN's AFA menu.</p>
+
+    <div class="afa-packs">
+      <article class="afa-pack main">
+        <h3>Monthly, no data</h3>
+        <p class="afa-big">258<span> MTN minutes</span></p>
+        <ul>
+          <li>30 minutes to other networks</li>
+          <li>500 minutes to other AFA members (CUG)</li>
+          <li>25 SMS</li>
+        </ul>
+        <p class="afa-price">GH₵10 · 30 days</p>
+      </article>
+      <article class="afa-pack">
+        <h3>More AFA bundles</h3>
+        <ul class="afa-more">
+          <li>Monthly with data</li>
+          <li>Weekly without data</li>
+          <li>Weekly with data</li>
+          <li>Bundles for other AFA numbers</li>
+        </ul>
+        <p class="afa-price">Price shown on MTN's menu before you confirm</p>
+      </article>
+    </div>
+
+    <div class="afa-side">
+      <h3 class="afa-how-title">How to get it</h3>
+      <ol class="afa-how">
+        <li><b>Register here</b><span id="afaFeeStep">Fill in your Ghana Card details and pay the registration fee.</span></li>
+        <li><b>Wait for approval</b><span>We submit it and show your AFA ID once it is approved.</span></li>
+        <li><b>Buy the bundle</b><span>Dial *1848# on your MTN line, choose a bundle and confirm.</span></li>
+      </ol>
+      <a class="primary-cta" href="/services.html#afa" id="afaRegister">Register for AFA</a>
+      <p class="afa-soon" id="afaSoon" hidden>AFA registration opens here soon.</p>
+      <p class="afa-fine">Bundle details as shown on MTN's AFA menu in October 2026. MTN can change them.</p>
+    </div>
+  </div>
+</section>
+
 <section class="member-promo wrap" id="memberPromo" hidden>
   <div class="mp-card">
     <div class="mp-glow" aria-hidden="true"></div>
@@ -156,7 +191,7 @@
     </div>
   </section>
 
-  <section class="faq-section wrap">
+  <section class="faq-section wrap" id="faq">
     <div class="section-heading centered"><div><p class="section-kicker">QUESTIONS</p><h2>Good to know</h2></div></div>
     <div class="faq-list">
       <details class="faq-item"><summary>How long does delivery take?</summary><p>Most bundles arrive within a few seconds. During very busy periods it can take a few minutes. You can watch the progress on the order status page.</p></details>
@@ -195,7 +230,7 @@
       <a href="#bundles">Buy data</a>
       <a href="/order-status.html">Track order</a>
       <a href="/services.html">Checkers &amp; AFA</a>
-      <a href="/welcome.html">How it works</a>
+      <a href="#afa">What is AFA?</a>
       <a href="/account.html">My account</a>
       <a href="#faq">FAQ</a>
     </nav>
@@ -274,6 +309,6 @@
 
 <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="false"></div>
 
-<script src="/js/app.js?v=7"></script>
+<script src="/js/app.js?v=8"></script>
 </body>
 </html>

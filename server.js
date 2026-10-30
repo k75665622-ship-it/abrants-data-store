@@ -43,8 +43,9 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/services', require('./routes/services').pub);
 app.use('/api/account', accountRoutes);
 app.use('/api', apiRoutes);
-// Bill payments were removed (October 2026): old links to their page go to the store.
-app.get('/bills.html', (req, res) => res.redirect(302, '/'));
+// Pages that are gone: bill payments (removed) and the get-started page (now part of the home page).
+// Old links open the store; the browser keeps a #section, so /welcome.html#afa lands on the AFA section.
+app.get(['/bills.html', '/welcome.html'], (req, res) => res.redirect(302, '/'));
 app.use(express.static(path.join(__dirname, 'public')));
 
 const PORT = process.env.PORT || 3000;
