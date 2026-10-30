@@ -18,7 +18,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="/css/style.css?v=9" />
+<link rel="stylesheet" href="/css/style.css?v=10" />
 </head>
 <body class="has-mobilebar">
 
@@ -43,114 +43,124 @@
 </header>
 
 <section class="hero">
-  <div class="wrap hero-grid">
+  <div class="wrap hero-inner">
+    <h1 class="hero-words" aria-label="Data, results and AFA">
+      <span>Data.</span><span>Results.</span><span>AFA.</span>
+    </h1>
     <div class="hero-copy">
-      <div class="eyebrow"><span aria-hidden="true">⚡</span> Ghana's easy data plug</div>
-      <h1>Stay connected.<br><span>Pay less.</span></h1>
-      <p>Buy MTN, Telecel and AirtelTigo bundles in seconds. Pay with Mobile Money or card, and the data lands straight on your number.</p>
+      <p>Buy MTN, Telecel and AirtelTigo data, get exam result checker PINs, and register for MTN AFA. Pay with Mobile Money or card.</p>
       <div class="hero-actions">
-        <a href="#bundles" class="primary-cta">Buy data <span aria-hidden="true">↓</span></a>
-        <a href="/order-status.html" class="secondary-cta">Track an order</a>
+        <a class="primary-cta" href="/account.html#register" id="heroJoin">Create free account</a>
+        <a class="secondary-cta" href="#bundles" id="heroShop">Start buying</a>
       </div>
-      <div class="trust-row">
-        <span>✓ Mobile Money</span><span>✓ Card payments</span><span>✓ Instant delivery</span>
-      </div>
-    </div>
-    <div class="hero-art" aria-hidden="true">
-      <div class="glow"></div>
-      <div class="phone-card">
-        <div class="phone-top"><span>ABRANTS</span><span>•••</span></div>
-        <div class="signal">DATA BALANCE</div>
-        <div class="data-number">10.5 <small>GB</small></div>
-        <div class="progress"><span></span></div>
-        <div class="phone-bottom"><span>30 days</span><strong>Connected ✓</strong></div>
-      </div>
-      <div class="floating-card fc-one"><b>1 GB</b><small>from GH₵5.00</small></div>
-      <div class="floating-card fc-two">⚡ Delivered<br><b>in seconds</b></div>
-    </div>
-  </div>
-</section>
-
-<section class="services wrap" id="services" aria-label="What do you need?">
-  <a class="svc-tile t-data" href="#bundles">
-    <span class="svc-ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a16 16 0 0 1 20 0"/><path d="M5.5 12.5a11 11 0 0 1 13 0"/><path d="M9 16a6 6 0 0 1 6 0"/><circle cx="12" cy="19.5" r="1" fill="currentColor"/></svg></span>
-    <b>Data bundles</b><small>MTN, Telecel, AirtelTigo</small>
-  </a>
-  <a class="svc-tile t-chk" href="/services.html#checkers" id="tileChk">
-    <span class="svc-ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2.5 9 2.5 12 0v-5"/></svg></span>
-    <b>Result checkers</b><small id="tileChkText">WAEC, BECE</small>
-  </a>
-  <a class="svc-tile t-afa" href="/services.html#afa" id="tileAfa">
-    <span class="svc-ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="3"/><circle cx="8.5" cy="11" r="2"/><path d="M5.5 16c.6-1.6 1.7-2.3 3-2.3s2.4.7 3 2.3"/><path d="M14.5 10h4M14.5 13.5h3"/></svg></span>
-    <b>AFA registration</b><small id="tileAfaText">MTN AFA</small>
-  </a>
-  <a class="svc-tile t-track" href="/order-status.html">
-    <span class="svc-ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span>
-    <b>Track an order</b><small>Check delivery</small>
-  </a>
-</section>
-
-<section class="afa-section wrap" id="afa" aria-labelledby="afaTitle">
-  <div class="afa-card">
-    <h2 id="afaTitle">What is MTN AFA?</h2>
-    <p class="afa-lead">AFA is a low-cost MTN calling bundle for farmers registered on MTN's AFA programme. Once you are registered, you pick a monthly or weekly bundle, with or without data, from MTN's AFA menu.</p>
-
-    <div class="afa-packs">
-      <article class="afa-pack main">
-        <h3>Monthly, no data</h3>
-        <p class="afa-big">258<span> MTN minutes</span></p>
-        <ul>
-          <li>30 minutes to other networks</li>
-          <li>500 minutes to other AFA members (CUG)</li>
-          <li>25 SMS</li>
-        </ul>
-        <p class="afa-price">GH₵10 · 30 days</p>
-      </article>
-      <article class="afa-pack">
-        <h3>More AFA bundles</h3>
-        <ul class="afa-more">
-          <li>Monthly with data</li>
-          <li>Weekly without data</li>
-          <li>Weekly with data</li>
-          <li>Bundles for other AFA numbers</li>
-        </ul>
-        <p class="afa-price">Price shown on MTN's menu before you confirm</p>
-      </article>
-    </div>
-
-    <div class="afa-side">
-      <h3 class="afa-how-title">How to get it</h3>
-      <ol class="afa-how">
-        <li><b>Register here</b><span id="afaFeeStep">Fill in your Ghana Card details and pay the registration fee.</span></li>
-        <li><b>Wait for approval</b><span>We submit it and show your AFA ID once it is approved.</span></li>
-        <li><b>Buy the bundle</b><span>Dial *1848# on your MTN line, choose a bundle and confirm.</span></li>
-      </ol>
-      <a class="primary-cta" href="/services.html#afa" id="afaRegister">Register for AFA</a>
-      <p class="afa-soon" id="afaSoon" hidden>AFA registration opens here soon.</p>
-      <p class="afa-fine">Bundle details as shown on MTN's AFA menu in October 2026. MTN can change them.</p>
-    </div>
-  </div>
-</section>
-
-<section class="member-promo wrap" id="memberPromo" hidden>
-  <div class="mp-card">
-    <div class="mp-glow" aria-hidden="true"></div>
-    <div class="mp-copy">
-      <span class="mp-tag">🎁 MEMBERS GET MORE</span>
-      <h2>Create a free account.<br><span>Unlock special offers.</span></h2>
-      <p>Regular buyers with an Abrants account get rewarded: special prices, free bundles and exclusive offers sent straight to your account.</p>
-      <ul class="mp-perks">
-        <li><b>💸</b><span>Special prices made for you</span></li>
-        <li><b>🎁</b><span>Free data bundles for loyal buyers</span></li>
-        <li><b>🧾</b><span>All your orders in one place</span></li>
-      </ul>
-      <a class="mp-cta" href="/account.html#register">Create my free account <span aria-hidden="true">→</span></a>
-      <small>Takes under a minute. Just your phone number and a password.</small>
     </div>
   </div>
 </section>
 
 <main>
+  <section class="wrap home-section" aria-labelledby="doTitle">
+    <h2 id="doTitle">What you can do here</h2>
+    <ul class="do-list">
+      <li>
+        <a href="#bundles">
+          <span class="do-ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a16 16 0 0 1 20 0"/><path d="M5.5 12.5a11 11 0 0 1 13 0"/><path d="M9 16a6 6 0 0 1 6 0"/><circle cx="12" cy="19.5" r="1" fill="currentColor"/></svg></span>
+          <span class="do-txt"><b>Data bundles</b><small>MTN, Telecel and AirtelTigo, sent straight to your number.</small></span>
+          <svg class="do-go" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+        </a>
+      </li>
+      <li>
+        <a href="/services.html#checkers">
+          <span class="do-ico t-chk" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2.5 9 2.5 12 0v-5"/></svg></span>
+          <span class="do-txt"><b>Result checkers</b><small id="doChkText">WASSCE and BECE PINs, on screen as soon as you pay.</small></span>
+          <svg class="do-go" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+        </a>
+      </li>
+      <li>
+        <a href="#afa">
+          <span class="do-ico t-afa" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="3"/><circle cx="8.5" cy="11" r="2"/><path d="M5.5 16c.6-1.6 1.7-2.3 3-2.3s2.4.7 3 2.3"/><path d="M14.5 10h4M14.5 13.5h3"/></svg></span>
+          <span class="do-txt"><b>MTN AFA registration</b><small>Register once with your Ghana Card. See what AFA gives you below.</small></span>
+          <svg class="do-go do-down" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+        </a>
+      </li>
+      <li>
+        <a href="/order-status.html">
+          <span class="do-ico t-track" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span>
+          <span class="do-txt"><b>Order tracking</b><small>Follow every order. If one can't be delivered, you get a refund.</small></span>
+          <svg class="do-go" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+        </a>
+      </li>
+    </ul>
+  </section>
+
+  <section class="wrap home-section" id="afa" aria-labelledby="afaTitle">
+    <div class="afa-card">
+      <h2 id="afaTitle">What is MTN AFA?</h2>
+      <p class="afa-lead">AFA is one of the cheapest call bundles on MTN. Once you are registered, you pick a monthly or weekly bundle, with or without data, from MTN's AFA menu.</p>
+
+      <div class="afa-packs">
+        <article class="afa-pack main">
+          <h3>Monthly, no data</h3>
+          <p class="afa-big">258<span> MTN minutes</span></p>
+          <ul>
+            <li>30 minutes to other networks</li>
+            <li>500 minutes to other AFA members (CUG)</li>
+            <li>25 SMS</li>
+          </ul>
+          <p class="afa-price">GH₵10 · 30 days</p>
+        </article>
+        <article class="afa-pack">
+          <h3>More AFA bundles</h3>
+          <ul class="afa-more">
+            <li>Monthly with data</li>
+            <li>Weekly without data</li>
+            <li>Weekly with data</li>
+            <li>Bundles for other AFA numbers</li>
+          </ul>
+          <p class="afa-price">Price shown on MTN's menu before you confirm</p>
+        </article>
+      </div>
+
+      <div class="afa-side">
+        <h3 class="afa-how-title">How to get it</h3>
+        <ol class="afa-how">
+          <li><b>Register here</b><span id="afaFeeStep">Fill in your Ghana Card details and pay the registration fee.</span></li>
+          <li><b>Wait for approval</b><span>We submit it and show your AFA ID once it is approved.</span></li>
+          <li><b>Buy the bundle</b><span>Dial *1848# on your MTN line, choose a bundle and confirm.</span></li>
+        </ol>
+        <a class="primary-cta" href="/services.html#afa" id="afaRegister">Register for AFA</a>
+        <p class="afa-soon" id="afaSoon" hidden>AFA registration opens here soon.</p>
+        <p class="afa-fine">Bundle details as shown on MTN's AFA menu in October 2026. MTN can change them.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="wrap home-section" aria-labelledby="stepsTitle">
+    <h2 id="stepsTitle">How buying works</h2>
+    <ol class="buy-steps">
+      <li><b>Pick</b><span>A data bundle, a result checker or AFA registration.</span></li>
+      <li><b>Pay</b><span>Mobile Money or card, through Paystack.</span></li>
+      <li><b>Receive</b><span>Data on your number, PINs on screen, your AFA ID once approved.</span></li>
+    </ol>
+  </section>
+
+  <section class="member-promo wrap" id="memberPromo" hidden>
+    <div class="mp-card">
+      <div class="mp-glow" aria-hidden="true"></div>
+      <div class="mp-copy">
+        <span class="mp-tag">🎁 MEMBERS GET MORE</span>
+        <h2>Create a free account.<br><span>Unlock special offers.</span></h2>
+        <p>Regular buyers with an Abrants account get rewarded: special prices, free bundles and exclusive offers sent straight to your account.</p>
+        <ul class="mp-perks">
+          <li><b>💸</b><span>Special prices made for you</span></li>
+          <li><b>🎁</b><span>Free data bundles for loyal buyers</span></li>
+          <li><b>🧾</b><span>All your orders in one place</span></li>
+        </ul>
+        <a class="mp-cta" href="/account.html#register">Create my free account <span aria-hidden="true">→</span></a>
+        <small>Takes under a minute. Just your phone number and a password.</small>
+      </div>
+    </div>
+  </section>
+
   <section class="shop wrap" id="bundles">
     <div class="section-heading">
       <div><p class="section-kicker">CHOOSE YOUR NETWORK</p><h2>Pick a bundle</h2></div>
@@ -179,15 +189,6 @@
         <article><div class="benefit-icon" aria-hidden="true">📶</div><h3>All major networks</h3><p>MTN, Telecel and AirtelTigo bundles in one simple place.</p></article>
         <article><div class="benefit-icon" aria-hidden="true">💸</div><h3>Honest pricing</h3><p>The exact price is shown before you pay. No hidden charges, ever.</p></article>
       </div>
-    </div>
-  </section>
-
-  <section class="how-section wrap">
-    <div class="section-heading centered"><div><p class="section-kicker">HOW IT WORKS</p><h2>Three taps. You're connected.</h2></div></div>
-    <div class="steps">
-      <div><span>01</span><h3>Pick a bundle</h3><p>Choose your network and the data size you want.</p></div>
-      <div><span>02</span><h3>Enter your number</h3><p>Tell us which number should receive the data.</p></div>
-      <div><span>03</span><h3>Pay &amp; relax</h3><p>Complete payment and we handle the rest automatically.</p></div>
     </div>
   </section>
 
@@ -309,6 +310,6 @@
 
 <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="false"></div>
 
-<script src="/js/app.js?v=8"></script>
+<script src="/js/app.js?v=9"></script>
 </body>
 </html>

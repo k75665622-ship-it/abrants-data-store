@@ -372,6 +372,9 @@
         $('accountDot').hidden = !data.unread;
         $('guestHint').hidden = true;
         if ($('memberPromo')) $('memberPromo').hidden = true;
+        // Already a member: the first screen leads straight to buying.
+        $('heroJoin').hidden = true;
+        $('heroShop').className = 'primary-cta';
         if (!phoneInput.value && CUSTOMER.phone) phoneInput.value = CUSTOMER.phone;
         if (!emailInput.value && CUSTOMER.email) emailInput.value = CUSTOMER.email;
         if (data.offers) {
@@ -385,20 +388,19 @@
   loadSettings();
   loadPlans();
   loadMe();
-  // Result checkers & AFA tiles and the AFA section: show what is on sale, or "Coming soon".
+  // Result checkers and AFA: show what is on sale right now, or "Coming soon".
   fetch('/api/services').then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
     if (!d) return;
     var chk = d.checkers || [];
     if (chk.length) {
       var low = Math.min.apply(null, chk.map(function (c) { return c.price; }));
-      $('tileChkText').textContent = chk.map(function (c) { return c.name; }).join(', ') + ' from GH₵' + low.toFixed(2);
-    } else { $('tileChk').classList.add('soon'); $('tileChkText').textContent = 'Coming soon'; }
-    if (d.afa) {
-      var fee = 'GH₵' + Number(d.afa.price).toFixed(2);
-      $('tileAfaText').textContent = fee;
-      $('afaFeeStep').textContent = 'Fill in your Ghana Card details and pay the ' + fee + ' registration fee.';
+      $('doChkText').textContent = chk.map(function (c) { return c.name; }).join(', ') + ' PINs from GH₵' + low.toFixed(2) + ', on screen as soon as you pay.';
     } else {
-      $('tileAfa').classList.add('soon'); $('tileAfaText').textContent = 'Coming soon';
+      $('doChkText').textContent = 'WASSCE and BECE PINs. Coming soon.';
+    }
+    if (d.afa) {
+      $('afaFeeStep').textContent = 'Fill in your Ghana Card details and pay the GH₵' + Number(d.afa.price).toFixed(2) + ' registration fee.';
+    } else {
       $('afaRegister').hidden = true; $('afaSoon').hidden = false;
     }
   }).catch(function () {});
