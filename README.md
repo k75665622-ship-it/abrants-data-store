@@ -352,11 +352,12 @@ under review, an unpaid checkout) marks it in memory, and the check stops once n
 
 When nobody is shopping and nothing is waiting, the database is not touched and can sleep.
 
-## 20. The get-started page
+## 20. MTN AFA on the home page
 
-- `public/welcome.html` explains the store (data, result checkers, MTN AFA) and offers "Create free account" or
-  "Start buying". A first visit to `/` opens it once (`abrants-welcomed` in the browser's storage); links with a
-  `#section` or `?query` always open the store. It is linked as "How it works" in the footer.
-- The AFA bundle details on it are what MTN's AFA menu showed in October 2026 (monthly, no data: GH₵10 for 258 MTN minutes,
+- The home page explains MTN AFA right under the four tiles (`#afa` in `public/index.html`): what it is, the bundles,
+  how to get it and a Register button. The fee in step 1 and the button follow what is on sale (`public/js/app.js`).
+- The bundle details are what MTN's AFA menu showed in October 2026 (monthly, no data: GH₵10 for 258 MTN minutes,
   30 minutes to other networks, 500 CUG minutes and 25 SMS, 30 days). MTN's help centre still lists older GH₵6 bundles.
-  Update `public/welcome.html` when MTN changes the offer.
+  Update `public/index.html` when MTN changes the offer.
+- This used to be a separate get-started page shown once to new visitors. Old `/welcome.html` links now open the
+  home page (`/welcome.html#afa` lands on the AFA section).

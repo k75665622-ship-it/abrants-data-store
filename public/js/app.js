@@ -385,7 +385,7 @@
   loadSettings();
   loadPlans();
   loadMe();
-  // Result checkers & AFA tiles: show what is on sale, or "Coming soon".
+  // Result checkers & AFA tiles and the AFA section: show what is on sale, or "Coming soon".
   fetch('/api/services').then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
     if (!d) return;
     var chk = d.checkers || [];
@@ -393,7 +393,13 @@
       var low = Math.min.apply(null, chk.map(function (c) { return c.price; }));
       $('tileChkText').textContent = chk.map(function (c) { return c.name; }).join(', ') + ' from GH₵' + low.toFixed(2);
     } else { $('tileChk').classList.add('soon'); $('tileChkText').textContent = 'Coming soon'; }
-    if (d.afa) $('tileAfaText').textContent = 'GH₵' + Number(d.afa.price).toFixed(2);
-    else { $('tileAfa').classList.add('soon'); $('tileAfaText').textContent = 'Coming soon'; }
+    if (d.afa) {
+      var fee = 'GH₵' + Number(d.afa.price).toFixed(2);
+      $('tileAfaText').textContent = fee;
+      $('afaFeeStep').textContent = 'Fill in your Ghana Card details and pay the ' + fee + ' registration fee.';
+    } else {
+      $('tileAfa').classList.add('soon'); $('tileAfaText').textContent = 'Coming soon';
+      $('afaRegister').hidden = true; $('afaSoon').hidden = false;
+    }
   }).catch(function () {});
 })();
