@@ -19,9 +19,6 @@
     } else {
       $('wlChkText').textContent = 'WASSCE and BECE PINs. Coming soon.';
     }
-    var bills = d.bills || {};
-    var names = [bills.ecg && 'ECG electricity', bills.water && 'Ghana Water', bills.tv && 'DStv, GOtv and StarTimes'].filter(Boolean);
-    $('wlBillText').textContent = names.length ? 'Pay ' + names.join(', ') + '. We show the account name before you pay.' : 'ECG, Ghana Water and TV. Coming soon.';
     if (d.afa) {
       $('wlAfaFee').textContent = 'Fill in your Ghana Card details and pay the GH₵' + Number(d.afa.price).toFixed(2) + ' registration fee.';
     } else {

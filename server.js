@@ -43,6 +43,8 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/services', require('./routes/services').pub);
 app.use('/api/account', accountRoutes);
 app.use('/api', apiRoutes);
+// Bill payments were removed (October 2026): old links to their page go to the store.
+app.get('/bills.html', (req, res) => res.redirect(302, '/'));
 app.use(express.static(path.join(__dirname, 'public')));
 
 const PORT = process.env.PORT || 3000;

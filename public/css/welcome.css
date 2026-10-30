@@ -61,7 +61,6 @@
 .wl-c-chk{--c:#7c3aed;--c-soft:#efe7ff}
 .wl-c-afa{--c:#0e9f6e;--c-soft:#e1f6ec}
 .wl-c-track{--c:#e08a00;--c-soft:#fff1d4}
-.wl-c-bill{--c:#0284c7;--c-soft:#e0f2fe}
 .wl-txt{flex:1;min-width:0}
 .wl-txt b{display:block;font:700 16.5px/1.25 var(--display)}
 .wl-txt small{display:block;margin-top:3px;color:var(--muted);font-size:13.5px;line-height:1.45}
@@ -137,7 +136,6 @@
   .wl-list li+li{border-top:0}
   .wl-list li:nth-child(n+3){border-top:1px solid var(--line-2)}
   .wl-list li:nth-child(even){border-left:1px solid var(--line-2)}
-  .wl-list li:last-child:nth-child(odd){grid-column:1/-1}
   .wl-afa{display:grid;grid-template-columns:1.1fr .9fr;column-gap:40px;padding:44px}
   .wl-afa>h2,.wl-afa-lead{grid-column:1/-1}
   .wl-packs{grid-column:1;grid-row:3 / span 4;align-self:start}
