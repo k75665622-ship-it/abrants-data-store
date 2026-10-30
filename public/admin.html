@@ -10,7 +10,7 @@
 <link rel="icon" type="image/svg+xml" href="/icon.svg" />
 <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png" />
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-<link rel="stylesheet" href="admin.css?v=16" />
+<link rel="stylesheet" href="admin.css?v=18" />
 </head>
 <body>
 
@@ -61,7 +61,7 @@
         <button class="side-link active" data-section="overview"><span class="ico">◧</span> Overview</button>
         <button class="side-link" data-section="orders"><span class="ico">☰</span> Orders</button>
         <button class="side-link" data-section="bundles"><span class="ico">₵</span> Bundles &amp; pricing</button>
-        <button class="side-link" data-section="services"><span class="ico">✎</span> Checkers &amp; AFA</button>
+        <button class="side-link" data-section="services"><span class="ico">✎</span> Services</button>
         <button class="side-link" data-section="customers"><span class="ico">☺</span> Customers</button>
         <button class="side-link" data-section="numbers"><span class="ico">⊘</span> Blocked numbers</button>
         <button class="side-link" data-section="settings"><span class="ico">⚙</span> Settings</button>
@@ -205,10 +205,23 @@
           <div id="svcAlert"></div>
           <div class="detail-grid" id="svcStats" style="grid-template-columns:repeat(2,minmax(0,1fr))"></div>
           <div class="panel" style="margin-top:14px">
-            <div class="panel-head"><h3>Prices</h3></div>
+            <div class="panel-head"><h3>Checkers &amp; AFA prices</h3></div>
             <div class="panel-body">
               <div id="svcPrices"></div>
               <div class="drawer-actions" style="margin-top:14px"><button class="btn btn-primary btn-sm" type="button" id="svcSave">Save prices</button></div>
+            </div>
+          </div>
+          <div class="panel" style="margin-top:14px">
+            <div class="panel-head"><h3>Bills: electricity, water &amp; TV</h3></div>
+            <div class="panel-body">
+              <div id="billAlert"></div>
+              <div id="billRows"></div>
+              <label class="field" style="margin-top:12px"><span>Extra fee Techlink takes (%)</span><input id="billTlFee" type="number" inputmode="decimal" min="0" max="50" step="0.1" /></label>
+              <div class="drawer-actions" style="margin-top:14px">
+                <button class="btn btn-primary btn-sm" type="button" id="billSave">Save bills</button>
+                <button class="btn btn-ghost btn-sm" type="button" id="tlOrdersBtn">Techlink orders</button>
+              </div>
+              <div id="tlOrders" style="margin-top:12px"></div>
             </div>
           </div>
           <div class="panel" style="margin-top:14px">
@@ -217,7 +230,7 @@
               <div class="chip-row" id="svcFilter" style="margin-bottom:10px">
                 <button class="chip active" data-svc-status="">All</button>
                 <button class="chip" data-svc-status="review">Stuck</button>
-                <button class="chip" data-svc-status="submitted">AFA waiting</button>
+                <button class="chip" data-svc-status="submitted">Waiting</button>
                 <button class="chip" data-svc-status="failed">Failed</button>
               </div>
               <div id="svcOrders"></div>
@@ -453,7 +466,7 @@
       <button class="active" data-section="overview"><span class="ico">◧</span>Home</button>
       <button data-section="orders"><span class="ico">☰</span>Orders</button>
       <button data-section="bundles"><span class="ico">₵</span>Bundles</button>
-      <button data-section="services"><span class="ico">✎</span>Checkers</button>
+      <button data-section="services"><span class="ico">✎</span>Services</button>
       <button data-section="customers"><span class="ico">☺</span>Customers</button>
       <button data-section="numbers"><span class="ico">⊘</span>Blocked</button>
       <button data-section="settings"><span class="ico">⚙</span>Settings</button>
@@ -574,8 +587,8 @@
 
 <div class="toast-stack" id="toastStack" aria-live="polite"></div>
 
-<script src="admin.js?v=17"></script>
+<script src="admin.js?v=18"></script>
 <script src="admin-customers.js"></script>
-<script src="admin-services.js?v=1"></script>
+<script src="admin-services.js?v=3"></script>
 </body>
 </html>

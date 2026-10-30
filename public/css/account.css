@@ -20,7 +20,7 @@
 /* ------------------------------------------------------------ Dashboard */
 .hello-card{
   display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px;align-items:center;
-  background:var(--navy);color:#fff;border-radius:var(--r-lg);padding:18px;box-shadow:var(--shadow);margin-bottom:18px;
+  background:var(--navy);color:#fff;border-radius:var(--r-lg);padding:18px;margin-bottom:18px;
 }
 .avatar{
   width:52px;height:52px;border-radius:50%;display:grid;place-items:center;flex:none;
@@ -52,7 +52,7 @@
 .offers-list{display:grid;gap:12px}
 .offer-card{
   background:linear-gradient(160deg,#fffbe8,#fff);border:1px solid rgba(255,190,0,.5);
-  border-radius:var(--r-md);padding:16px;box-shadow:0 8px 22px rgba(255,190,0,.1);min-width:0;
+  border-radius:var(--r-md);padding:16px;min-width:0;
 }
 .offer-card h3{font:700 16.5px/1.3 var(--display);margin:0 0 6px;overflow-wrap:anywhere}
 .offer-kind{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.1em;padding:4px 8px;border-radius:999px;background:#fff1b8;color:#7a5b00;margin-bottom:10px}

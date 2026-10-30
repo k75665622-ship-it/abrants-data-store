@@ -393,6 +393,10 @@
       var low = Math.min.apply(null, chk.map(function (c) { return c.price; }));
       $('tileChkText').textContent = chk.map(function (c) { return c.name; }).join(', ') + ' from GH₵' + low.toFixed(2);
     } else { $('tileChk').classList.add('soon'); $('tileChkText').textContent = 'Coming soon'; }
+    var bills = d.bills || {};
+    var billNames = [bills.ecg && 'ECG', bills.water && 'Water', bills.tv && 'TV'].filter(Boolean);
+    if (!billNames.length) { $('tileBill').classList.add('soon'); $('tileBillText').textContent = 'Coming soon'; }
+    else $('tileBillText').textContent = billNames.length > 1 ? billNames.slice(0, -1).join(', ') + ' and ' + billNames[billNames.length - 1] : billNames[0];
     if (d.afa) $('tileAfaText').textContent = 'GH₵' + Number(d.afa.price).toFixed(2);
     else { $('tileAfa').classList.add('soon'); $('tileAfaText').textContent = 'Coming soon'; }
   }).catch(function () {});
