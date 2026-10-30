@@ -100,11 +100,15 @@
         }
         var contact = data.supportWhatsapp || data.supportPhone;
         if (contact) {
-          var link = $('supportLink');
-          link.href = data.supportWhatsapp
+          var help = data.supportWhatsapp
             ? 'https://wa.me/' + String(data.supportWhatsapp).replace(/[^\d]/g, '').replace(/^0(\d{9})$/, '233$1')
             : 'tel:' + data.supportPhone;
+          $('supportLink').href = help;
           $('supportStrip').hidden = false;
+          // "Need help?" card at the top
+          $('helpLink').href = help;
+          if (!data.supportWhatsapp) $('helpLinkText').textContent = 'Call us';
+          $('needHelp').hidden = false;
         }
         if (data.channelLink && /^https:\/\//i.test(data.channelLink)) {
           $('channelLink').href = data.channelLink;
@@ -372,9 +376,6 @@
         $('accountDot').hidden = !data.unread;
         $('guestHint').hidden = true;
         if ($('memberPromo')) $('memberPromo').hidden = true;
-        // Already a member: the first screen leads straight to buying.
-        $('heroJoin').hidden = true;
-        $('heroShop').className = 'primary-cta';
         if (!phoneInput.value && CUSTOMER.phone) phoneInput.value = CUSTOMER.phone;
         if (!emailInput.value && CUSTOMER.email) emailInput.value = CUSTOMER.email;
         if (data.offers) {
@@ -394,9 +395,9 @@
     var chk = d.checkers || [];
     if (chk.length) {
       var low = Math.min.apply(null, chk.map(function (c) { return c.price; }));
-      $('doChkText').textContent = chk.map(function (c) { return c.name; }).join(', ') + ' PINs from GH₵' + low.toFixed(2) + ', on screen as soon as you pay.';
+      $('needChkText').textContent = chk.map(function (c) { return c.name; }).join(', ') + ' PINs from GH₵' + low.toFixed(2) + '.';
     } else {
-      $('doChkText').textContent = 'WASSCE and BECE PINs. Coming soon.';
+      $('needChkText').textContent = 'WASSCE and BECE PINs. Coming soon.';
     }
     if (d.afa) {
       $('afaFeeStep').textContent = 'Fill in your Ghana Card details and pay the GH₵' + Number(d.afa.price).toFixed(2) + ' registration fee.';
