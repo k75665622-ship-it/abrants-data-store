@@ -352,12 +352,15 @@ under review, an unpaid checkout) marks it in memory, and the check stops once n
 
 When nobody is shopping and nothing is waiting, the database is not touched and can sleep.
 
-## 20. MTN AFA on the home page
+## 20. The home page opens with the get-started content
 
-- The home page explains MTN AFA right under the four tiles (`#afa` in `public/index.html`): what it is, the bundles,
-  how to get it and a Register button. The fee in step 1 and the button follow what is on sale (`public/js/app.js`).
-- The bundle details are what MTN's AFA menu showed in October 2026 (monthly, no data: GH₵10 for 258 MTN minutes,
+`public/index.html`, top to bottom: the "Data. Results. AFA." first screen (Create free account / Start buying),
+"What you can do here", "What is MTN AFA?" (`#afa`), "How buying works", the members promo (guests only), and then
+the store: "Pick a bundle" (`#bundles`), why Abrants, FAQ (`#faq`).
+
+- Logged-in customers see "Start buying" as the main button instead of "Create free account".
+- Result checker prices, the AFA fee and the AFA button follow what is on sale (`public/js/app.js`).
+- The AFA bundle details are what MTN's AFA menu showed in October 2026 (monthly, no data: GH₵10 for 258 MTN minutes,
   30 minutes to other networks, 500 CUG minutes and 25 SMS, 30 days). MTN's help centre still lists older GH₵6 bundles.
-  Update `public/index.html` when MTN changes the offer.
-- This used to be a separate get-started page shown once to new visitors. Old `/welcome.html` links now open the
-  home page (`/welcome.html#afa` lands on the AFA section).
+  Update `public/index.html` when MTN changes the offer. The text does not say AFA is only for farmers (client's choice).
+- There used to be a separate `/welcome.html`; old links to it open the home page (`/welcome.html#afa` lands on the AFA part).
