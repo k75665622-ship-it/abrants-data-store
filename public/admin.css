@@ -360,7 +360,7 @@ tbody tr:hover{background:rgba(255,255,255,.02)}
 .svc-row strong{display:block;font-size:14px}
 .svc-row small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
 .svc-row small .pos{color:#6ee7b7}.svc-row small .neg{color:#ffa8a8}
-.svc-row input{width:100%;min-height:42px;padding:8px 10px;background:var(--bg-2);border:1px solid var(--line);border-radius:10px;color:var(--text);font-size:15px}
+.svc-row input[type="number"]{width:100%;min-height:42px;padding:8px 10px;background:var(--bg-2);border:1px solid var(--line);border-radius:10px;color:var(--text);font-size:15px}
 .svc-order{border-bottom:1px solid var(--line-2)}
 .svc-order>button{width:100%;display:flex;justify-content:space-between;gap:10px;align-items:center;padding:12px 0;text-align:left;background:none;border:0;color:inherit;cursor:pointer}
 .svc-order>button strong{display:block;font-size:13.5px}
@@ -677,3 +677,11 @@ body.has-selbar .container{padding-bottom:calc(190px + var(--safe-b))}
 /* Toasts sit above the selection bar */
 body.has-selbar .toast-stack{bottom:calc(var(--nav-h) + var(--safe-b) + 150px)}
 @media (min-width:1000px){ body.has-selbar .toast-stack{bottom:96px} }
+.bill-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 12px;padding:14px 0;border-bottom:1px solid var(--line-2)}
+.bill-row:last-child{border-bottom:0}
+.bill-row .bill-head{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.bill-row .bill-head strong{font-size:14.5px}
+.bill-row .field input{width:100%}
+@media (min-width:700px){.bill-row{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.tl-row{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line-2);font-size:13px}
+.tl-row small{display:block;color:var(--muted);font-size:11.5px}

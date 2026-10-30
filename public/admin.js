@@ -26,7 +26,7 @@
     overview: ['Store dashboard', 'Everything important, in one place.'],
     orders: ['Orders', 'Search payments, retry deliveries and issue refunds.'],
     bundles: ['Bundles & pricing', 'Control what you sell and what it costs.'],
-    services: ['Checkers & AFA', 'Set prices, follow orders and retry stuck ones.'],
+    services: ['Services', 'Result checkers, AFA and bills: prices, fees and orders.'],
     customers: ['Customers & promos', 'See who buys the most and reward them.'],
     numbers: ['Blocked numbers', 'Stop specific numbers from buying.'],
     settings: ['Settings', 'Storefront content and support details.'],

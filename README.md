@@ -360,3 +360,19 @@ When nobody is shopping and nothing is waiting, the database is not touched and 
 - The AFA bundle details on it are what MTN's AFA menu showed in October 2026 (monthly, no data: GH₵10 for 258 MTN minutes,
   30 minutes to other networks, 500 CUG minutes and 25 SMS, 30 days). MTN's help centre still lists older GH₵6 bundles.
   Update `public/welcome.html` when MTN changes the offer.
+
+## 21. Bills: electricity, water and TV (Techlink)
+
+Page: `/bills.html` (tabs Electricity, Water, TV). Admin: **Services → Bills**. Code: `services/techlink.js`,
+bill parts of `services/serviceOrders.js` and `routes/services.js`.
+
+- Render needs `TECHLINK_API_KEY` (`tlg_live_…`, or `tlg_test_…` to try it out). Optional: `TECHLINK_BASE_URL`.
+- The customer enters the meter / account / smartcard number and the site shows whose it is (ECG: name and district;
+  water: name and amount owed; TV: name, package, amount due) before they pay.
+- Price = bill amount + your service fee (GH₵ and/or %), plus the Paystack fee when customers pay it. Set the fee,
+  smallest and largest amount and on/off per bill in admin. If Techlink adds its own fee, enter it as "Extra fee Techlink takes".
+- After Paystack confirms, the bill is paid from the Techlink wallet and checked with Techlink until it is confirmed.
+  A definite refusal is refunded automatically; a low Techlink wallet waits as "stuck" with a dashboard alert.
+- **Techlink has no protection against paying twice.** A payment that gets no answer is never resent automatically:
+  it waits as "stuck". Press **Techlink orders** in admin; if the payment is there it went through, otherwise press Retry.
+- TV: Techlink asks for the smartcard to be checked right before paying, so the site checks it again at that moment.

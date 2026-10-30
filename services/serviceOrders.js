@@ -1,5 +1,6 @@
 /*
- * Result checkers (WAEC, BECE, ...) and AFA registration, sold through FastDealsGH API v2.
+ * Result checkers (WAEC, BECE, ...) and AFA registration, sold through FastDealsGH API v2, and
+ * electricity (ECG), Ghana Water and TV (DStv, GOtv, StarTimes) bills, paid through Techlink (services/techlink.js).
  *
  * Flow: checkout saves a 'pending' row (AFA details must wait somewhere until the payment lands)
  * -> Paystack confirms -> 'paid' -> sent to FastDealsGH with our reference as the Idempotency-Key.
@@ -8,10 +9,15 @@
  * Unknown outcome (timeout) stays 'paid' and is retried with the same key, which can never charge twice.
  * A definite "no" (out of stock, invalid details) is refunded to the customer automatically.
  * Ghana Card number and date of birth are wiped once FastDealsGH has finished with them.
+ *
+ * Bills: 'paid' -> sent to Techlink -> 'submitted' (Techlink order number) -> 'completed' or 'failed' (refunded).
+ * Techlink has no idempotency key, so a bill payment that gets no answer goes to 'review' and is NEVER resent
+ * automatically: the admin checks Techlink's orders first, then presses Retry or Refund.
  */
 const crypto = require('crypto');
 const { pool, getSettings, normalizePhone, PHONE_RE } = require('./orderStore');
 const fd = require('./fdv2');
+const tl = require('./techlink');
 const { verifyTransaction, refundTransaction } = require('./paystack');
 const { addAlert } = require('./fulfillment');
 const { round2 } = require('./fees');
@@ -21,6 +27,11 @@ const STATUSES = ['pending', 'paid', 'sending', 'completed', 'submitted', 'appro
 const RETRYABLE = new Set(['network', 'request_in_progress', 'rate_limited', 'maintenance', 'bad_response']);
 const MAX_ATTEMPTS = 12;
 
+const BILL_KINDS = ['ecg', 'water', 'tv'];
+const isBill = (kind) => BILL_KINDS.includes(kind);
+const BILL_NAMES = { ecg: 'ECG electricity', water: 'Ghana Water bill', tv: 'TV subscription' };
+const TV_NAMES = { DSTV: 'DStv', GOTV: 'GOtv', STARTIMES: 'StarTimes' };
+
 const REGIONS = ['Ahafo', 'Ashanti', 'Bono', 'Bono East', 'Central', 'Eastern', 'Greater Accra', 'North East', 'Northern',
   'Oti', 'Savannah', 'Upper East', 'Upper West', 'Volta', 'Western', 'Western North'];
 
@@ -28,7 +39,7 @@ async function initServiceDb() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS service_orders (
       reference TEXT PRIMARY KEY,
-      kind TEXT NOT NULL CHECK (kind IN ('checker','afa')),
+      kind TEXT NOT NULL,
       item_code TEXT NOT NULL,
       item_name TEXT NOT NULL,
       checker_type_id INTEGER,
@@ -55,6 +66,13 @@ async function initServiceDb() {
       paid_at TIMESTAMPTZ
     );
     CREATE INDEX IF NOT EXISTS service_orders_status_idx ON service_orders (status, updated_at);
+    -- Bills (added later): the meter / account paid, the name it belongs to, who delivered it, and extras.
+    ALTER TABLE service_orders ADD COLUMN IF NOT EXISTS account TEXT;
+    ALTER TABLE service_orders ADD COLUMN IF NOT EXISTS account_name TEXT;
+    ALTER TABLE service_orders ADD COLUMN IF NOT EXISTS provider TEXT;
+    ALTER TABLE service_orders ADD COLUMN IF NOT EXISTS details JSONB;
+    ALTER TABLE service_orders DROP CONSTRAINT IF EXISTS service_orders_kind_check;
+    ALTER TABLE service_orders ADD CONSTRAINT service_orders_kind_check CHECK (kind IN ('checker','afa','ecg','water','tv'));
   `);
 }
 
@@ -68,6 +86,7 @@ function mapRow(r) {
     customerId: r.customer_id, status: r.status, providerReference: r.provider_reference, pins: r.pins || [],
     resultUrl: r.result_url, afa: r.afa || null, afaId: r.afa_id, note: r.note, attempts: r.attempts, refundId: r.refund_id,
     createdAt: r.created_at, updatedAt: r.updated_at, paidAt: r.paid_at,
+    account: r.account || null, accountName: r.account_name || null, provider: r.provider || null, details: r.details || {},
     profitGHS: r.cost_ghs == null ? null : round2(Number(r.price_ghs) - Number(r.cost_ghs) - Number(r.payment_fee_ghs || 0)),
   };
 }
@@ -81,11 +100,11 @@ async function getServiceOrder(reference) {
 async function move(reference, from, changes = {}) {
   const cols = { status: 'status', providerReference: 'provider_reference', pins: 'pins', resultUrl: 'result_url', afa: 'afa',
     afaId: 'afa_id', note: 'note', costGHS: 'cost_ghs', paymentFeeGHS: 'payment_fee_ghs', amountPaidGHS: 'amount_paid_ghs',
-    refundId: 'refund_id', attempts: 'attempts', paidAt: 'paid_at' };
+    refundId: 'refund_id', attempts: 'attempts', paidAt: 'paid_at', details: 'details' };
   const sets = []; const vals = [];
   for (const [k, v] of Object.entries(changes)) {
     if (!cols[k]) continue;
-    vals.push(k === 'pins' || k === 'afa' ? (v == null ? null : JSON.stringify(v)) : v);
+    vals.push(k === 'pins' || k === 'afa' || k === 'details' ? (v == null ? null : JSON.stringify(v)) : v);
     sets.push(`${cols[k]} = $${vals.length}`);
   }
   sets.push('updated_at = NOW()');
@@ -96,7 +115,7 @@ async function move(reference, from, changes = {}) {
   if (r.rows[0]) {
     // Tell the background job there is something to follow up (see services/workHints.js).
     if (changes.status === 'paid' || changes.status === 'sending') work.mark('svc-send');
-    if (changes.status === 'submitted') work.mark('svc-afa');
+    if (changes.status === 'submitted') work.mark(isBill(r.rows[0].kind) ? 'svc-bill' : 'svc-afa');
   }
   return mapRow(r.rows[0]);
 }
@@ -124,6 +143,33 @@ async function catalog({ fresh = false } = {}) {
   const afa = { cost: afaCost, price: afaPrice, enabled: Boolean(afaConf.enabled),
     available: Boolean(p) && Boolean(afaConf.enabled) && afaPrice > 0 && afaCost != null && !(afaCost > afaPrice) };
   return { connected: Boolean(p), error, checkers, afa, regions: REGIONS };
+}
+
+/* ------------------------------------------------------------ bills */
+
+// The admin's bill settings with safe defaults. Customers pay the bill amount plus our service fee.
+function billSettings(settings) {
+  const b = settings.bills || {};
+  const one = (k, max) => {
+    const c = b[k] || {};
+    const n = (v, d) => (v === '' || v == null || !Number.isFinite(Number(v)) ? d : Number(v));
+    return { enabled: Boolean(c.enabled), fee: n(c.fee, 1), feePercent: n(c.feePercent, 0), min: n(c.min, 5), max: n(c.max, max) };
+  };
+  return { ecg: one('ecg', 1000), water: one('water', 2000), tv: one('tv', 2000), techlinkFeePercent: Number(b.techlinkFeePercent) || 0 };
+}
+
+async function billOptions() {
+  const conf = billSettings(await getSettings());
+  const out = {};
+  for (const k of BILL_KINDS) out[k] = { ...conf[k], name: BILL_NAMES[k], available: conf[k].enabled && tl.available() };
+  return { connected: tl.available(), techlinkFeePercent: conf.techlinkFeePercent, ...out };
+}
+
+// What the customer pays (before the Paystack fee) and what it costs us at Techlink.
+function quoteBill(kind, amount, conf) {
+  const c = conf[kind];
+  const fee = round2(Number(c.fee || 0) + amount * Number(c.feePercent || 0) / 100);
+  return { priceGHS: round2(amount + fee), serviceFeeGHS: fee, costGHS: round2(amount * (1 + Number(conf.techlinkFeePercent || 0) / 100)) };
 }
 
 /* ------------------------------------------------------------ validation */
@@ -160,17 +206,19 @@ function cleanAfa(body) {
 /* ------------------------------------------------------------ checkout */
 
 function newReference(kind) {
-  return `SV-${kind === 'afa' ? 'AFA' : 'CHK'}-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(6).toString('hex').toUpperCase()}`;
+  const tag = { afa: 'AFA', ecg: 'ECG', water: 'WAT', tv: 'TV' }[kind] || 'CHK';
+  return `SV-${tag}-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(6).toString('hex').toUpperCase()}`;
 }
 
 async function createPending(o) {
   work.mark('svc-sweep');
   await pool.query(
     `INSERT INTO service_orders (reference, kind, item_code, item_name, checker_type_id, quantity, price_ghs, customer_fee_ghs,
-       cost_ghs, payment_fee_ghs, phone, email, customer_id, afa)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+       cost_ghs, payment_fee_ghs, phone, email, customer_id, afa, account, account_name, provider, details)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
     [o.reference, o.kind, o.code, o.name, o.checkerTypeId || null, o.quantity || 1, o.priceGHS, o.customerFeeGHS || 0,
-      o.costGHS ?? null, o.paymentFeeGHS ?? null, o.phone, o.email, o.customerId || null, o.afa ? JSON.stringify(o.afa) : null]
+      o.costGHS ?? null, o.paymentFeeGHS ?? null, o.phone, o.email, o.customerId || null, o.afa ? JSON.stringify(o.afa) : null,
+      o.account || null, o.accountName || null, o.provider || (isBill(o.kind) ? 'techlink' : 'fastdeals'), o.details ? JSON.stringify(o.details) : null]
   );
   return getServiceOrder(o.reference);
 }
@@ -204,6 +252,7 @@ async function deliver(order) {
   const ref = order.reference;
   const claimed = await move(ref, 'paid', { status: 'sending', attempts: (order.attempts || 0) + 1 });
   if (!claimed) return getServiceOrder(ref);
+  if (isBill(claimed.kind)) return deliverBill(claimed);
   try {
     if (claimed.kind === 'checker') {
       const d = await fd.buyChecker(ref, claimed.checkerTypeId, claimed.quantity, claimed.phone);
@@ -220,13 +269,13 @@ async function deliver(order) {
     console.warn('Service order', ref, 'FastDealsGH:', code, String(err.message || '').slice(0, 120));
     if (RETRYABLE.has(code)) {
       if (claimed.attempts >= MAX_ATTEMPTS) {
-        await addAlert('danger', `${claimed.name} order ${ref} could not reach FastDealsGH after several tries. Open Checkers & AFA and press Retry.`).catch(() => {});
+        await addAlert('danger', `${claimed.name} order ${ref} could not reach FastDealsGH after several tries. Open Services and press Retry.`).catch(() => {});
         return move(ref, 'sending', { status: 'review', note: 'FastDealsGH did not answer' });
       }
       return move(ref, 'sending', { status: 'paid', note: 'Waiting to retry' });
     }
     if (code === 'insufficient_balance' || code === 'not_configured') {
-      await addAlert('danger', `FastDealsGH wallet is too low for ${claimed.name} order ${ref}. Top up FastDealsGH, then press Retry in Checkers & AFA.`).catch(() => {});
+      await addAlert('danger', `FastDealsGH wallet is too low for ${claimed.name} order ${ref}. Top up FastDealsGH, then press Retry in Services.`).catch(() => {});
       return move(ref, 'sending', { status: 'review', note: code === 'insufficient_balance' ? 'FastDealsGH wallet too low' : 'FastDealsGH not connected' });
     }
     // A definite no: nothing was charged by FastDealsGH. Give the customer their money back.
@@ -234,6 +283,61 @@ async function deliver(order) {
     await move(ref, 'sending', { status: 'failed', note: reason.slice(0, 200), afa: scrubAfa(claimed.afa) });
     return refund(ref);
   }
+}
+
+async function deliverBill(claimed) {
+  const ref = claimed.reference;
+  const label = `${claimed.name} order ${ref} (${claimed.account})`;
+  try {
+    // TV: Techlink wants the smartcard checked right before paying (the provider needs the account name).
+    if (claimed.kind === 'tv') await tl.lookup('tv', claimed.account, claimed.details.service);
+    const r = await tl.pay(claimed.kind, claimed.account, Number(claimed.details.billAmount), claimed.phone, claimed.details.service);
+    const sent = await move(ref, 'sending', { status: 'submitted', providerReference: r.orderId, note: null,
+      details: { ...claimed.details, newBalance: r.newBalance } });
+    if (!sent) return getServiceOrder(ref);
+    // Usually confirmed straight away; otherwise the background check follows it up.
+    return (await checkBill(sent)) || (await getServiceOrder(ref));
+  } catch (err) {
+    console.warn('Bill', ref, 'Techlink:', err.kind || 'error', String(err.message || '').slice(0, 120));
+    if (err.kind === 'unknown' || !err.kind) {
+      // The payment may or may not have gone through. Never resend by itself.
+      await addAlert('danger', `No answer from Techlink for ${label}. Check your Techlink orders: if it is there, it went through; if not, press Retry in Services.`).catch(() => {});
+      return move(ref, 'sending', { status: 'review', note: 'No answer from Techlink. Check Techlink orders before retrying.' });
+    }
+    if (err.kind === 'not_configured' || err.status === 401 || err.status === 403) {
+      await addAlert('danger', `Techlink is not connected or the key was refused, so ${label} is waiting. Fix TECHLINK_API_KEY in Render, then press Retry.`).catch(() => {});
+      return move(ref, 'sending', { status: 'review', note: 'Techlink key missing or refused' });
+    }
+    if (tl.isLowBalance(err)) {
+      await addAlert('danger', `Techlink wallet is too low for ${label}. Top up Techlink, then press Retry in Services.`).catch(() => {});
+      return move(ref, 'sending', { status: 'review', note: 'Techlink wallet too low' });
+    }
+    // A definite no from Techlink: nothing was paid. Give the customer their money back.
+    await move(ref, 'sending', { status: 'failed', note: String(err.message || 'Refused by Techlink').slice(0, 200) });
+    return refund(ref);
+  }
+}
+
+// Asks Techlink (and through it the biller) whether a bill payment went through.
+async function checkBill(o) {
+  if (!o || o.status !== 'submitted' || !o.providerReference) return null;
+  try {
+    const st = await tl.orderStatus(o.providerReference);
+    if (st === 'completed') return await move(o.reference, 'submitted', { status: 'completed', note: null });
+    if (st === 'failed') {
+      const f = await move(o.reference, 'submitted', { status: 'failed', note: 'The payment was not accepted by the biller' });
+      return f ? refund(o.reference) : null;
+    }
+    await pool.query('UPDATE service_orders SET updated_at = NOW() WHERE reference = $1', [o.reference]);
+  } catch (e) { console.warn('Bill status check failed:', o.reference, e.kind || e.message); }
+  return null;
+}
+
+// A customer looking at their bill payment gets a fresh answer (at most every 30 seconds per order).
+async function refreshBill(o) {
+  if (!o || !isBill(o.kind) || o.status !== 'submitted' || !tl.available()) return o;
+  if (Date.now() - new Date(o.updatedAt).getTime() < 30 * 1000) return o;
+  return (await checkBill(o)) || (await getServiceOrder(o.reference)) || o;
 }
 
 async function refund(reference) {
@@ -290,11 +394,14 @@ let lastAfaCheck = 0;
 
 // Runs every 2 minutes, but only touches the database while there is something to follow up.
 async function tick() {
-  if (!fd.available()) return;
-  // 1. Paid but not yet sent (or the last try got no answer): send again with the same key.
+  if (!fd.available() && !tl.available()) return;
+  // 1. Paid but not yet sent (or the last FastDealsGH try got no answer): send again with the same key.
   if (work.pending('svc-send')) {
-    // A send that crashed half-way (server restart) is put back in the queue.
-    await pool.query(`UPDATE service_orders SET status = 'paid', updated_at = NOW() WHERE status = 'sending' AND updated_at < NOW() - INTERVAL '10 minutes'`);
+    // A send that crashed half-way (server restart) is put back in the queue. FastDealsGH has an
+    // idempotency key so that is safe; a bill may already be paid, so it waits for the admin instead.
+    await pool.query(`UPDATE service_orders SET status = 'paid', updated_at = NOW() WHERE status = 'sending' AND kind IN ('checker','afa') AND updated_at < NOW() - INTERVAL '10 minutes'`);
+    await pool.query(`UPDATE service_orders SET status = 'review', note = 'Interrupted while paying. Check Techlink orders before retrying.', updated_at = NOW()
+      WHERE status = 'sending' AND kind IN ('ecg','water','tv') AND updated_at < NOW() - INTERVAL '10 minutes'`);
     const open = await pool.query(`SELECT * FROM service_orders WHERE status IN ('paid','sending') ORDER BY created_at LIMIT 20`);
     if (!open.rows.length) work.done('svc-send');
     for (const r of open.rows) {
@@ -304,11 +411,21 @@ async function tick() {
   }
   // 2. AFA registrations under review: ask FastDealsGH about once an hour. Approval takes a while, and a
   //    customer who opens their order page gets a fresh answer straight away (refreshAfa).
-  if (work.pending('svc-afa') && Date.now() - lastAfaCheck >= afaEveryMs()) {
+  if (fd.available() && work.pending('svc-afa') && Date.now() - lastAfaCheck >= afaEveryMs()) {
     lastAfaCheck = Date.now();
-    const afa = await pool.query(`SELECT * FROM service_orders WHERE status = 'submitted' AND provider_reference IS NOT NULL ORDER BY updated_at LIMIT 20`);
+    const afa = await pool.query(`SELECT * FROM service_orders WHERE status = 'submitted' AND kind = 'afa' AND provider_reference IS NOT NULL ORDER BY updated_at LIMIT 20`);
     if (!afa.rows.length) work.done('svc-afa');
     for (const r of afa.rows) await checkAfaOrder(mapRow(r));
+  }
+  // 3. Bills sent to Techlink but not confirmed yet: ask again every couple of minutes, for up to 2 days.
+  if (tl.available() && work.pending('svc-bill')) {
+    const bills = await pool.query(`SELECT * FROM service_orders WHERE status = 'submitted' AND kind IN ('ecg','water','tv')
+      AND provider_reference IS NOT NULL AND created_at > NOW() - INTERVAL '2 days' ORDER BY updated_at LIMIT 20`);
+    if (!bills.rows.length) work.done('svc-bill');
+    for (const r of bills.rows) {
+      if (Date.now() - new Date(r.updated_at).getTime() < 90 * 1000) continue;
+      await checkBill(mapRow(r));
+    }
   }
 }
 
@@ -341,6 +458,9 @@ function publicView(o) {
     totalGHS: round2(Number(o.priceGHS) + Number(o.customerFeeGHS || 0)), phone: o.phone,
     pins: o.status === 'completed' ? o.pins : [], resultUrl: o.status === 'completed' ? o.resultUrl : null,
     afaName: o.afa ? o.afa.full_name : null, afaId: o.afaId || null,
+    account: o.account || null, accountName: o.accountName || null, area: (o.details && o.details.area) || null,
+    service: (o.details && o.details.service) || null, packageName: (o.details && o.details.packageName) || null,
+    billAmount: o.details && o.details.billAmount != null ? Number(o.details.billAmount) : null,
     reason: ['rejected', 'failed', 'refunding', 'refunded'].includes(o.status) ? (o.note || null) : null,
     createdAt: o.createdAt,
   };
@@ -349,7 +469,7 @@ function publicView(o) {
 async function listServiceOrders({ status, search, limit = 50 } = {}) {
   const where = ["status <> 'pending'"]; const vals = [];
   if (status && STATUSES.includes(status)) { vals.push(status); where.push(`status = $${vals.length}`); }
-  if (search) { vals.push('%' + String(search).trim() + '%'); where.push(`(reference ILIKE $${vals.length} OR phone ILIKE $${vals.length} OR email ILIKE $${vals.length})`); }
+  if (search) { vals.push('%' + String(search).trim() + '%'); where.push(`(reference ILIKE $${vals.length} OR phone ILIKE $${vals.length} OR email ILIKE $${vals.length} OR account ILIKE $${vals.length})`); }
   vals.push(Math.min(Number(limit) || 50, 200));
   const r = await pool.query(`SELECT * FROM service_orders WHERE ${where.join(' AND ')} ORDER BY created_at DESC LIMIT $${vals.length}`, vals);
   const s = await pool.query(`SELECT
@@ -364,5 +484,6 @@ async function listServiceOrders({ status, search, limit = 50 } = {}) {
 
 module.exports = {
   initServiceDb, catalog, cleanAfa, newReference, createPending, confirmPayment, deliver, refund, refundEvent, retry,
-  tick, sweep, refreshAfa, getServiceOrder, publicView, listServiceOrders, REGIONS, STATUSES,
+  tick, sweep, refreshAfa, refreshBill, getServiceOrder, publicView, listServiceOrders, REGIONS, STATUSES,
+  billSettings, billOptions, quoteBill, isBill, BILL_KINDS, BILL_NAMES, TV_NAMES,
 };
