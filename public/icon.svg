@@ -1,15 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Abrants Data Store">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#2a2a2a"/>
-      <stop offset="1" stop-color="#0b0b0b"/>
+      <stop offset="0" stop-color="#141d38"/>
+      <stop offset="1" stop-color="#0b1020"/>
     </linearGradient>
-    <linearGradient id="silver" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#ffffff"/>
-      <stop offset="1" stop-color="#c9c9c9"/>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffd21c"/>
+      <stop offset="1" stop-color="#ffbe00"/>
     </linearGradient>
   </defs>
   <rect width="512" height="512" rx="112" fill="url(#bg)"/>
-  <path d="M256 116 L364 396 H300 L256 274 L212 396 H148 Z" fill="url(#silver)"/>
-  <rect x="196" y="322" width="120" height="26" rx="13" fill="url(#silver)"/>
+  <path d="M256 116 L364 396 H300 L256 274 L212 396 H148 Z" fill="url(#gold)"/>
+  <rect x="196" y="322" width="120" height="26" rx="13" fill="url(#gold)"/>
 </svg>
