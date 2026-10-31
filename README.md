@@ -369,3 +369,27 @@ Notes:
   Update `public/index.html` (the AFA card and the AFA section) when MTN changes the offer. The text does not say AFA is
   only for farmers (client's choice).
 - There used to be a separate `/welcome.html`; old links to it open the home page (`/welcome.html#afa` lands on the AFA part).
+
+## 21. Security headers (and what the review checked)
+
+Every response carries security headers set in `server.js`, including a **Content Security Policy**. The policy
+allows only our own scripts (`script-src 'self'`) and only calls back to our own API (`connect-src 'self'`), so a
+script slipped into a page by any future bug cannot run or send data anywhere. `style-src` also allows
+`'unsafe-inline'` (a few pages use `style=""` attributes) and Google Fonts; `font-src` allows `fonts.gstatic.com`.
+
+**If you ever add something loaded from another website** (an analytics script, a chat widget, a font or image
+host, an embedded video), the browser will block it until you add that address to the matching line of the policy.
+
+`Strict-Transport-Security` (HTTPS only) and `Cross-Origin-Opener-Policy` are also sent; HSTS is only sent when
+`NODE_ENV=production`, never in local development over plain http.
+
+**Set `TRUST_PROXY=true` on Render.** The app sits behind Render's proxy, so without it every visitor looks like
+the same address and the rate limits (login attempts, checkout, order lookups) cannot tell people apart.
+
+The rest of the protection was reviewed and left as it was, because it was already right: all database queries use
+placeholders (`$1`, `$2`) so nothing typed in can become part of a query; admin and customer sessions are signed,
+HttpOnly cookies (customer passwords are hashed with scrypt, and a password change invalidates old sessions);
+prices are always worked out on the server; orders are signed into the Paystack transaction and verified
+server-to-server before anything is delivered; Paystack and DataHustle webhooks are signature-checked; and every
+value shown on a page goes through `esc()` first, including the customer-supplied AFA details shown in the admin
+dashboard.

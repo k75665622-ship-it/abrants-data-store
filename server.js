@@ -26,6 +26,30 @@ app.use((req, res, next) => {
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  // Content Security Policy. Our pages load only our own scripts and talk only to our own API,
+  // so if a bug ever let someone slip in a <script>, the browser would refuse to run it or let it
+  // send data anywhere. Google Fonts is allowed because the pages load fonts from there; inline
+  // style="" attributes are allowed because a few pages use them (styles can't steal data the way
+  // scripts can). Payment is a normal redirect to Paystack, which a page navigation is free to do.
+  res.setHeader('Content-Security-Policy', [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'none'",
+    "form-action 'self'",
+    "img-src 'self' data:",
+    "script-src 'self'",
+    "connect-src 'self'",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com",
+  ].join('; '));
+  // Keep this page in its own browsing context, so another site that opens it cannot poke at it.
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+  // In production (served over HTTPS on Render), tell browsers to only ever use HTTPS for this site.
+  // Never sent in local development, which runs over plain http.
+  if (process.env.NODE_ENV === 'production') {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
   next();
 });
 
