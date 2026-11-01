@@ -320,7 +320,7 @@
     fetch('/api/checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ planId: SELECTED_PLAN.id, phone: phone, email: email, confirmFirstTime: confirmed === true })
+      body: JSON.stringify({ planId: SELECTED_PLAN.id, phone: phone, email: email, confirmFirstTime: confirmed === true, campaign: window.abrantsFrom ? window.abrantsFrom() : '' })
     })
       .then(function (res) {
         return res.json().then(function (data) { return { ok: res.ok, status: res.status, data: data }; });

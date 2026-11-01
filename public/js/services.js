@@ -11,6 +11,8 @@
     set: function (k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* private mode */ } }
   };
   var cat = null, qty = 1, needHelp = false;
+  // The link this visitor came through (js/track.js); empty when they came straight to the site.
+  var from = function () { return window.abrantsFrom ? window.abrantsFrom() : ''; };
 
   function toast(msg, kind) {
     var el = document.createElement('div');
@@ -111,7 +113,7 @@
     if (!/^\S+@\S+\.\S+$/.test(email)) return showError('chkError', { message: 'Enter a valid email address.', field: 'email' }, form);
     store.set('sv-contact', { phone: phone, email: email });
     busy(btn, true, 'Opening payment…');
-    api('/api/services/checkout', { kind: 'checker', code: c.code, quantity: qty, phone: phone, email: email })
+    api('/api/services/checkout', { kind: 'checker', code: c.code, quantity: qty, phone: phone, email: email, campaign: from() })
       .then(function (d) { remember(d.reference, c.name + (qty > 1 ? ' × ' + qty : '')); location.href = d.authorizationUrl; })
       .catch(function (err) { busy(btn, false); showError('chkError', err, form); });
   });
@@ -133,7 +135,7 @@
     var form = this, btn = $('afaPay');
     clearError('afaError', form);
     fixCard(form.ghanaCard);
-    var body = { kind: 'afa' };
+    var body = { kind: 'afa', campaign: from() };
     ['fullName', 'ghanaCard', 'dob', 'phone', 'region', 'location', 'occupation', 'email'].forEach(function (k) { body[k] = form[k].value.trim(); });
     var missing = ['fullName', 'ghanaCard', 'dob', 'phone', 'region', 'location', 'email'].filter(function (k) { return !body[k]; })[0];
     if (missing) return showError('afaError', { message: 'Fill in every field.', field: missing }, form);

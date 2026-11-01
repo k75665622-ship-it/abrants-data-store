@@ -91,6 +91,7 @@ function orderFromMetadata(reference, tx) {
 }
 
 const { feeRate, chargeFor } = require('../services/fees');
+const { cleanCode } = require('../services/campaigns');
 
 function paymentMatchesOrder(tx, order) {
   const amountGHS = Number(tx.amount) / 100;
@@ -195,6 +196,8 @@ router.post('/checkout', checkoutLimit, optionalCustomer(), async (req, res) => 
       providerCostGHS: plan.providerCostGHS ?? null, paymentFeeGHS: estimatedPaymentFeeGHS, customerFeeGHS,
       phone, email,
       customerId: req.customer ? req.customer.id : null, offerId: quote.offerId ?? null, listPriceGHS: plan.priceGHS,
+      // The tracking link the visitor came through (see services/campaigns.js). Signed with the rest of the order.
+      campaign: cleanCode(req.body?.campaign),
     };
 
     const origin = `${req.protocol}://${req.get('host')}`;

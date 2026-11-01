@@ -27,6 +27,7 @@
     orders: ['Orders', 'Search payments, retry deliveries and issue refunds.'],
     bundles: ['Bundles & pricing', 'Control what you sell and what it costs.'],
     services: ['Checkers & AFA', 'Set prices, follow orders and retry stuck ones.'],
+    links: ['Links', 'See what each link brings in.'],
     customers: ['Customers & promos', 'See who buys the most and reward them.'],
     numbers: ['Blocked numbers', 'Stop specific numbers from buying.'],
     settings: ['Settings', 'Storefront content and support details.'],
@@ -161,6 +162,7 @@
     if (name === 'bundles') loadPlans();
     if (name === 'customers' && window.AbrantsCustomers) window.AbrantsCustomers.load();
     if (name === 'services' && window.AbrantsServices) window.AbrantsServices.load();
+    if (name === 'links' && window.AbrantsLinks) window.AbrantsLinks.load();
     if (name === 'numbers') loadBlocked();
     if (name === 'settings') { loadSettings(); loadProviders(); }
     if (name === 'activity') loadAudit();
@@ -485,6 +487,7 @@
             (o.estimatedProfitGHS == null ? '—' : money(o.estimatedProfitGHS)) + '</strong></div>' +
           '<div class="detail-box"><span>Bundle</span><strong>' + esc(o.label) + ' · ' + esc(o.network) + '</strong></div>' +
           '<div class="detail-box"><span>Created</span><strong>' + date(o.createdAt) + '</strong></div>' +
+          (o.campaign ? '<div class="detail-box"><span>Came from link</span><strong>' + esc(o.campaign) + '</strong></div>' : '') +
           '<div class="detail-box"><span>Provider ref</span><strong>' + esc(o.providerReference || '—') + '</strong></div>' +
           '<div class="detail-box"><span>Tracking ID</span><strong>' + esc(o.trackingId || '—') + '</strong></div>' +
           '<div class="detail-box"><span>Refund status</span><strong>' + esc(o.refundStatus || '—') + '</strong></div>' +

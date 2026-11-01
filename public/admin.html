@@ -10,7 +10,7 @@
 <link rel="icon" type="image/svg+xml" href="/icon.svg" />
 <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png" />
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-<link rel="stylesheet" href="admin.css?v=19" />
+<link rel="stylesheet" href="admin.css?v=20" />
 </head>
 <body>
 
@@ -62,6 +62,7 @@
         <button class="side-link" data-section="orders"><span class="ico">☰</span> Orders</button>
         <button class="side-link" data-section="bundles"><span class="ico">₵</span> Bundles &amp; pricing</button>
         <button class="side-link" data-section="services"><span class="ico">✎</span> Checkers &amp; AFA</button>
+        <button class="side-link" data-section="links"><span class="ico">⛓</span> Links</button>
         <button class="side-link" data-section="customers"><span class="ico">☺</span> Customers</button>
         <button class="side-link" data-section="numbers"><span class="ico">⊘</span> Blocked numbers</button>
         <button class="side-link" data-section="settings"><span class="ico">⚙</span> Settings</button>
@@ -222,6 +223,48 @@
               </div>
               <div id="svcOrders"></div>
             </div>
+          </div>
+        </section>
+
+        <!-- --------------------------- LINKS ---------------------------- -->
+        <section id="section-links" class="admin-section hidden">
+          <div class="stats-grid lk-stats" id="lkStats"></div>
+          <div class="panel" style="margin-top:14px">
+            <div class="panel-head"><h3>New link</h3></div>
+            <div class="panel-body">
+              <form id="lkForm" autocomplete="off">
+                <div class="filter-row">
+                  <label class="field"><span>Name</span><input id="lkName" maxlength="60" placeholder="Kwame" required /></label>
+                  <label class="field"><span>Opens on</span>
+                    <select id="lkLanding">
+                      <option value="home">Home page</option>
+                      <option value="data">Buy data</option>
+                      <option value="afa">MTN AFA</option>
+                      <option value="checkers">Result checkers</option>
+                    </select>
+                  </label>
+                  <label class="field"><span>Commission per order <em>(optional)</em></span><input id="lkCommission" inputmode="decimal" placeholder="GH₵" /></label>
+                </div>
+                <label class="field" style="margin-top:10px"><span>Note <em>(optional)</em></span><input id="lkNote" maxlength="200" placeholder="MoMo number to pay" /></label>
+                <button class="btn btn-primary" type="submit" id="lkCreate" style="margin-top:12px">Create link</button>
+              </form>
+            </div>
+          </div>
+          <div class="panel" style="margin-top:14px">
+            <div class="panel-head"><h3>Your links</h3></div>
+            <div class="panel-body">
+              <div class="chip-row" id="lkRange" style="margin-bottom:6px">
+                <button class="chip" data-lk-range="7d">7 days</button>
+                <button class="chip active" data-lk-range="30d">30 days</button>
+                <button class="chip" data-lk-range="month">This month</button>
+                <button class="chip" data-lk-range="all">All time</button>
+              </div>
+              <div id="lkList"></div>
+            </div>
+          </div>
+          <div class="panel hidden" id="lkOthersPanel" style="margin-top:14px">
+            <div class="panel-head"><h3>Tags not saved as links</h3></div>
+            <div class="panel-body" id="lkOthers"></div>
           </div>
         </section>
 
@@ -454,6 +497,7 @@
       <button data-section="orders"><span class="ico">☰</span>Orders</button>
       <button data-section="bundles"><span class="ico">₵</span>Bundles</button>
       <button data-section="services"><span class="ico">✎</span>Checkers</button>
+      <button data-section="links"><span class="ico">⛓</span>Links</button>
       <button data-section="customers"><span class="ico">☺</span>Customers</button>
       <button data-section="numbers"><span class="ico">⊘</span>Blocked</button>
       <button data-section="settings"><span class="ico">⚙</span>Settings</button>
@@ -574,8 +618,9 @@
 
 <div class="toast-stack" id="toastStack" aria-live="polite"></div>
 
-<script src="admin.js?v=19"></script>
+<script src="admin.js?v=20"></script>
 <script src="admin-customers.js"></script>
-<script src="admin-services.js?v=4"></script>
+<script src="admin-services.js?v=5"></script>
+<script src="admin-links.js?v=1"></script>
 </body>
 </html>

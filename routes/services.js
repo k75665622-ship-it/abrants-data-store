@@ -8,6 +8,7 @@ const { initializeTransaction, verifyTransaction } = require('../services/paysta
 const { optionalCustomer } = require('../services/customers');
 const { getSettings, saveSettings, isNumberBlocked, normalizePhone, PHONE_RE } = require('../services/orderStore');
 const { feeRate, chargeFor, round2 } = require('../services/fees');
+const { cleanCode } = require('../services/campaigns');
 
 const hits = new Map();
 function limit(max) {
@@ -74,7 +75,8 @@ pub.post('/checkout', limit(15), optionalCustomer(), async (req, res) => {
     const charge = chargeFor(order.priceGHS, customerPays);
     const customerFeeGHS = round2(charge - order.priceGHS);
     await svc.createPending({ ...order, reference, email, customerFeeGHS,
-      paymentFeeGHS: round2(charge * feeRate() - customerFeeGHS), customerId: req.customer ? req.customer.id : null });
+      paymentFeeGHS: round2(charge * feeRate() - customerFeeGHS), customerId: req.customer ? req.customer.id : null,
+      campaign: cleanCode(b.campaign) });
 
     const tx = await initializeTransaction({
       email, amountGHS: charge, reference,

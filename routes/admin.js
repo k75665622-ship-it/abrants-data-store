@@ -80,6 +80,7 @@ router.post('/orders/mark-stuck-delivered', async (req, res) => {
 });
 
 router.use('/services', require('./services').admin(audit));
+router.use('/links', require('./campaigns').admin(audit));
 
 router.post('/notices/dismiss', async (req, res) => {
   try {
@@ -175,7 +176,7 @@ router.get('/orders/export', async (req, res) => {
     const header = [
       'Reference', 'Date', 'Status', 'Network', 'Bundle', 'Size (GB)', 'Customer paid (GHS)',
       'Provider cost (GHS)', 'Paystack fee (GHS)', 'Est. profit (GHS)', 'Phone', 'Email',
-      'Provider ref', 'Tracking ID', 'Refund status',
+      'Provider ref', 'Tracking ID', 'Refund status', 'Link',
     ];
     const csvCell = (value) => {
       let s = value == null ? '' : String(value);
@@ -188,7 +189,7 @@ router.get('/orders/export', async (req, res) => {
       lines.push([
         o.reference, new Date(o.createdAt).toISOString(), o.status, o.network, o.label, o.capacityGB,
         o.priceGHS, o.providerCostGHS, o.paymentFeeGHS, o.estimatedProfitGHS, o.phone, o.email,
-        o.providerReference, o.trackingId, o.refundStatus,
+        o.providerReference, o.trackingId, o.refundStatus, o.campaign,
       ].map(csvCell).join(','));
     }
     await audit(req, 'orders.export', { rows: rows.length, status: status || 'all' });
