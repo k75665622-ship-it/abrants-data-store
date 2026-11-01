@@ -396,22 +396,29 @@ dashboard.
 
 ## 22. Tracking links for influencers (Admin → Links)
 
-In **Admin → Links** the owner types a name (say "Kwame") and gets a link like `https://abrantsdata.com/?from=kwame`.
+In **Admin → Links** the owner types a name (say "Kwame") and gets a short link like `https://abrantsdata.com/k7m2x`.
+The code is random, so nothing in the link says who it is for or that it is tracked; the name only shows in Admin.
 One link per influencer opens the whole website (data, AFA and result checkers are all on it), so an influencer is
 never asked to promote several links. He sends it to the influencer; the page
 shows what that link brought: orders, customers (and how many were new), sales, profit and, if he set an amount per order,
 the commission earned. The period can be 7 days, 30 days, this month or all time.
 
 How it works:
-- `public/js/track.js` saves the `from` word in the visitor's browser for 30 days (the most recent link wins) and
-  `app.js` / `services.js` send it with checkout. The word is lowercase letters, digits, `-` and `_`, 40 at most; anything
-  else is ignored.
+- Opening `/k7m2x` (`server.js`) leaves a 10-minute `abrants_from` cookie and redirects to the plain home page.
+  `public/js/track.js` moves it into the browser's storage for 30 days (the most recent link wins) and removes the
+  cookie; `app.js` / `services.js` send it with checkout. The codes of the saved links are held in memory, so opening
+  a link never reads the database. They are loaded when the store starts.
+- Codes are 5 random characters (no i, l, o, 0, 1). A code can never be the name of a real page or folder (`admin`,
+  `api`, `services`, ...). Unknown or deleted codes give the normal "not found" page.
+- Old links like `/?from=kwame` keep working, and the address is tidied to `/` once the page opens. Links that were
+  made before this change keep their old code, now opened as `/kwame`; make a new link for a hidden one.
+- The tag is lowercase letters, digits, `-` and `_`, 40 at most; anything else is ignored.
 - It is saved on the order in `orders.campaign` and `service_orders.campaign`. For data bundles it travels inside the
   signed order details, so it cannot be changed on the way through Paystack. Do not confuse it with the older
   `orders.source`, which means store order vs free gift.
 - Only **paid** orders count (same statuses as the dashboard's revenue; checkers and AFA once paid and not refunded).
   A customer is **new** when that was their first paid order here, ever, whatever period is shown.
-- Deleting a link keeps its orders; they show under "Tags not saved as links". A tag typed by hand (for example
+- Deleting a link stops it working but keeps its orders; they show under "Tags not saved as links". A tag typed by hand (for example
   `?from=tiktok`) shows there too, with a "Save as link" button, so no order is ever hidden.
 - Each order's detail in Admin shows the link it came from, and the orders CSV has a new last column, `Link`.
 
@@ -424,7 +431,7 @@ buyer opens the link on one phone and buys on another, or clears their browser f
 Render gives the store an address like `abrants-data-store.onrender.com` as well as your own domain. Both work. Set
 **`SITE_URL`** in Render (Environment) to `https://abrantsdata.com` (no slash at the end) and:
 - links made in **Admin → Links** always use the real domain, even if you opened Admin on the Render address;
-- anyone who opens a page on the Render address is sent to the real domain, keeping the `?from=` tag. Only page
+- anyone who opens a page on the Render address is sent to the real domain, keeping the tag in the address. Only page
   visits are redirected (GET, and never `/api`), so Paystack and DataHustle webhooks keep working wherever they point.
   Render's health check counts a redirect as healthy, so deploys are not affected.
 

@@ -75,10 +75,27 @@ app.use('/api', apiRoutes);
 app.get(['/bills.html', '/welcome.html'], (req, res) => res.redirect(302, '/'));
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Tracking links: abrantsdata.com/k7m2x. A saved code leaves a short-lived note (cookie) for track.js and the
+// visitor lands on the clean home page, so the address bar shows nothing special. The codes are held in memory, so
+// opening a link never reads the database (README 22). Anything else falls through to "not found".
+const campaigns = require('./services/campaigns');
+app.get('/:code', async (req, res, next) => {
+  const code = campaigns.cleanCode(req.params.code);
+  if (!code) return next();
+  if (!campaigns.knownReady()) await campaigns.loadKnown().catch(() => {});
+  if (!campaigns.isKnown(code)) return next();
+  res.setHeader('Cache-Control', 'no-store');
+  res.cookie('abrants_from', code, {
+    maxAge: 10 * 60 * 1000, sameSite: 'lax', httpOnly: false, path: '/', secure: process.env.NODE_ENV === 'production',
+  });
+  res.redirect(302, '/');
+});
+
 const PORT = process.env.PORT || 3000;
 initDb()
   .then(() => initCustomerDb())
   .then(() => require('./services/serviceOrders').initServiceDb())
+  .then(() => campaigns.loadKnown().catch((e) => console.warn('Could not load tracking links yet:', e.message)))
   .then(() => {
     app.listen(PORT, () => {
       console.log(`Abrants Data Store running on http://localhost:${PORT}`);
