@@ -12,13 +12,9 @@
 const crypto = require('crypto');
 const { pool } = require('./orderStore');
 
-// What a visitor sees first. `path` is relative; the admin page adds the site's own address in front.
-const LANDINGS = {
-  home: { label: 'Home page', path: (c) => `/?from=${c}` },
-  data: { label: 'Buy data', path: (c) => `/?from=${c}#bundles` },
-  afa: { label: 'MTN AFA', path: (c) => `/?from=${c}#afa` },
-  checkers: { label: 'Result checkers', path: (c) => `/services.html?from=${c}` },
-};
+// Every link opens the whole website (home page); the visitor picks data, AFA or checkers from there.
+// The tag is remembered in the browser, so it still counts if they go on to the checker page.
+const pathFor = (code) => `/?from=${code}`;
 
 // Orders that really were paid and not refunded. Data matches the dashboard's own revenue figure.
 const DATA_PAID = ['paid', 'processing', 'fulfilled'];
@@ -53,10 +49,6 @@ function validate(input, { partial = false } = {}) {
     if (out.name.length < 2) return { error: 'Type a name, like the influencer\'s name.' };
   }
   if (!partial || b.note !== undefined) out.note = cleanText(b.note, 200) || null;
-  if (!partial || b.landing !== undefined) {
-    out.landing = String(b.landing || 'home');
-    if (!LANDINGS[out.landing]) return { error: 'Choose where the link opens.' };
-  }
   if (!partial || b.commissionGHS !== undefined) {
     if (b.commissionGHS === '' || b.commissionGHS == null) out.commissionGHS = null;
     else {
@@ -70,8 +62,7 @@ function validate(input, { partial = false } = {}) {
 
 function mapLink(r) {
   return {
-    code: r.code, name: r.name, note: r.note || '', landing: r.landing, landingLabel: (LANDINGS[r.landing] || LANDINGS.home).label,
-    path: (LANDINGS[r.landing] || LANDINGS.home).path(r.code),
+    code: r.code, name: r.name, note: r.note || '', path: pathFor(r.code),
     commissionGHS: r.commission_ghs == null ? null : Number(r.commission_ghs), createdAt: r.created_at,
   };
 }
@@ -94,9 +85,9 @@ async function createLink(input, wantedCode) {
   const tries = explicit ? [base] : [base, ...[2, 3, 4, 5, 6, 7, 8, 9].map((n) => `${base}-${n}`), `${base}-${crypto.randomBytes(2).toString('hex')}`];
   for (const code of tries) {
     const r = await pool.query(
-      `INSERT INTO campaigns (code, name, note, landing, commission_ghs) VALUES ($1,$2,$3,$4,$5)
+      `INSERT INTO campaigns (code, name, note, commission_ghs) VALUES ($1,$2,$3,$4)
        ON CONFLICT (code) DO NOTHING RETURNING *`,
-      [code, v.value.name, v.value.note, v.value.landing, v.value.commissionGHS]
+      [code, v.value.name, v.value.note, v.value.commissionGHS]
     );
     if (r.rows[0]) return { link: mapLink(r.rows[0]) };
   }
@@ -106,7 +97,7 @@ async function createLink(input, wantedCode) {
 async function updateLink(code, input) {
   const v = validate(input, { partial: true });
   if (v.error) return { error: v.error };
-  const cols = { name: 'name', note: 'note', landing: 'landing', commissionGHS: 'commission_ghs' };
+  const cols = { name: 'name', note: 'note', commissionGHS: 'commission_ghs' };
   const sets = []; const vals = [];
   for (const [k, col] of Object.entries(cols)) {
     if (v.value[k] === undefined) continue;
@@ -188,10 +179,10 @@ async function stats(range) {
 
   const total = tagged.orders + direct.orders;
   return {
-    range: key, ranges: RANGES, landings: Object.fromEntries(Object.entries(LANDINGS).map(([k, v]) => [k, v.label])),
+    range: key, ranges: RANGES,
     links, others, totals: tagged, direct,
     sharePercent: total ? Math.round((tagged.orders / total) * 100) : 0,
   };
 }
 
-module.exports = { cleanCode, listLinks, createLink, updateLink, deleteLink, stats, LANDINGS, RANGES };
+module.exports = { cleanCode, listLinks, createLink, updateLink, deleteLink, stats, RANGES };

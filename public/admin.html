@@ -10,7 +10,7 @@
 <link rel="icon" type="image/svg+xml" href="/icon.svg" />
 <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png" />
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-<link rel="stylesheet" href="admin.css?v=20" />
+<link rel="stylesheet" href="admin.css?v=21" />
 </head>
 <body>
 
@@ -233,16 +233,8 @@
             <div class="panel-head"><h3>New link</h3></div>
             <div class="panel-body">
               <form id="lkForm" autocomplete="off">
-                <div class="filter-row">
+                <div class="lk-grid">
                   <label class="field"><span>Name</span><input id="lkName" maxlength="60" placeholder="Kwame" required /></label>
-                  <label class="field"><span>Opens on</span>
-                    <select id="lkLanding">
-                      <option value="home">Home page</option>
-                      <option value="data">Buy data</option>
-                      <option value="afa">MTN AFA</option>
-                      <option value="checkers">Result checkers</option>
-                    </select>
-                  </label>
                   <label class="field"><span>Commission per order <em>(optional)</em></span><input id="lkCommission" inputmode="decimal" placeholder="GH₵" /></label>
                 </div>
                 <label class="field" style="margin-top:10px"><span>Note <em>(optional)</em></span><input id="lkNote" maxlength="200" placeholder="MoMo number to pay" /></label>
@@ -621,6 +613,6 @@
 <script src="admin.js?v=20"></script>
 <script src="admin-customers.js"></script>
 <script src="admin-services.js?v=5"></script>
-<script src="admin-links.js?v=1"></script>
+<script src="admin-links.js?v=2"></script>
 </body>
 </html>

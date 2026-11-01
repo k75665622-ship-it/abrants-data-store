@@ -396,8 +396,9 @@ dashboard.
 
 ## 22. Tracking links for influencers (Admin → Links)
 
-In **Admin → Links** the owner types a name (say "Kwame"), picks where the link opens (home page, Buy data, MTN AFA or
-Result checkers) and gets a link like `https://abrantsdata.com/?from=kwame`. He sends it to the influencer; the page
+In **Admin → Links** the owner types a name (say "Kwame") and gets a link like `https://abrantsdata.com/?from=kwame`.
+One link per influencer opens the whole website (data, AFA and result checkers are all on it), so an influencer is
+never asked to promote several links. He sends it to the influencer; the page
 shows what that link brought: orders, customers (and how many were new), sales, profit and, if he set an amount per order,
 the commission earned. The period can be 7 days, 30 days, this month or all time.
 

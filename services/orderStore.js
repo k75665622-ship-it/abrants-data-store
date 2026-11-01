@@ -158,7 +158,6 @@ async function initDb() {
       code TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       note TEXT,
-      landing TEXT NOT NULL DEFAULT 'home',
       commission_ghs NUMERIC(8,2),
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );

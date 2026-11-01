@@ -79,14 +79,9 @@
   }
 
   function editForm(l) {
-    var landings = st.data.landings;
-    var opts = Object.keys(landings).map(function (k) {
-      return '<option value="' + esc(k) + '"' + (k === l.landing ? ' selected' : '') + '>' + esc(landings[k]) + '</option>';
-    }).join('');
     return '<form class="lk-edit" data-lk-form="' + esc(l.code) + '" autocomplete="off">' +
-      '<div class="filter-row">' +
+      '<div class="lk-grid">' +
       '<label class="field"><span>Name</span><input name="name" maxlength="60" required value="' + esc(l.name) + '" /></label>' +
-      '<label class="field"><span>Opens on</span><select name="landing">' + opts + '</select></label>' +
       '<label class="field"><span>Commission per order</span><input name="commissionGHS" inputmode="decimal" value="' + (l.commissionGHS == null ? '' : esc(l.commissionGHS)) + '" /></label>' +
       '</div>' +
       '<label class="field" style="margin-top:10px"><span>Note</span><input name="note" maxlength="200" value="' + esc(l.note) + '" /></label>' +
@@ -99,7 +94,7 @@
 
   function card(l) {
     var head = '<div class="lk-top"><div><strong>' + esc(l.name) + '</strong>' +
-      '<small>' + esc(l.landingLabel) + (l.note ? ' · ' + esc(l.note) : '') + '</small></div></div>';
+      (l.note ? '<small>' + esc(l.note) + '</small>' : '') + '</div></div>';
     if (st.editing === l.code) return '<div class="lk-card">' + head + editForm(l) + '</div>';
     return '<div class="lk-card">' + head +
       '<div class="lk-url">' + esc(fullUrl(l)) + '</div>' +
@@ -142,7 +137,7 @@
       var btn = $('#lkCreate');
       busy(btn, true, 'Creating…');
       api('/api/admin/links', 'POST', {
-        name: $('#lkName').value, landing: $('#lkLanding').value, commissionGHS: $('#lkCommission').value, note: $('#lkNote').value
+        name: $('#lkName').value, commissionGHS: $('#lkCommission').value, note: $('#lkNote').value
       }).then(function (link) {
         form.reset();
         // Copy straight away: the next thing the owner does is send it.
@@ -157,7 +152,7 @@
       var save = form.querySelector('button[type="submit"]');
       busy(save, true, 'Saving…');
       api('/api/admin/links/' + encodeURIComponent(code), 'PUT', {
-        name: form.name.value, landing: form.landing.value, commissionGHS: form.commissionGHS.value, note: form.note.value
+        name: form.name.value, commissionGHS: form.commissionGHS.value, note: form.note.value
       }).then(function () { st.editing = null; toast('Saved.', 'success'); return load(); })
         .catch(function (err) { toast(err.message, 'error'); busy(save, false); });
     }
