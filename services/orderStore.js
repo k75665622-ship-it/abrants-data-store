@@ -9,6 +9,9 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.DATABASE_SSL === 'false' ? false : { rejectUnauthorized: false },
 });
+// If the database drops an idle connection (it restarts, or Neon goes to sleep), log it and carry on. Without this
+// handler Node treats it as a crash and the whole website goes down until Render restarts it.
+pool.on('error', (err) => console.warn('Database connection dropped:', err.message));
 
 const NETWORK_CODES = { MTN: 'YELLO', Telecel: 'TELECEL', AirtelTigo: 'AT_PREMIUM' };
 const NETWORK_RANK = { MTN: 1, Telecel: 2, AirtelTigo: 3 };

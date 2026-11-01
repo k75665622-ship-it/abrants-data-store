@@ -1,20 +1,55 @@
 /*
- * Tracking links: a link like abrantsdata.com/?from=kwame tells the store who sent the visitor.
+ * Tracking links: a short link like abrantsdata.com/k7m2x tells the store who sent the visitor.
  *
  * The storefront remembers the tag in the visitor's browser (public/js/track.js) and sends it with the
  * checkout. It is saved on the order, so the admin can see what each link brought. Nothing is written
  * when someone merely opens a link: that would keep the database awake (Neon free plan, README 19).
  *
- * The tag is a plain word like "kwame". The `campaigns` table only holds the name, note and commission
+ * The tag is a short random code like "k7m2x" (old links used a word like "kwame"). The `campaigns` table only holds the name, note and commission
  * the owner gave it. An order can carry a tag that has no row there (someone typed ?from=tiktok by hand,
  * or a link was deleted); the admin page lists those too, so no order is ever hidden.
  */
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 const { pool } = require('./orderStore');
 
-// Every link opens the whole website (home page); the visitor picks data, AFA or checkers from there.
-// The tag is remembered in the browser, so it still counts if they go on to the checker page.
-const pathFor = (code) => `/?from=${code}`;
+// A link looks like an ordinary short address: abrantsdata.com/k7m2x. Nothing in it says who it is for or that it
+// is tracked. Opening it sends the visitor to the home page (server.js); every link opens the whole website, and the
+// visitor picks data, AFA or checkers from there. The tag is remembered in the browser, so it still counts if they
+// go on to the checker page. Old links of the form /?from=kwame keep working (public/js/track.js).
+const pathFor = (code) => `/${code}`;
+
+// Short codes are random, from letters and digits that are hard to mix up (no i, l, o, 0, 1).
+const ALPHABET = 'abcdefghjkmnpqrstuvwxyz23456789';
+const CODE_LENGTH = 5;
+function randomCode() {
+  let out = '';
+  for (const b of crypto.randomBytes(CODE_LENGTH)) out += ALPHABET[b % ALPHABET.length];
+  return out;
+}
+
+// A short link lives at the top of the site, so it must never take the place of a real page or folder.
+const RESERVED = new Set(['api', 'admin', 'account', 'services', 'status', 'order-status', 'index', 'login', 'logout',
+  'bills', 'welcome', 'css', 'js', 'img', 'images', 'assets', 'static', 'public', 'favicon', 'robots', 'sitemap',
+  'manifest', 'health', 'healthz', 'webhook', 'static']);
+const PUBLIC_DIR = path.join(__dirname, '..', 'public');
+function isReserved(code) {
+  if (RESERVED.has(code)) return true;
+  try { return fs.readdirSync(PUBLIC_DIR).some((f) => f.toLowerCase().split('.')[0] === code); } catch (e) { return false; }
+}
+
+// The codes of the saved links, kept in memory so opening a link never reads the database (Neon can sleep).
+const known = new Set();
+let knownLoaded = false;
+async function loadKnown() {
+  const r = await pool.query('SELECT code FROM campaigns');
+  known.clear();
+  for (const x of r.rows) known.add(x.code);
+  knownLoaded = true;
+}
+const isKnown = (code) => known.has(code);
+const knownReady = () => knownLoaded;
 
 // Orders that really were paid and not refunded. Data matches the dashboard's own revenue figure.
 const DATA_PAID = ['paid', 'processing', 'fulfilled'];
@@ -28,12 +63,6 @@ const round2 = (n) => Math.round(Number(n || 0) * 100) / 100;
 function cleanCode(value) {
   const v = String(value == null ? '' : value).trim().toLowerCase();
   return /^[a-z0-9][a-z0-9_-]{0,39}$/.test(v) ? v : null;
-}
-
-function slug(name) {
-  const s = String(name || '').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 24).replace(/-+$/g, '');
-  return s || 'link';
 }
 
 function cleanText(value, max) {
@@ -72,7 +101,7 @@ async function listLinks() {
   return r.rows.map(mapLink);
 }
 
-/** Makes a new link. The code comes from the name ("Kwame Mensah" -> kwame-mensah), made unique if taken. */
+/** Makes a new link with a random short code (or the code asked for, when saving a tag that already has orders). */
 async function createLink(input, wantedCode) {
   const v = validate(input);
   if (v.error) return { error: v.error };
@@ -81,17 +110,20 @@ async function createLink(input, wantedCode) {
 
   const explicit = wantedCode == null ? null : cleanCode(wantedCode);
   if (wantedCode != null && !explicit) return { error: 'That link tag is not valid.' };
-  const base = explicit || slug(v.value.name);
-  const tries = explicit ? [base] : [base, ...[2, 3, 4, 5, 6, 7, 8, 9].map((n) => `${base}-${n}`), `${base}-${crypto.randomBytes(2).toString('hex')}`];
+  // A saved tag may be a reserved word (for example "tiktok" is fine, "admin" is not a page we can give away).
+  if (explicit && isReserved(explicit)) return { error: 'That tag is used by the website itself. Pick another.', status: 409 };
+  const tries = [];
+  if (explicit) tries.push(explicit);
+  else while (tries.length < 12) { const c = randomCode(); if (!isReserved(c)) tries.push(c); }
   for (const code of tries) {
     const r = await pool.query(
       `INSERT INTO campaigns (code, name, note, commission_ghs) VALUES ($1,$2,$3,$4)
        ON CONFLICT (code) DO NOTHING RETURNING *`,
       [code, v.value.name, v.value.note, v.value.commissionGHS]
     );
-    if (r.rows[0]) return { link: mapLink(r.rows[0]) };
+    if (r.rows[0]) { known.add(code); return { link: mapLink(r.rows[0]) }; }
   }
-  return { error: explicit ? 'You already have a link with that tag.' : 'Could not make a unique link. Try a slightly different name.', status: 409 };
+  return { error: explicit ? 'You already have a link with that tag.' : 'Could not make a unique link. Try again.', status: 409 };
 }
 
 async function updateLink(code, input) {
@@ -109,9 +141,10 @@ async function updateLink(code, input) {
   return r.rows[0] ? { link: mapLink(r.rows[0]) } : { error: 'That link no longer exists.', status: 404 };
 }
 
-/** Deleting a link never touches orders: they keep their tag and still show up as "not saved as a link". */
+/** Deleting a link stops it working. Orders are never touched: they keep their tag and show up as "not saved as a link". */
 async function deleteLink(code) {
   const r = await pool.query('DELETE FROM campaigns WHERE code = $1', [String(code)]);
+  known.delete(String(code));
   return r.rowCount > 0;
 }
 
@@ -185,4 +218,4 @@ async function stats(range) {
   };
 }
 
-module.exports = { cleanCode, listLinks, createLink, updateLink, deleteLink, stats, RANGES };
+module.exports = { cleanCode, loadKnown, isKnown, knownReady, listLinks, createLink, updateLink, deleteLink, stats, RANGES };

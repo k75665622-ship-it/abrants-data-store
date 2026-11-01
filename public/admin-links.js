@@ -179,7 +179,7 @@
     if (e.target.closest('[data-lk-cancel]')) { st.editing = null; render(st.data); return; }
     if ((t = e.target.closest('[data-lk-delete]'))) {
       l = find(t.getAttribute('data-lk-delete')); if (!l) return;
-      if (!confirm('Delete the link for ' + l.name + '? Anyone who already has it can still use it, and its orders stay in your records.')) return;
+      if (!confirm('Delete the link for ' + l.name + '? The link stops working. Its orders stay in your records.')) return;
       busy(t, true, 'Deleting…');
       api('/api/admin/links/' + encodeURIComponent(l.code), 'DELETE')
         .then(function () { st.editing = null; toast('Deleted.', 'success'); return load(); })
