@@ -55,6 +55,8 @@ async function initServiceDb() {
       paid_at TIMESTAMPTZ
     );
     CREATE INDEX IF NOT EXISTS service_orders_status_idx ON service_orders (status, updated_at);
+    -- The tracking link the buyer arrived through (see services/campaigns.js).
+    ALTER TABLE service_orders ADD COLUMN IF NOT EXISTS campaign TEXT;
   `);
   await tidyRemovedBills();
 }
@@ -91,7 +93,7 @@ function mapRow(r) {
     reference: r.reference, kind: r.kind, code: r.item_code, name: r.item_name, checkerTypeId: r.checker_type_id,
     quantity: r.quantity, priceGHS: num(r.price_ghs), customerFeeGHS: num(r.customer_fee_ghs), costGHS: num(r.cost_ghs),
     paymentFeeGHS: num(r.payment_fee_ghs), amountPaidGHS: num(r.amount_paid_ghs), phone: r.phone, email: r.email,
-    customerId: r.customer_id, status: r.status, providerReference: r.provider_reference, pins: r.pins || [],
+    customerId: r.customer_id, campaign: r.campaign || null, status: r.status, providerReference: r.provider_reference, pins: r.pins || [],
     resultUrl: r.result_url, afa: r.afa || null, afaId: r.afa_id, note: r.note, attempts: r.attempts, refundId: r.refund_id,
     createdAt: r.created_at, updatedAt: r.updated_at, paidAt: r.paid_at,
     profitGHS: r.cost_ghs == null ? null : round2(Number(r.price_ghs) - Number(r.cost_ghs) - Number(r.payment_fee_ghs || 0)),
@@ -193,10 +195,11 @@ async function createPending(o) {
   work.mark('svc-sweep');
   await pool.query(
     `INSERT INTO service_orders (reference, kind, item_code, item_name, checker_type_id, quantity, price_ghs, customer_fee_ghs,
-       cost_ghs, payment_fee_ghs, phone, email, customer_id, afa)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+       cost_ghs, payment_fee_ghs, phone, email, customer_id, afa, campaign)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
     [o.reference, o.kind, o.code, o.name, o.checkerTypeId || null, o.quantity || 1, o.priceGHS, o.customerFeeGHS || 0,
-      o.costGHS ?? null, o.paymentFeeGHS ?? null, o.phone, o.email, o.customerId || null, o.afa ? JSON.stringify(o.afa) : null]
+      o.costGHS ?? null, o.paymentFeeGHS ?? null, o.phone, o.email, o.customerId || null, o.afa ? JSON.stringify(o.afa) : null,
+      o.campaign || null]
   );
   return getServiceOrder(o.reference);
 }

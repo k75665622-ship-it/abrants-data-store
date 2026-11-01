@@ -150,6 +150,17 @@ async function initDb() {
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS offer_id BIGINT;
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS list_price_ghs NUMERIC(12,2);
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'store';
+    -- "source" above means store order vs free gift. "campaign" is the tracking link the buyer arrived
+    -- through (see services/campaigns.js). Empty for anyone who came straight to the site.
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS campaign TEXT;
+    CREATE INDEX IF NOT EXISTS idx_orders_campaign ON orders(campaign) WHERE campaign IS NOT NULL;
+    CREATE TABLE IF NOT EXISTS campaigns (
+      code TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      note TEXT,
+      commission_ghs NUMERIC(8,2),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
     CREATE INDEX IF NOT EXISTS idx_orders_customer ON orders(customer_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_orders_offer ON orders(offer_id);
     ALTER TABLE store_plans ADD COLUMN IF NOT EXISTS network TEXT;
@@ -199,6 +210,7 @@ function mapOrder(row) {
     offerId: row.offer_id == null ? null : Number(row.offer_id),
     listPriceGHS: row.list_price_ghs == null ? null : Number(row.list_price_ghs),
     source: row.source || 'store',
+    campaign: row.campaign || null,
     provider: row.provider || 'datahustle',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -216,8 +228,8 @@ async function createOrder(order) {
   const result = await pool.query(`
     INSERT INTO orders
       (reference, plan_id, network, network_code, capacity_gb, label, price_ghs, provider_cost_ghs, payment_fee_ghs,
-       phone, email, status, customer_id, offer_id, list_price_ghs, source, customer_fee_ghs)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'pending',$12,$13,$14,'store',$15)
+       phone, email, status, customer_id, offer_id, list_price_ghs, source, customer_fee_ghs, campaign)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'pending',$12,$13,$14,'store',$15,$16)
     ON CONFLICT (reference) DO NOTHING
     RETURNING *
   `, [
@@ -225,7 +237,7 @@ async function createOrder(order) {
     order.capacityGB, order.label, order.priceGHS, order.providerCostGHS ?? null,
     order.paymentFeeGHS ?? null, order.phone, order.email || null,
     order.customerId ?? null, order.offerId ?? null, order.listPriceGHS ?? null,
-    Number(order.customerFeeGHS || 0),
+    Number(order.customerFeeGHS || 0), order.campaign || null,
   ]);
   // Safe to call twice for the same reference (e.g. webhook and status page at the same moment).
   if (!result.rows[0]) return getOrder(order.reference);

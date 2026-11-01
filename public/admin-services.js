@@ -75,6 +75,7 @@
       if (o.pins && o.pins.length) parts.push('<div>' + o.pins.map(function (p) { return 'Serial <code>' + esc(p.serial) + '</code> PIN <code>' + esc(p.pin) + '</code>'; }).join('<br>') + '</div>');
       if (o.afa) parts.push('<div>' + esc(o.afa.full_name) + ' · ' + esc(o.afa.ghana_card_number) + (o.afa.date_of_birth ? ' · ' + esc(o.afa.date_of_birth) : '') + ' · ' + esc(o.afa.location) + ', ' + esc(o.afa.region) + '</div>');
       if (o.afaId) parts.push('<div>AFA ID <code>' + esc(o.afaId) + '</code></div>');
+      if (o.campaign) parts.push('<div>Came from link <code>' + esc(o.campaign) + '</code></div>');
       if (o.note) parts.push('<div class="muted">' + esc(o.note) + '</div>');
       var btns = '';
       if (o.status === 'review' || o.status === 'paid') btns += '<button class="btn btn-primary btn-sm" data-svc-retry="' + esc(o.reference) + '">Retry</button>';

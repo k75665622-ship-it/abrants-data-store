@@ -320,7 +320,7 @@
     fetch('/api/checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ planId: SELECTED_PLAN.id, phone: phone, email: email, confirmFirstTime: confirmed === true })
+      body: JSON.stringify({ planId: SELECTED_PLAN.id, phone: phone, email: email, confirmFirstTime: confirmed === true, campaign: window.abrantsFrom ? window.abrantsFrom() : '' })
     })
       .then(function (res) {
         return res.json().then(function (data) { return { ok: res.ok, status: res.status, data: data }; });
@@ -395,7 +395,8 @@
     var chk = d.checkers || [];
     if (chk.length) {
       var low = Math.min.apply(null, chk.map(function (c) { return c.price; }));
-      $('needChkText').textContent = chk.map(function (c) { return c.name; }).join(', ') + ' PINs from GH₵' + low.toFixed(2) + '.';
+      // "WASSCE Results" -> "WASSCE": the card already says what they are.
+      $('needChkText').textContent = chk.map(function (c) { return String(c.name).replace(/\s+results?$/i, ''); }).join(', ') + ' PINs from GH₵' + low.toFixed(2) + '.';
     } else {
       $('needChkText').textContent = 'WASSCE and BECE PINs. Coming soon.';
     }

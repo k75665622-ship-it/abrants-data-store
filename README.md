@@ -393,3 +393,28 @@ prices are always worked out on the server; orders are signed into the Paystack 
 server-to-server before anything is delivered; Paystack and DataHustle webhooks are signature-checked; and every
 value shown on a page goes through `esc()` first, including the customer-supplied AFA details shown in the admin
 dashboard.
+
+## 22. Tracking links for influencers (Admin → Links)
+
+In **Admin → Links** the owner types a name (say "Kwame") and gets a link like `https://abrantsdata.com/?from=kwame`.
+One link per influencer opens the whole website (data, AFA and result checkers are all on it), so an influencer is
+never asked to promote several links. He sends it to the influencer; the page
+shows what that link brought: orders, customers (and how many were new), sales, profit and, if he set an amount per order,
+the commission earned. The period can be 7 days, 30 days, this month or all time.
+
+How it works:
+- `public/js/track.js` saves the `from` word in the visitor's browser for 30 days (the most recent link wins) and
+  `app.js` / `services.js` send it with checkout. The word is lowercase letters, digits, `-` and `_`, 40 at most; anything
+  else is ignored.
+- It is saved on the order in `orders.campaign` and `service_orders.campaign`. For data bundles it travels inside the
+  signed order details, so it cannot be changed on the way through Paystack. Do not confuse it with the older
+  `orders.source`, which means store order vs free gift.
+- Only **paid** orders count (same statuses as the dashboard's revenue; checkers and AFA once paid and not refunded).
+  A customer is **new** when that was their first paid order here, ever, whatever period is shown.
+- Deleting a link keeps its orders; they show under "Tags not saved as links". A tag typed by hand (for example
+  `?from=tiktok`) shows there too, with a "Save as link" button, so no order is ever hidden.
+- Each order's detail in Admin shows the link it came from, and the orders CSV has a new last column, `Link`.
+
+What it does **not** do: count clicks. That would write to the database on every visit and keep the Neon database awake
+(section 19). Opening a link writes nothing; the database is only touched when someone buys. An order is missed when the
+buyer opens the link on one phone and buys on another, or clears their browser first.
