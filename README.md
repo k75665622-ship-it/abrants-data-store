@@ -418,3 +418,14 @@ How it works:
 What it does **not** do: count clicks. That would write to the database on every visit and keep the Neon database awake
 (section 19). Opening a link writes nothing; the database is only touched when someone buys. An order is missed when the
 buyer opens the link on one phone and buys on another, or clears their browser first.
+
+## 23. Your own address, not the Render one (SITE_URL)
+
+Render gives the store an address like `abrants-data-store.onrender.com` as well as your own domain. Both work. Set
+**`SITE_URL`** in Render (Environment) to `https://abrantsdata.com` (no slash at the end) and:
+- links made in **Admin → Links** always use the real domain, even if you opened Admin on the Render address;
+- anyone who opens a page on the Render address is sent to the real domain, keeping the `?from=` tag. Only page
+  visits are redirected (GET, and never `/api`), so Paystack and DataHustle webhooks keep working wherever they point.
+  Render's health check counts a redirect as healthy, so deploys are not affected.
+
+Without `SITE_URL` nothing changes, except that Admin → Links warns when it was opened on an `onrender.com` address.

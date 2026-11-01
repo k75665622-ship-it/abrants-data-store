@@ -53,6 +53,9 @@ app.use((req, res, next) => {
   next();
 });
 
+// Visitors on the Render address go to the real domain (only if SITE_URL is set; see README 23).
+app.use(require('./services/siteUrl').redirectToSite());
+
 // Both payment/provider webhooks must be verified against the exact raw bytes sent.
 app.use('/api/webhook/paystack', express.raw({ type: 'application/json', limit: '256kb' }));
 app.use('/api/webhook/datahustle', express.raw({ type: 'application/json', limit: '256kb' }));

@@ -28,8 +28,9 @@
     else { btn.disabled = false; if (btn.dataset.label) btn.innerHTML = btn.dataset.label; }
   }
 
-  // The site's own address comes from the page the owner is looking at, so it is always right.
-  function fullUrl(link) { return window.location.origin + link.path; }
+  // The real domain comes from the store's SITE_URL setting. Without it, the address this page was opened on is used.
+  function siteBase() { return (st.data && st.data.siteUrl) || window.location.origin; }
+  function fullUrl(link) { return siteBase() + link.path; }
 
   function ago(v) {
     if (!v) return '';
@@ -108,6 +109,9 @@
 
   function render(d) {
     st.data = d;
+    // Opened Admin on the Render address and no real domain is set: links would say onrender.com.
+    $('#lkAlert').innerHTML = !d.siteUrl && /\.onrender\.com$/i.test(window.location.hostname)
+      ? '<div class="alert-strip warn"><span class="ico">!</span><div>Links will say ' + esc(window.location.hostname) + '. Add SITE_URL in Render, or open Admin on your own domain.</div></div>' : '';
     renderStats(d);
     Array.prototype.forEach.call(document.querySelectorAll('#lkRange .chip'), function (c) {
       c.classList.toggle('active', c.getAttribute('data-lk-range') === d.range);

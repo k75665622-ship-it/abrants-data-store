@@ -5,12 +5,13 @@
  */
 const express = require('express');
 const links = require('../services/campaigns');
+const { siteOrigin } = require('../services/siteUrl');
 
 function admin(audit) {
   const r = express.Router();
 
   r.get('/', async (req, res) => {
-    try { res.json(await links.stats(String(req.query.range || '30d'))); }
+    try { res.json({ ...(await links.stats(String(req.query.range || '30d'))), siteUrl: siteOrigin() }); }
     catch (err) { console.error(err); res.status(500).json({ error: 'Could not load your links.' }); }
   });
 
