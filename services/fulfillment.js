@@ -6,12 +6,14 @@ const crypto = require('crypto');
 const providers = require('./providers');
 const work = require('./workHints');
 const fastdeals = require('./fastdeals');
+const datahustle = require('./datahustle');
 const { refundTransaction } = require('./paystack');
-const { updateOrder, transitionOrder, getOrder, getSettings, saveSettings, getProcessingOrdersByProvider, getOutOfStockOrders } = require('./orderStore');
+const { updateOrder, transitionOrder, getOrder, getSettings, saveSettings, getProcessingOrdersByProvider, getOutOfStockOrders, setProviderOrderRef, normalizePhone } = require('./orderStore');
 
 /**
  * Sends a paid (or gifted) order to the data provider. The order must already be in the
- * 'paid' state. Delivery is confirmed by the provider's webhook (DataHustle) or straight away / by polling (FastDealsGH).
+ * 'paid' state. Delivery is confirmed by the provider's webhook (DataHustle) or straight away (FastDealsGH);
+ * whatever is still unconfirmed after that is picked up by pollProviderOrders() below.
  */
 async function deliverOrder(order) {
   const reference = order.reference;
@@ -27,6 +29,8 @@ async function deliverOrder(order) {
         provider,
         providerReference: result.transactionReference,
         purchaseId: result.purchaseId,
+        // Always replaced, so a code from an earlier attempt at this order is never asked about again.
+        providerOrderRef: result.orderReference || null,
       };
       if (Number.isFinite(Number(result.priceGHS))) changes.providerCostGHS = Number(result.priceGHS);
       await updateOrder(reference, changes, 'provider.order_accepted');
@@ -178,26 +182,147 @@ async function attemptCustomerRefund(reference) {
 }
 
 /*
- * FastDealsGH has no webhook, so orders it did not mark delivered straight away are re-checked.
- * Called every couple of minutes, but only looks in the database while orders are waiting.
+ * Catch-up for deliveries: asks the providers about orders that are still waiting for their "delivered".
+ *
+ * FastDealsGH has no webhook, so this is how its orders are confirmed. DataHustle does send a webhook, but an
+ * update is lost for good when the store does not answer it within 10 seconds (asleep on Render's free plan,
+ * restarting, a wrong webhook secret, the webhook switched off). Such orders used to stay on "Processing"
+ * until someone pressed "Mark delivered". Now a DataHustle order still waiting after 2 minutes is looked up.
+ *
+ * Runs every 2 minutes but only looks in the database while orders are waiting, and looks less and less often
+ * at orders that have been waiting a long time, so one slow order cannot keep the database awake (README 19).
  */
-async function pollFastdealsOrders() {
-  if (!fastdeals.configured() || !work.pending('provider-poll')) return;
-  const orders = await getProcessingOrdersByProvider('fastdeals', 45, 50);
-  if (!orders.length) { work.done('provider-poll'); return; }
+const POLL = {
+  fastdeals: { minAgeSeconds: 45, maxAgeHours: 24 },
+  datahustle: { minAgeSeconds: 120, maxAgeHours: 72 },
+};
+// Per provider: the last "an order went out" mark seen, the mark at which nothing was waiting, and when to look next.
+const pollState = {
+  fastdeals: { seq: -1, emptySeq: -1, nextAt: 0 },
+  datahustle: { seq: -1, emptySeq: -1, nextAt: 0 },
+};
+const MIN = 60 * 1000;
+const waitedMs = (order) => Date.now() - new Date(order.updatedAt).getTime();
+
+// Time until the next look, from how long the newest waiting order has been waiting.
+function nextLookMs(newestWaitedMs) {
+  if (newestWaitedMs < 30 * MIN) return 0; // every run
+  if (newestWaitedMs < 3 * HOUR) return 10 * MIN;
+  if (newestWaitedMs < 24 * HOUR) return 30 * MIN;
+  return HOUR;
+}
+
+function pollReady(name) {
+  if (name === 'fastdeals') return fastdeals.configured();
+  return Boolean(process.env.DATAHUSTLE_API_KEY) && process.env.DATAHUSTLE_MOCK_MODE !== 'true';
+}
+
+async function settle(order, state, extra, how) {
+  if (state === 'delivered') {
+    const done = await transitionOrder(order.reference, 'processing', { status: 'fulfilled', ...extra, confirmedBy: how }, 'delivery.completed');
+    if (done) console.log(`Order ${order.reference} marked delivered (${how}).`);
+  } else {
+    const failed = await transitionOrder(order.reference, 'processing', { status: 'delivery_failed', confirmedBy: how }, 'delivery.failed');
+    if (failed) { console.log(`Order ${order.reference} marked failed (${how}).`); await attemptCustomerRefund(failed.reference); }
+  }
+}
+
+// -> the references that are no longer waiting
+async function checkFastdealsOrders(orders) {
+  const finished = new Set();
   for (const order of orders) {
+    if (!order.providerReference || waitedMs(order) < POLL.fastdeals.minAgeSeconds * 1000) continue;
     try {
       const state = await fastdeals.getOrderStatus(order.providerReference);
-      if (state === 'delivered') {
-        await transitionOrder(order.reference, 'processing', { status: 'fulfilled' }, 'delivery.completed');
-      } else if (state === 'failed') {
-        const failed = await transitionOrder(order.reference, 'processing', { status: 'delivery_failed' }, 'delivery.failed');
-        if (failed) await attemptCustomerRefund(failed.reference);
-      }
+      if (state !== 'delivered' && state !== 'failed') continue;
+      await settle(order, state, {}, 'FastDealsGH status check');
+      finished.add(order.reference);
     } catch (err) {
       console.warn('FastDeals status check skipped', order.reference, err.response?.status || err.message);
     }
   }
+  return finished;
 }
 
-module.exports = { pauseForStock, addAlert, deliverOrder, attemptCustomerRefund, pollFastdealsOrders, autoRecoveryTick, handleOutOfStock, retryOutOfStockOrders, isOutOfStock };
+let saidRecentShape = false;
+
+async function checkDatahustleOrders(orders) {
+  const finished = new Set();
+  let recent = null; // DataHustle's list of recent orders: fetched at most once per run, and only if needed
+  const loadRecent = async () => {
+    if (recent) return recent;
+    try { recent = await datahustle.getRecentOrders(200); }
+    catch (err) { recent = []; console.warn('DataHustle recent orders not available:', err.response?.status || err.message); }
+    return recent;
+  };
+
+  for (const order of orders) {
+    if (waitedMs(order) < POLL.datahustle.minAgeSeconds * 1000) continue;
+    try {
+      // 1. Ask about the order by DataHustle's own code for it, when we have it.
+      let answer = order.providerOrderRef ? await datahustle.getOrderStatus(order.providerOrderRef) : null;
+
+      // 2. Otherwise find the order in DataHustle's recent list by the ids it gave us at purchase.
+      if (!answer) {
+        const found = datahustle.findInRecent(await loadRecent(), { purchaseId: order.purchaseId, transactionReference: order.providerReference });
+        if (found && found.orderReference && found.orderReference !== order.providerOrderRef) {
+          await setProviderOrderRef(order.reference, found.orderReference);
+          answer = await datahustle.getOrderStatus(found.orderReference);
+        }
+        // The list's own "delivered" is accepted as it is. A failure refunds the customer, so that is only
+        // ever taken from the documented order-status answer above.
+        if (!answer && found && found.state === 'delivered') answer = { state: 'delivered', trackingId: found.trackingId };
+        if (!answer && !saidRecentShape) {
+          saidRecentShape = true; // field names only, never values
+          console.log('DataHustle status check could not place order', order.reference + '.',
+            found ? 'List entry fields: ' + found.fields.join(', ') : 'Not in the recent list; list entry fields: ' + Object.keys((recent && recent[0]) || {}).join(', '));
+        }
+      }
+      if (!answer || (answer.state !== 'delivered' && answer.state !== 'failed')) continue;
+
+      // Belt and braces: the answer must be about the same number and bundle size as our order.
+      if (answer.phone && normalizePhone(answer.phone) !== normalizePhone(order.phone)) {
+        console.warn('DataHustle status check ignored for', order.reference, '(the answer is for a different phone number).');
+        continue;
+      }
+      if (answer.capacityGB != null && Number.isFinite(answer.capacityGB) && answer.capacityGB !== Number(order.capacityGB)) {
+        console.warn('DataHustle status check ignored for', order.reference, '(the answer is for a different bundle size).');
+        continue;
+      }
+      await settle(order, answer.state, answer.trackingId ? { trackingId: answer.trackingId } : {}, 'DataHustle status check');
+      finished.add(order.reference);
+    } catch (err) {
+      console.warn('DataHustle status check skipped', order.reference, err.response?.status || err.message);
+    }
+  }
+  return finished;
+}
+
+async function pollProviderOrders() {
+  if (!work.pending('provider-poll')) return;
+  const mark = work.lastMark('provider-poll');
+  let waiting = false;
+  for (const name of Object.keys(POLL)) {
+    if (!pollReady(name)) continue;
+    const st = pollState[name];
+    if (st.seq !== mark.seq) { st.seq = mark.seq; st.nextAt = 0; } // an order went out since the last look: look now
+    if (st.emptySeq === mark.seq) continue; // nothing of this provider's has been waiting since then
+    if (Date.now() < st.nextAt) { waiting = true; continue; } // orders are waiting, but it is not time yet
+
+    const all = await getProcessingOrdersByProvider(name, 0, 200, POLL[name].maxAgeHours);
+    // Only orders the provider can actually be asked about (test orders from mock mode cannot).
+    const orders = all.filter((o) => (name === 'fastdeals' ? o.providerReference : !String(o.providerReference || o.purchaseId || '').startsWith('MOCK-')));
+    const finished = orders.length ? await (name === 'fastdeals' ? checkFastdealsOrders(orders) : checkDatahustleOrders(orders)) : new Set();
+    const left = orders.filter((o) => !finished.has(o.reference));
+    if (!left.length) {
+      // An order marked a moment ago may not be saved yet, so "nothing waiting" only counts once the mark has settled.
+      if (Date.now() - mark.at >= work.GRACE_MS) st.emptySeq = mark.seq;
+      continue;
+    }
+    waiting = true;
+    st.nextAt = Date.now() + nextLookMs(Math.min(...left.map(waitedMs))) - 30 * 1000;
+  }
+  if (!waiting) work.done('provider-poll');
+}
+
+module.exports = { pauseForStock, addAlert, deliverOrder, attemptCustomerRefund, pollProviderOrders, nextLookMs, autoRecoveryTick, handleOutOfStock, retryOutOfStockOrders, isOutOfStock };

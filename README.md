@@ -323,6 +323,23 @@ itself after repeated failures (for example while the site restarts). The store 
 - shows "N orders stuck on Processing" (DataHustle orders older than 20 minutes) with **Mark delivered**;
 - accepts a "delivered" update for an order that was under review after a timeout.
 
+**Lost updates are caught up.** DataHustle sends each update once and gives the store 10 seconds to answer. If the
+store is asleep (Render's free plan), restarting, or the webhook is off or wrongly signed, that update is gone and
+the order used to sit on "Processing" until someone pressed **Mark delivered**. Now the store asks DataHustle itself
+(`pollProviderOrders` in `services/fulfillment.js`):
+
+- an order still waiting after 2 minutes is looked up with DataHustle's `GET /order-status/{code}`; "completed"
+  marks it delivered, "failed" or "refunded" fails it and starts the customer's refund, exactly as the webhook does;
+- it runs 20 seconds after the store starts (so anything delivered while it slept is fixed on waking) and then every
+  2 minutes while orders are waiting; orders older than 3 days are left for the admin;
+- the code that address needs (DataHustle's own "DM-..." order code) is saved in `orders.provider_order_ref`. It is
+  taken from the purchase answer, or from any webhook for that order, or looked up in DataHustle's recent orders
+  (`GET /usage/history`) by the purchase id / transaction reference DataHustle gave us. Never by phone number;
+- that recent-orders list is not documented, so only its "completed" is trusted. A failure (which refunds the
+  customer) is only ever taken from the documented order-status answer;
+- if an order cannot be found at DataHustle it stays as it is, and the log says which field names DataHustle sent
+  (names only), so the lookup can be adjusted.
+
 ## 18. Result checkers and AFA registration (FastDealsGH API v2)
 
 Page: `/services.html` (linked from the home page when something is on sale). Admin: **Checkers & AFA**.
@@ -346,7 +363,11 @@ The background checks therefore only touch the database while they have somethin
 under review, an unpaid checkout) marks it in memory, and the check stops once nothing is left.
 
 - Store settings are kept in memory (they only change through this server); changes always read the database first.
-- FastDealsGH orders are re-checked every 2 minutes for up to a day, then show as "stuck" on the dashboard.
+- Orders a provider has not confirmed (FastDealsGH, or a DataHustle order whose update was lost) are asked about
+  every 2 minutes for the first half hour, then every 10 minutes, every 30 minutes after 3 hours and hourly after a
+  day (FastDealsGH for a day, DataHustle for 3 days), then show as "stuck" on the dashboard. A new order is always
+  looked at straight away.
+- The keep-awake request (section 24) is answered from memory and never touches the database.
 - AFA reviews are checked about once an hour (`AFA_CHECK_MINUTES`); customers opening their order get a fresh answer.
 - Unpaid data checkouts are tidied once a day; the order page stops auto-refreshing after about 10 minutes.
 
@@ -436,3 +457,25 @@ Render gives the store an address like `abrants-data-store.onrender.com` as well
   Render's health check counts a redirect as healthy, so deploys are not affected.
 
 Without `SITE_URL` nothing changes, except that Admin → Links warns when it was opened on an `onrender.com` address.
+
+## 24. Staying awake on Render's free plan
+
+A free Render web service is put to sleep after 15 minutes without a visitor. The next visitor waits about a minute
+on Render's loading screen, and a sleeping store cannot answer DataHustle's delivery updates (section 17).
+
+`services/keepAwake.js` asks for the store's own `/api/ping` page every 10 minutes through its public address
+(`RENDER_EXTERNAL_URL`, which Render sets by itself; otherwise `SITE_URL`). Render sees a visit and leaves the store
+running. Nothing needs setting up: it starts by itself on Render and does nothing on your own computer.
+
+- `/api/ping` answers "ok" from memory. No database, so Neon still sleeps when nobody is buying.
+- It cannot wake a store that is already asleep (nothing runs then). The first visitor does, and from then on it
+  stays awake. Render also restarts free services now and then; the store comes back by itself.
+- Free hours: Render gives a workspace 750 free hours a month and one store running all month uses up to 744.
+  **A second free web service in the same workspace would push it over**, and Render then suspends free services
+  until the next month. Keep only this one, or move to a paid instance.
+- On a paid instance it changes nothing. `KEEP_AWAKE=false` switches it off; `KEEP_AWAKE_URL` picks another address.
+- An outside monitor (for example UptimeRobot, free) pointed at `https://your-domain/api/ping` every 5 minutes does
+  the same job from outside and also tells you if the store goes down. Optional.
+
+Render's free instances are meant for trying things out. For a shop taking payments the paid instance is the safer
+home: no sleeping, no monthly hour limit.

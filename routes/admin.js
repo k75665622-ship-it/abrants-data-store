@@ -250,7 +250,8 @@ router.post('/orders/:reference/retry', async (req, res) => {
       await audit(req, 'order.retry', { reference, result: 'rejected' });
       return res.status(502).json({ error: 'The provider rejected the retry.', order: failed });
     }
-    const changes = { status: result.delivered ? 'fulfilled' : 'processing', provider, providerReference: result.transactionReference, purchaseId: result.purchaseId };
+    // providerOrderRef is always replaced: the code from the earlier, failed attempt must never be asked about again.
+    const changes = { status: result.delivered ? 'fulfilled' : 'processing', provider, providerReference: result.transactionReference, purchaseId: result.purchaseId, providerOrderRef: result.orderReference || null };
     if (Number.isFinite(Number(result.priceGHS))) changes.providerCostGHS = Number(result.priceGHS);
     const updated = await updateOrder(reference, changes, 'admin.retry.accepted');
     await audit(req, 'order.retry', { reference, result: 'accepted' });
