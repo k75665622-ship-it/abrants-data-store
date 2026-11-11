@@ -6,7 +6,7 @@ const { deliverOrder, attemptCustomerRefund, addAlert } = require('../services/f
 const { optionalCustomer, listOffers, resolvePrice } = require('../services/customers');
 const {
   createOrder, updateOrder, transitionOrder, claimOrderForFulfillment,
-  getOrder, findByProviderReference, findOrderForProviderEvent, getPlans, isNumberBlocked, hasDeliveredOrder,
+  getOrder, findByProviderReference, findOrderForProviderEvent, setProviderOrderRef, getPlans, isNumberBlocked, hasDeliveredOrder,
   getOrderHistoryByPhone, getRecentOrdersByPhone, getStalePendingOrders, deleteUnpaidOrder, getSettings, normalizePhone, PHONE_RE,
 } = require('../services/orderStore');
 
@@ -308,11 +308,18 @@ router.post('/webhook/datahustle', async (req, res) => {
 
   try {
     const order = await findOrderForProviderEvent({
-      transactionId: d.transactionId, orderId: d.orderId, phone: d.phone, network: d.network, capacity: d.capacity,
+      transactionId: d.transactionId, orderId: d.orderId, orderReference: d.orderReference,
+      phone: d.phone, network: d.network, capacity: d.capacity,
     });
     if (!order) {
       console.warn('DataHustle webhook for unknown order:', d.transactionId || d.orderReference || d.orderId);
       return res.json({ status: 'ignored' });
+    }
+    // Keep DataHustle's own code for this order: the catch-up check asks about it if a later update is lost.
+    // Only when the order was recognised by one of DataHustle's ids, never from the phone-number guess.
+    const sure = (d.transactionId && order.providerReference === String(d.transactionId)) || (d.orderId && order.purchaseId === String(d.orderId));
+    if (sure && d.orderReference && order.providerOrderRef !== String(d.orderReference)) {
+      await setProviderOrderRef(order.reference, d.orderReference).catch((e) => console.warn('Could not save the DataHustle order code:', e.message));
     }
 
     // The provider's webhook can land before our own DB write that moves the order to

@@ -7,16 +7,19 @@
  * job clears the mark once it finds nothing left. Every mark starts "on", so after a restart each job
  * looks once.
  */
-const hints = new Map(); // name -> { on: boolean, at: time of the last mark }
+const hints = new Map(); // name -> { on: boolean, at: time of the last mark, seq: which mark that was }
 const GRACE_MS = 5 * 60 * 1000; // work marked moments ago may not be visible to the job's query yet
+let marks = 0;
 
-function mark(name) { hints.set(name, { on: true, at: Date.now() }); }
+function mark(name) { hints.set(name, { on: true, at: Date.now(), seq: ++marks }); }
 function pending(name) { const h = hints.get(name); return !h || h.on; }
 function done(name) {
   const h = hints.get(name);
   if (h && h.on && Date.now() - h.at < GRACE_MS) return;
-  hints.set(name, { on: false, at: h ? h.at : 0 });
+  hints.set(name, { on: false, at: h ? h.at : 0, seq: h ? h.seq : 0 });
 }
+// The last mark for a job: { seq, at }. seq changes with every new mark (0 = none since this server started).
+function lastMark(name) { const h = hints.get(name); return { seq: h ? h.seq : 0, at: h ? h.at : 0 }; }
 function snapshot() { return Object.fromEntries([...hints].map(([k, v]) => [k, v.on])); }
 
-module.exports = { mark, pending, done, snapshot };
+module.exports = { mark, pending, done, lastMark, snapshot, GRACE_MS };

@@ -157,6 +157,10 @@ async function initDb() {
     -- through (see services/campaigns.js). Empty for anyone who came straight to the site.
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS campaign TEXT;
     CREATE INDEX IF NOT EXISTS idx_orders_campaign ON orders(campaign) WHERE campaign IS NOT NULL;
+    -- DataHustle's own code for the order ("DM-..."), which its order-status address needs. Separate from
+    -- provider_reference (its transaction reference) and purchase_id (its record id).
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS provider_order_ref TEXT;
+    CREATE INDEX IF NOT EXISTS idx_orders_provider_order_ref ON orders(provider_order_ref) WHERE provider_order_ref IS NOT NULL;
     CREATE TABLE IF NOT EXISTS campaigns (
       code TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -205,6 +209,7 @@ function mapOrder(row) {
     status: row.status,
     providerReference: row.provider_reference,
     purchaseId: row.purchase_id,
+    providerOrderRef: row.provider_order_ref || null,
     trackingId: row.tracking_id,
     refundId: row.refund_id,
     refundStatus: row.refund_status,
@@ -273,6 +278,7 @@ const ORDER_UPDATE_COLUMNS = {
   status: 'status',
   providerReference: 'provider_reference',
   purchaseId: 'purchase_id',
+  providerOrderRef: 'provider_order_ref',
   trackingId: 'tracking_id',
   refundId: 'refund_id',
   refundStatus: 'refund_status',
@@ -385,13 +391,17 @@ async function findByProviderReference(providerReference) {
 // Finds the order a DataHustle webhook is about. Normally the transaction reference matches.
 // If it does not, fall back to the provider's order id, then to a single still-processing order
 // with the same phone number, network and size (only when exactly one order fits).
-async function findOrderForProviderEvent({ transactionId, orderId, phone, network, capacity }) {
+async function findOrderForProviderEvent({ transactionId, orderId, orderReference, phone, network, capacity }) {
   if (transactionId) {
     const r = await pool.query('SELECT * FROM orders WHERE provider_reference = $1 LIMIT 1', [String(transactionId)]);
     if (r.rows[0]) return mapOrder(r.rows[0]);
   }
   if (orderId) {
     const r = await pool.query('SELECT * FROM orders WHERE purchase_id = $1 LIMIT 1', [String(orderId)]);
+    if (r.rows[0]) return mapOrder(r.rows[0]);
+  }
+  if (orderReference) {
+    const r = await pool.query('SELECT * FROM orders WHERE provider_order_ref = $1 LIMIT 1', [String(orderReference)]);
     if (r.rows[0]) return mapOrder(r.rows[0]);
   }
   const p = normalizePhone(phone);
@@ -423,12 +433,25 @@ async function markStuckDelivered(minutes = 20) {
   return done;
 }
 
-// Orders a provider without a webhook still has to confirm (see services/fulfillment.js).
+// Remembers DataHustle's own code for an order when it is learned later (from a delivery update or from
+// DataHustle's order list). Changes nothing else: not the status, and not the "last changed" time that the
+// stuck-order count and the catch-up check go by.
+async function setProviderOrderRef(reference, providerOrderRef) {
+  const value = String(providerOrderRef == null ? '' : providerOrderRef).trim().slice(0, 80);
+  if (!value) return false;
+  const r = await pool.query(
+    'UPDATE orders SET provider_order_ref = $2 WHERE reference = $1 AND provider_order_ref IS DISTINCT FROM $2', [reference, value]
+  );
+  return r.rowCount > 0;
+}
+
+// Orders a provider still has to confirm (see the catch-up check in services/fulfillment.js).
 async function getProcessingOrdersByProvider(provider, minAgeSeconds = 45, limit = 50, maxAgeHours = 24) {
-  // Orders older than a day stop being re-checked (they show as "stuck" on the dashboard instead),
+  // Orders older than the limit stop being re-checked (they show as "stuck" on the dashboard instead),
   // so one order the provider never answers cannot keep the database awake forever.
   const r = await pool.query(
-    `SELECT * FROM orders WHERE provider = $1 AND status = 'processing' AND provider_reference IS NOT NULL
+    `SELECT * FROM orders WHERE provider = $1 AND status = 'processing'
+       AND (provider_reference IS NOT NULL OR purchase_id IS NOT NULL OR provider_order_ref IS NOT NULL)
        AND updated_at < NOW() - ($2 || ' seconds')::interval AND created_at > NOW() - ($4 || ' hours')::interval
      ORDER BY created_at ASC LIMIT $3`,
     [provider, String(minAgeSeconds), limit, String(maxAgeHours)]
@@ -985,7 +1008,7 @@ module.exports = {
   getStalePendingOrders,
   deleteUnpaidOrder,
   createOrder, updateOrder, transitionOrder, claimOrderForFulfillment,
-  getOrder, getAllOrders, getOrdersPage, getOrderStats, getOrderEvents, findByProviderReference, findOrderForProviderEvent, getProcessingOrdersByProvider,
+  getOrder, getAllOrders, getOrdersPage, getOrderStats, getOrderEvents, findByProviderReference, findOrderForProviderEvent, getProcessingOrdersByProvider, setProviderOrderRef,
   getPlans, getPlan, createPlan, updatePlan, updatePlanPrice, updatePlanProviderCost, deletePlan,
   getSettings, saveSettings, createGiftOrder, pool,
   logAdminAction, getAuditLog,

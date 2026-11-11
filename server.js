@@ -7,7 +7,7 @@ const adminRoutes = require('./routes/admin');
 const accountRoutes = require('./routes/account');
 const { initDb } = require('./services/orderStore');
 const { initCustomerDb } = require('./services/customers');
-const { pollFastdealsOrders, autoRecoveryTick, addAlert, pauseForStock } = require('./services/fulfillment');
+const { pollProviderOrders, autoRecoveryTick, addAlert, pauseForStock } = require('./services/fulfillment');
 const { stockWatchTick } = require('./services/stockWatch');
 
 const app = express();
@@ -55,6 +55,13 @@ app.use((req, res, next) => {
 
 // Visitors on the Render address go to the real domain (only if SITE_URL is set; see README 23).
 app.use(require('./services/siteUrl').redirectToSite());
+
+// A tiny page that says the store is running. Answered from memory: it never touches the database. The store
+// asks for it itself to stay awake on Render's free plan (services/keepAwake.js); an uptime monitor can too.
+app.get('/api/ping', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.type('text/plain').send('ok');
+});
 
 // Both payment/provider webhooks must be verified against the exact raw bytes sent.
 app.use('/api/webhook/paystack', express.raw({ type: 'application/json', limit: '256kb' }));
@@ -105,9 +112,14 @@ initDb()
       const sweep = () => apiRoutes.sweepPendingOrders().catch((e) => console.warn('Pending sweep failed:', e.message));
       setTimeout(sweep, 2 * 60 * 1000).unref();
       setInterval(sweep, 24 * 60 * 60 * 1000).unref();
-      // FastDealsGH has no webhook: re-check its unconfirmed orders every 2 minutes (only while there are some).
-      const poll = () => pollFastdealsOrders().catch((e) => console.warn('FastDeals poll failed:', e.message));
+      // Deliveries the providers have not confirmed yet are asked about every 2 minutes, only while there are
+      // some (FastDealsGH has no webhook; a DataHustle update can be lost). Once shortly after start as well,
+      // to catch up on anything that was delivered while the store was asleep or restarting.
+      const poll = () => pollProviderOrders().catch((e) => console.warn('Delivery catch-up failed:', e.message));
+      setTimeout(poll, 20 * 1000).unref();
       setInterval(poll, 2 * 60 * 1000).unref();
+      // Render's free plan: stay awake (never touches the database).
+      require('./services/keepAwake').startKeepAwake();
       // Out of stock handling: try the first provider again / reopen paused networks after an hour.
       const recover = () => autoRecoveryTick().catch((e) => console.warn('Auto recovery failed:', e.message));
       setInterval(recover, 5 * 60 * 1000).unref();
