@@ -81,6 +81,8 @@ app.use('/api/account', accountRoutes);
 // Agent programme: the agent's own account, and what a shop link shows (routes/agents.js).
 const agentRoutes = require('./routes/agents');
 app.use('/api/agent', agentRoutes.pub);
+// "Chat with us" on the website, answered in Admin → Inbox (routes/chat.js).
+app.use('/api/chat', require('./routes/chat').pub);
 app.get('/api/shop/:slug', agentRoutes.shopInfo);
 app.use('/api', apiRoutes);
 // Pages that are gone: bill payments (removed) and the get-started page (now part of the home page).
@@ -134,6 +136,7 @@ initDb()
   .then(() => initCustomerDb())
   .then(() => require('./services/serviceOrders').initServiceDb())
   .then(() => require('./services/agents').initAgentDb())
+  .then(() => require('./services/chat').initChatDb())
   .then(() => campaigns.loadKnown().catch((e) => console.warn('Could not load tracking links yet:', e.message)))
   .then(() => {
     app.listen(PORT, () => {
@@ -141,7 +144,10 @@ initDb()
       // The background checks below only touch the database when there is work waiting, so the
       // database can sleep while the store is quiet (see services/workHints.js).
       // Tidy up unpaid checkouts: a couple of minutes after start, then once a day.
-      const sweep = () => apiRoutes.sweepPendingOrders().catch((e) => console.warn('Pending sweep failed:', e.message));
+      const sweep = () => {
+        apiRoutes.sweepPendingOrders().catch((e) => console.warn('Pending sweep failed:', e.message));
+        require('./services/chat').cleanup().catch((e) => console.warn('Chat clean-up failed:', e.message)); // old chats
+      };
       setTimeout(sweep, 2 * 60 * 1000).unref();
       setInterval(sweep, 24 * 60 * 60 * 1000).unref();
       // Deliveries the providers have not confirmed yet are asked about every 2 minutes, only while there are

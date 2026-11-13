@@ -29,7 +29,7 @@
       card.innerHTML =
         '<span class="need-ico myshop-face" style="background:' + (COLOURS[me.theme] || COLOURS.gold) + ';color:' + (dark ? '#0b1020' : '#fff') + '" aria-hidden="true">' + face + '</span>' +
         '<b>' + esc(me.shopName) + '</b>' +
-        '<span class="need-txt">' + esc(STATE[me.status] || 'My shop') + '</span>' +
+        '<span class="need-txt">' + esc(me.programmeOff ? 'All shops are closed for now' : (STATE[me.status] || 'My shop')) + '</span>' +
         (news ? '<span class="myshop-news">' + esc(news) + '</span>' : '') +
         '<span class="need-go">Manage my shop <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></span>';
       card.hidden = false;

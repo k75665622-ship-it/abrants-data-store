@@ -212,6 +212,10 @@ body.ag-dash .site-footer{display:none}
 .ag-sub-seg{margin:0 0 12px}
 
 /* inbox */
+.ag-chat-cta{display:flex;align-items:center;gap:14px;width:100%;text-align:left;margin:0 0 14px;padding:16px;border-radius:var(--r-md);background:var(--navy);color:#fff}
+.ag-chat-cta svg{color:var(--yellow);flex:none}
+.ag-chat-cta strong{display:block;font:700 16px/1.25 var(--display)}
+.ag-chat-cta small{display:block;font-size:13px;color:#aeb7c9;margin-top:2px}
 .ag-msg{background:#fff;border:1px solid var(--line);border-radius:var(--r-md);padding:14px 16px;margin:0 0 10px;border-left:5px solid #cfd6e4}
 .ag-msg.unread{box-shadow:var(--shadow-sm)}
 .ag-msg.strike{border-left-color:#e5484d;background:#fffafa}
@@ -236,6 +240,15 @@ body.ag-dash .site-footer{display:none}
 .ag-pay-danger{background:#e5484d;color:#fff;box-shadow:none}
 .ag-delete-list{margin:0 0 14px;padding-left:18px;font-size:14.5px;line-height:1.55;color:#2c3446}
 .ag-delete-list li{margin-bottom:6px}
+
+/* every shop switched off: told once, in a pop-up */
+.ag-modal-center{align-items:center;padding:18px}
+.ag-off-box{border-radius:var(--r-lg);overflow:hidden;max-width:440px}
+.ag-off-awning{height:30px;background:repeating-linear-gradient(90deg,#9aa3b5 0 20px,#fff 20px 40px)}
+.ag-off-body{padding:20px 20px 22px}
+.ag-off-body h2{margin:0 0 12px;font:700 23px/1.15 var(--display);letter-spacing:-.03em}
+.ag-off-reason{margin:0 0 12px;padding:12px 14px;border-left:4px solid #f0b429;background:#fff8e1;border-radius:0 12px 12px 0;font-size:15.5px;line-height:1.5;font-weight:600;color:#3d3005;white-space:pre-line}
+.ag-off-body p{margin:0 0 18px;font-size:14.5px;line-height:1.55;color:#4b5468}
 
 /* QR poster */
 .ag-qr-body{display:grid;place-items:center;background:var(--line-2)}

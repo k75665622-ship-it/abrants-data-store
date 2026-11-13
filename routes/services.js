@@ -153,9 +153,11 @@ function admin(audit) {
       const afaPrice = price(b.afa && b.afa.price);
       if (Number.isNaN(afaPrice)) return res.status(400).json({ error: 'Check the AFA price.' });
       const s = await getSettings();
-      const next = { checkers: { ...((s.services || {}).checkers || {}), ...checkers }, afa: { price: afaPrice, enabled: Boolean(b.afa && b.afa.enabled) } };
+      const was = s.services || {};
+      const next = { checkers: { ...(was.checkers || {}), ...checkers }, afa: { price: afaPrice, enabled: Boolean(b.afa && b.afa.enabled) } };
       await saveSettings({ services: next });
-      await audit(req, 'services.prices', next);
+      const { changesOf } = require('../services/orderStore');
+      await audit(req, 'services.prices', { changes: { ...changesOf(was.checkers || {}, next.checkers), ...changesOf({ AFA: was.afa }, { AFA: next.afa }) } });
       res.json({ ok: true });
     } catch (err) { console.error(err); res.status(500).json({ error: 'Could not save prices.' }); }
   });

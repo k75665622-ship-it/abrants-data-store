@@ -17,7 +17,8 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="/css/style.css?v=14" />
 <link rel="stylesheet" href="/css/account.css?v=4" />
-<link rel="stylesheet" href="/css/agent.css?v=3" />
+<link rel="stylesheet" href="/css/agent.css?v=5" />
+<link rel="stylesheet" href="/css/chat.css?v=1" />
 </head>
 <body class="page-fill ag-page">
 
@@ -241,6 +242,10 @@
 
     <!-- Inbox -->
     <section class="ag-pane" id="pane-inbox" hidden>
+      <button type="button" class="ag-chat-cta" id="openChat">
+        <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-12.3 7.5L3 20.5l1.6-5.2A8.4 8.4 0 1 1 21 11.5z"/></svg>
+        <span><strong>Chat with Abrants</strong><small>Questions about your shop, a payout or a customer's order</small></span>
+      </button>
       <div id="inboxList"><div class="skeleton" style="min-height:120px"></div></div>
     </section>
 
@@ -325,6 +330,18 @@
   </div>
 </div>
 
+ <div class="ag-modal ag-modal-center" id="offModal" role="alertdialog" aria-modal="true" aria-labelledby="offTitle" aria-describedby="offReason" hidden>
+  <div class="ag-modal-box ag-off-box">
+    <div class="ag-off-awning" aria-hidden="true"></div>
+    <div class="ag-off-body">
+      <h2 id="offTitle">All shops are closed for now</h2>
+      <blockquote class="ag-off-reason" id="offReason"></blockquote>
+      <p id="offBack"></p>
+      <button type="button" class="pay-btn" id="offOk">OK, I understand</button>
+    </div>
+  </div>
+</div>
+
 <div class="ag-modal" id="qrModal" role="dialog" aria-modal="true" aria-labelledby="qrTitle" hidden>
   <div class="ag-modal-box">
     <div class="ag-modal-head">
@@ -361,6 +378,7 @@
 
 <div class="toast-stack" id="toastStack" aria-live="polite"></div>
 <script src="/js/agent.js?v=3"></script>
-<script src="/js/agent-dash.js?v=2"></script>
+<script src="/js/agent-dash.js?v=5"></script>
+<script src="/js/chat.js?v=1"></script>
 </body>
 </html>

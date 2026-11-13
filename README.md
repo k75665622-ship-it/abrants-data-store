@@ -578,3 +578,36 @@ deliveries earn nothing) and can stop the phone and MoMo numbers from signing up
 
 **Neon**: opening a shop page, its logo (after the first time), the home page's "My shop" and the agent's inbox when
 nothing is new read nothing from the database. The 5-minute check reads it only when a pause is due to end.
+
+**Switching every shop off** (Admin → Agents → the "Agent programme" switch): you first say why and whether shops come
+back (soon, on a date, or never). Every agent gets it in their Inbox and by SMS (unless you untick it), sees a pop-up the
+next time they open their page, and sees the reason on their own shop page. Customers see "This shop is closed right now"
+and, if you gave one, when it is back. With a date, shops switch back on by themselves that day (from 06:00), and agents
+are told. Switching back on by hand tells them too.
+
+## 28. Chat with us (Admin → Inbox)
+
+A "Chat with us" button on the store, the checker/AFA page, the order page, the account page, the agent page and every
+agent shop (`js/chat.js`, `css/chat.css`, `services/chat.js`, `routes/chat.js`). Website only, never SMS.
+
+- **Who is writing**: a logged-in agent shows as their shop; a logged-in customer by name, phone and email; anyone else
+  as "Visitor K7M2QD" (a chat ID with no 0/O or 1/I). A visitor's chat stays in that browser for a year (a cookie), so
+  closing the browser and coming back shows the same chat. A visitor who later logs in keeps their chat. Visitors can
+  give the phone number they used for an order when they start.
+- **What the admin sees** (Admin → Inbox, `admin-inbox.js`): every chat, newest first, unread ones marked, with filters
+  (Unread, Agents, Customers, Visitors, Done) and search. "About" shows their phone, email, chat ID, the page or shop they
+  wrote from, and their latest orders (by their phone number and the last order this browser made). Ready-made replies,
+  Mark done (it reopens if they write again), Delete. The menu shows how many chats are unread; the website shows
+  "Online now" while the admin has Admin open.
+- **Settings** (bottom of the Inbox): switch the chat button off, and how long chats with no new message are kept
+  (7, 30 or 90 days; 30 by default). Old chats are deleted once a day.
+- **Neon**: chats and unread counts are kept in memory. The checks the pages make every few seconds (and the button on
+  every page) are answered from memory. The database is used when a message is sent, when someone reads new messages,
+  and when a chat is opened for the first time after the server starts. Messages are small (a few hundred bytes each).
+- **Limits**: 1000 characters per message; 20 messages in 5 minutes per chat; 8 new chats an hour from one place.
+
+## 29. Activity log (Admin → Activity log)
+
+Every admin action in plain words, grouped by day ("Refunded order DB-… (GH₵5.00)", "Paused Kwame Data Hub for
+1 month", "Changed the store settings: Maintenance mode: switched on"), with a filter by kind and a search
+(`admin-activity.js`). Settings changes record only what actually changed.

@@ -171,6 +171,29 @@ async function paidMessage(a, p) {
     body: `To ${NET[p.momoNetwork] || p.momoNetwork} ${p.momoNumber}` + (p.feeGHS > 0 ? ` (${ghs(p.amountGHS)} earned, less the ${ghs(p.feeGHS)} transfer fee)` : '') + '.' });
 }
 
+/* ------------------------------------------------------------------ the whole programme on or off */
+
+const backText = (s) => (s.offReturn === 'never' ? 'The agent programme is ending. The money you earned will still be paid to your MoMo.'
+  : s.offReturn === 'date' && s.offUntil ? `Shops open again by themselves on ${day(s.offUntil + 'T12:00:00Z')}. The money you earned stays yours.`
+    : 'They will be back soon, and we will tell you when. The money you earned stays yours.');
+
+/** The admin switched every shop off (with a reason) or back on. Every agent who can still log in hears about it. */
+async function programmeChanged(on, s) {
+  const list = [...A().byId.values()].filter((a) => ['pending', 'active', 'suspended'].includes(a.status) && !a.deleteRequestedAt);
+  for (const a of list) {
+    if (on) {
+      await addMessage(a.id, { kind: 'reopened', title: 'Shops are open again',
+        body: a.status === 'active' ? 'Your shop link works again. Share it with your customers.' : 'The agent programme is back on.' });
+    } else {
+      await addMessage(a.id, { kind: 'programme', title: 'All shops are closed for now', body: `${s.offReason}
+
+${backText(s)}` });
+    }
+    if (s.sms) notify().programme(a, on, s);
+  }
+  return list.length;
+}
+
 /* ------------------------------------------------------------------ deleting */
 
 /**
@@ -243,6 +266,11 @@ let lastDeleteCheck = 0;
 /** Every few minutes: reopens shops whose pause is over (memory only until one is due); every 6 hours, closing shops. */
 async function tick() {
   const now = Date.now();
+  // The programme was switched off until a date: switch it back on that day (from 06:00 Ghana time).
+  const s = await A().settingsNow();
+  if (!s.enabled && s.offReturn === 'date' && s.offUntil && new Date().toISOString().slice(0, 13) >= s.offUntil + 'T06') {
+    await A().saveProgramme({ enabled: true, sms: s.offSms !== false });
+  }
   for (const a of [...A().byId.values()]) {
     if (a.status === 'suspended' && a.suspendedUntil && !a.deleteRequestedAt && new Date(a.suspendedUntil).getTime() <= now) {
       try { await A().setStatus(a.id, 'active'); } catch (e) { console.warn('Reopening a paused shop failed:', e.message); }
@@ -259,5 +287,5 @@ async function tick() {
 
 module.exports = {
   PAUSE_DAYS, loadBans, banned, messages, markRead, addMessage, sendMessage, messageAll, strike, removeStrike, pause,
-  statusMessage, paidMessage, remove, finishDelete, selfDelete, tick, cleanBody,
+  statusMessage, paidMessage, remove, finishDelete, selfDelete, tick, cleanBody, programmeChanged, backText,
 };

@@ -33,7 +33,19 @@
     $('spHeadName').textContent = 'Abrants Data Store';
     $('spAvatar').innerHTML = '<img src="/icon.svg" alt="" width="34" height="34" />';
     $('spId').href = '/';
-    if (d && d.owner) {
+    var off = d && d.programmeOff;
+    var MONTHS_AT = function (iso) { var p = iso.split('-'); return Number(p[2]) + ' ' + MONTHS[Number(p[1]) - 1]; };
+    if (off && !(d && d.owner)) {
+      $('spClosedText').textContent = (off.back === 'date' && off.backOn ? 'It opens again on ' + MONTHS_AT(off.backOn) + '.'
+        : off.back === 'soon' ? 'It will be back soon.' : '') + ' Until then, you can buy data, result checkers and MTN AFA from Abrants Data Store.';
+    }
+    if (off && d && d.owner) {
+      $('spClosedTitle').textContent = 'All shops are closed for now';
+      $('spClosedText').textContent = (off.reason ? off.reason + ' ' : '') +
+        (off.back === 'never' ? 'The agent programme is ending.' : off.back === 'date' && off.backOn ? 'Shops open again on ' + MONTHS_AT(off.backOn) + '.' : 'Shops will be back soon.');
+      $('spClosedGo').textContent = 'Manage my shop';
+      $('spClosedGo').href = '/agent.html';
+    } else if (d && d.owner) {
       var waiting = d.status === 'pending';
       $('spClosedTitle').textContent = waiting ? 'Your shop opens once it is approved' : 'Your shop is closed right now';
       $('spClosedText').textContent = waiting

@@ -54,6 +54,7 @@ const DEFAULT_SETTINGS = {
   // Agent programme (services/agents.js). Off until the owner switches it on in Admin → Agents.
   // Text messages (services/sms.js, services/notify.js): who gets them, once ARKESEL_API_KEY is set.
   sms: { customers: true, agents: true },
+  chat: { enabled: true, keepDays: 30 }, // "Chat with us" (services/chat.js)
   agents: {
     enabled: false, autoApprove: false, prices: {},
     holdHours: 24, minPayout: 20, payoutFee: 1,
@@ -893,6 +894,19 @@ async function logAdminAction(action, details = {}, ip = null) {
   }
 }
 
+/**
+ * For the activity log: only the settings that really changed, as { key: { from, to } }. Saving a form that sends
+ * every field then reads as "switched maintenance mode on", not as a list of everything on the form.
+ */
+function changesOf(before, after) {
+  const out = {};
+  for (const [k, v] of Object.entries(after || {})) {
+    const was = before ? before[k] : undefined;
+    if (JSON.stringify(was) !== JSON.stringify(v)) out[k] = { from: was === undefined ? null : was, to: v };
+  }
+  return out;
+}
+
 async function getAuditLog(limit = 100) {
   const result = await pool.query(
     'SELECT action, details, ip, created_at FROM admin_audit ORDER BY created_at DESC LIMIT $1',
@@ -1038,7 +1052,7 @@ async function hasDeliveredOrder(phone) {
   return r.rowCount > 0;
 }
 
-module.exports = {
+module.exports = { changesOf,
   hasDeliveredOrder,
   countStuckOrders, markStuckDelivered,
   getOutOfStockOrders,

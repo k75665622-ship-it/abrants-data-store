@@ -156,6 +156,7 @@
     var list = (store.get('sv-recent') || []).filter(function (x) { return x.ref !== ref; });
     list.unshift({ ref: ref, label: label, at: Date.now() });
     store.set('sv-recent', list.slice(0, 6));
+    try { localStorage.setItem('abrants_last_order', ref); } catch (e) { /* private mode; the chat tells the store about it */ }
   }
   function renderRecent(exclude) {
     var list = (store.get('sv-recent') || []).filter(function (x) { return x.ref !== exclude; });

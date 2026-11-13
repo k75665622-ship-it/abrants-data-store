@@ -113,8 +113,12 @@ function qrSvg(url) {
 const origin = (req) => siteOrigin() || `${req.protocol}://${req.get('host')}`;
 
 /** The public view of a shop. owner: the visitor is this shop's agent (logged in). */
-function view(a, { open, owner = false } = {}) {
-  if (!a || !open) return { open: false, ...(owner && a ? { owner: true, status: a.status } : {}) };
+function view(a, { open, owner = false, off = null } = {}) {
+  if (!a || !open) {
+    // While every shop is switched off, everyone is told whether it comes back; the agent also sees why.
+    const why = off && a && a.status === 'active' ? { programmeOff: { back: off.back, backOn: off.backOn, ...(owner ? { reason: off.reason } : {}) } } : {};
+    return { open: false, ...why, ...(owner && a ? { owner: true, status: a.status } : {}) };
+  }
   const x = A().extraOf(a.id);
   return {
     open: true, slug: a.slug, name: a.shopName, bio: a.bio, announcement: a.announcement, theme: a.theme, logo: logoUrl(a),
@@ -128,7 +132,7 @@ async function shopFor(req, slug) {
   const a = A().bySlug.get(s) || null;
   const open = Boolean(await A().shopAgent(s));
   const me = A().agentFromRequest(req);
-  return { a, open, owner: Boolean(me && a && me.id === a.id) };
+  return { a, open, owner: Boolean(me && a && me.id === a.id), off: A().offInfo(await A().settingsNow()) };
 }
 
 let template = null;
@@ -140,8 +144,8 @@ const attr = (v) => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/"
 
 /** The shop page with the shop's name, description, colour and details written in. */
 async function render(req, slug) {
-  const { a, open, owner } = await shopFor(req, slug);
-  const data = view(a, { open, owner });
+  const { a, open, owner, off } = await shopFor(req, slug);
+  const data = view(a, { open, owner, off });
   const base = origin(req);
   const title = open ? `${a.shopName} · Data, result checkers and AFA` : 'Shop closed · Abrants Data Store';
   const desc = open ? (a.bio || `Buy MTN, Telecel and AirtelTigo data, WASSCE and BECE result checkers and MTN AFA from ${a.shopName}. Pay with MoMo or card.`)

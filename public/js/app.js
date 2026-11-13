@@ -379,7 +379,7 @@
           return;
         }
         if (!result.ok) throw new Error(result.data.error || 'Something went wrong. Please try again.');
-        try { localStorage.setItem('abrants_email', email); } catch (e) { /* private mode */ }
+        try { localStorage.setItem('abrants_email', email); localStorage.setItem('abrants_last_order', result.data.reference || ''); } catch (e) { /* private mode */ }
         toast('Taking you to secure payment…', 'success');
         window.location.href = result.data.authorizationUrl;
       })

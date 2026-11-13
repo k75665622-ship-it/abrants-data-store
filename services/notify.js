@@ -151,9 +151,21 @@ const agentDeleted = safely(async (a, { by, reason, waiting, owedGHS, pay }) => 
   sms.send(a.phone, text, 'agent.deleted');
 });
 
+/** Every shop switched off (with the reason and whether they come back), or back on. */
+const programme = safely(async (a, on, s) => {
+  if (!a || !(await allowed('agents'))) return;
+  if (on) {
+    sms.send(a.phone, a.status === 'active' ? `Abrants: Agent shops are open again. Your link works: ${host()}/s/${a.slug}` : 'Abrants: The agent programme is back on.', 'agent.programme');
+    return;
+  }
+  const back = s.offReturn === 'never' ? 'The programme is ending; your earnings will be paid.'
+    : s.offReturn === 'date' && s.offUntil ? `Back on ${smsDay(s.offUntil + 'T12:00:00Z')}.` : 'Back soon.';
+  sms.send(a.phone, fit((t) => `Abrants: All agent shops are closed for now. Reason: ${t}. ${back} See ${host()}/agent`, s.offReason || ''), 'agent.programme');
+});
+
 /** The sign-up code. Waits for Arkesel, so the page can say whether it was sent. */
 async function agentCode(phone, code) {
   return sms.sendNow(phone, `Your Abrants agent code is ${code}. It expires in 10 minutes. Do not share it with anyone.`, 'agent.code');
 }
 
-module.exports = { dataStatus, serviceStatus, agentStatus, agentPaid, agentCode, agentMessage, agentStrike, agentPaused, agentDeleted, fit };
+module.exports = { dataStatus, serviceStatus, agentStatus, agentPaid, agentCode, agentMessage, agentStrike, agentPaused, agentDeleted, programme, fit };

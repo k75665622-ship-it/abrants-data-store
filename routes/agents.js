@@ -123,12 +123,13 @@ pub.post('/terms', requireAgent, async (req, res) => {
 });
 
 // Who is logged in, for the home page's "My shop" and the shop page. Memory only.
-pub.get('/whoami', (req, res) => {
+pub.get('/whoami', async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   const a = agents.agentFromRequest(req);
   if (!a) return res.status(401).json({ error: 'Please log in.' });
   const p = agents.publicAgent(a);
-  res.json({ shopName: p.shopName, slug: p.slug, status: p.status, logo: p.logo, theme: p.theme, unread: p.unread, strikes: p.strikes });
+  res.json({ shopName: p.shopName, slug: p.slug, status: p.status, logo: p.logo, theme: p.theme, unread: p.unread, strikes: p.strikes,
+    programmeOff: agents.offInfo(await agents.settingsNow()) });
 });
 
 // My shop: name, WhatsApp, about line, announcement, colour.
@@ -192,8 +193,8 @@ pub.put('/password', requireAgent, limit('agent-password', 15 * 60 * 1000, 10), 
 /* ================================================================ shop link (public) */
 async function shopInfo(req, res) {
   res.setHeader('Cache-Control', 'no-store');
-  const { a, open, owner } = await shop.shopFor(req, req.params.slug);
-  res.json(shop.view(a, { open, owner }));
+  const { a, open, owner, off } = await shop.shopFor(req, req.params.slug);
+  res.json(shop.view(a, { open, owner, off }));
 }
 
 /* ================================================================ admin */
@@ -205,9 +206,11 @@ function admin(audit) {
   r.get('/', wrap(async (req, res) => { res.json({ ...(await agents.overview()), siteUrl: base(req) }); }, 'Could not load agents.'));
 
   r.put('/settings', wrap(async (req, res) => {
+    const before = await agents.settingsNow();
     const out = await agents.saveProgramme(req.body);
     if (out.error) return fail(res, out);
-    await audit(req, 'agents.settings', out.settings && { ...out.settings, prices: undefined });
+    const { prices: a, ...was } = before; const { prices: b, ...now } = out.settings; // eslint-disable-line no-unused-vars
+    await audit(req, 'agents.settings', { changes: require('../services/orderStore').changesOf(was, now) });
     res.json(out.settings);
   }, 'Could not save.'));
 
@@ -265,7 +268,7 @@ function admin(audit) {
     if (cur && cur.deleteRequestedAt) return res.status(409).json({ error: 'This shop is being deleted.' });
     const a = await agents.setStatus(req.params.id, status);
     if (!a) return res.status(404).json({ error: 'Agent not found.' });
-    await audit(req, 'agents.status', { id: a.id, shop: a.shopName, status });
+    await audit(req, 'agents.status', { id: a.id, shop: a.shopName, status, from: cur ? cur.status : null });
     res.json(agents.publicAgent(a));
   }, 'Could not change the agent.'));
 
