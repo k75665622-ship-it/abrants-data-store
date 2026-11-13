@@ -83,6 +83,39 @@ router.use('/services', require('./services').admin(audit));
 router.use('/links', require('./campaigns').admin(audit));
 router.use('/agents', require('./agents').admin(audit));
 
+/* ---------------------------------------------------------------- text messages (SMS) */
+router.get('/sms', async (req, res) => {
+  try {
+    const sms = require('../services/sms');
+    const s = (await getSettings()).sms || {};
+    res.json({
+      configured: sms.configured(), sender: sms.sender(), customers: s.customers !== false, agents: s.agents !== false,
+      balance: await sms.balance(), counts: sms.counts, recent: sms.recent.slice(0, 15),
+    });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Could not load the SMS settings.' }); }
+});
+router.put('/sms', async (req, res) => {
+  try {
+    const cur = (await getSettings({ fresh: true })).sms || {};
+    const next = { customers: req.body?.customers !== undefined ? req.body.customers === true : cur.customers !== false,
+      agents: req.body?.agents !== undefined ? req.body.agents === true : cur.agents !== false };
+    await saveSettings({ sms: next });
+    await audit(req, 'sms.settings', next);
+    res.json(next);
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Could not save.' }); }
+});
+router.post('/sms/test', async (req, res) => {
+  const sms = require('../services/sms');
+  if (!sms.configured()) return res.status(400).json({ error: 'SMS is not set up. Add ARKESEL_API_KEY in Render.' });
+  try {
+    await sms.sendNow(req.body?.phone, 'Abrants Data: This is a test message from your store. SMS is working.', 'test');
+    await audit(req, 'sms.test', { phone: String(req.body?.phone || '').slice(0, 13) });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(400).json({ error: String(err.response?.data?.message || err.message || 'Could not send.').slice(0, 160) });
+  }
+});
+
 router.post('/notices/dismiss', async (req, res) => {
   try {
     const id = String(req.body?.id || '');

@@ -184,6 +184,7 @@
         '<div class="detail-box"><span>On hold / on the way</span><strong>' + money(a.heldGHS) + ' / ' + money(a.onTheWayGHS) + '</strong></div>' +
         '<div class="detail-box"><span>Paid out</span><strong>' + money(a.paidGHS) + (a.sendingGHS ? ' (+' + money(a.sendingGHS) + ' sending)' : '') + '</strong></div>' +
         '<div class="detail-box"><span>Sales</span><strong>' + a.sales + '</strong></div>' +
+        (a.termsAcceptedAt ? '<div class="detail-box" style="grid-column:1/-1"><span>Terms</span><strong>Accepted ' + esc(when(a.termsAcceptedAt)) + ' (version ' + esc(a.termsVersion) + ')</strong></div>' : '') +
         '<div class="detail-box" style="grid-column:1/-1"><span>MoMo</span><strong>' + esc(NET[a.momoNetwork] || a.momoNetwork) + ' ' + esc(a.momoNumber) + ' · ' + esc(a.momoName) +
           (recentMomo ? ' <em class="neg">changed ' + esc(when(a.momoChangedAt)) + '</em>' : '') + '</strong></div>' +
         '</div>' +
@@ -300,8 +301,14 @@
     if ((t = e.target.closest('[data-ag-status]'))) {
       e.stopPropagation();
       var status = t.getAttribute('data-ag-status'), a = find(t.getAttribute('data-id'));
-      var ask = { rejected: 'Close ' + (a ? a.shopName : 'this agent') + '\'s account? Their shop link stops and they are logged out. Money they already earned stays payable.',
+      var ask = { rejected: (a && a.status === 'pending') ? 'Decline ' + a.shopName + '?' : 'Close ' + (a ? a.shopName : 'this agent') + '\'s account? Their shop link stops and they are logged out. Money they already earned stays payable.',
         suspended: 'Pause ' + (a ? a.shopName : 'this shop') + '? Their link shows your normal store until you reopen it.' }[status];
+      // Before approving: check by hand that the MoMo number really belongs to this person (start a MoMo transfer to it,
+      // look at the name the network shows, then cancel).
+      if (status === 'active' && a && a.status === 'pending') {
+        ask = 'Check the MoMo name first:\n\nStart sending money on MoMo to ' + a.momoNumber + ' (' + a.momoNetwork + ').\nThe name shown should be: ' + a.momoName +
+          (a.momoName.toLowerCase() !== a.name.toLowerCase() ? '\n(they signed up as ' + a.name + ')' : '') + '\nThen cancel the transfer.\n\nDoes it match? Approve ' + a.shopName + '?';
+      }
       if (ask && !confirm(ask)) return;
       busy(t, true, '…');
       api('/api/admin/agents/' + t.getAttribute('data-id') + '/status', 'POST', { status: status })

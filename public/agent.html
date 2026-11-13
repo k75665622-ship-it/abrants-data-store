@@ -15,9 +15,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="/css/style.css?v=12" />
+<link rel="stylesheet" href="/css/style.css?v=13" />
 <link rel="stylesheet" href="/css/account.css?v=4" />
-<link rel="stylesheet" href="/css/agent.css?v=1" />
+<link rel="stylesheet" href="/css/agent.css?v=2" />
 </head>
 <body class="page-fill ag-page">
 
@@ -60,6 +60,7 @@
       <p class="ag-closed" id="joinClosed" hidden>Agent sign-up is closed right now.</p>
 
       <form id="joinForm" class="auth-form" novalidate>
+       <div class="ag-fields">
         <label class="field"><span>Your full name</span>
           <input name="name" type="text" autocomplete="name" maxlength="60" required />
         </label>
@@ -92,17 +93,17 @@
             </label>
           </div>
         </fieldset>
-        <details class="ag-terms">
-          <summary>Agent terms</summary>
-          <ul>
-            <li>You choose your selling prices. You keep the difference between your price and your agent price.</li>
-            <li>Your earning on an order becomes yours once it is delivered, and is paid to your MoMo.</li>
-            <li>A failed or refunded order earns nothing. If you were already paid for it, it comes off your next payout.</li>
-            <li>Only promise customers what the store offers. No spam, no fake accounts.</li>
-            <li>The store can change agent prices, and pause or close an agent account.</li>
-          </ul>
-        </details>
-        <label class="ag-check"><input type="checkbox" name="agree" /> <span>I accept the agent terms</span></label>
+        <label class="ag-check"><input type="checkbox" name="agree" id="agreeBox" /> <span>I have read and accept the <a href="/agent-terms.html" id="openTerms" class="ag-terms-link">agent terms</a></span></label>
+       </div>
+        <div class="ag-code" id="codeStep" hidden>
+          <label class="field"><span id="codeLabel">Code</span>
+            <input name="code" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" placeholder="6-digit code" />
+          </label>
+          <div class="ag-code-actions">
+            <button type="button" class="ag-linkbtn" id="resendCode">Send a new code</button>
+            <button type="button" class="ag-linkbtn" id="editDetails">Change my details</button>
+          </div>
+        </div>
         <button class="pay-btn" type="submit" id="joinBtn">Create my shop</button>
         <p class="ck-error" id="joinError" role="alert" hidden></p>
       </form>
@@ -143,6 +144,10 @@
     </section>
 
     <section class="ag-notice" id="agNotice" hidden></section>
+    <section class="ag-notice ag-terms-notice" id="termsNotice" hidden>
+      <span>The agent terms have changed.</span>
+      <button type="button" class="ag-btn ag-btn-dark" id="readNewTerms">Read and accept</button>
+    </section>
 
     <section class="ag-link-card" id="linkCard" hidden>
       <div class="ag-link-url" id="shopUrl"></div>
@@ -239,7 +244,20 @@
   </div>
 </footer>
 
+<div class="ag-modal" id="termsModal" role="dialog" aria-modal="true" aria-labelledby="termsTitle" hidden>
+  <div class="ag-modal-box">
+    <div class="ag-modal-head">
+      <h2 id="termsTitle">Agent terms</h2>
+      <button type="button" class="ag-modal-x" id="termsClose" aria-label="Close">×</button>
+    </div>
+    <div class="ag-modal-body" id="termsBody" tabindex="0"><div class="skeleton" style="min-height:240px"></div></div>
+    <div class="ag-modal-foot">
+      <button type="button" class="pay-btn" id="termsAgree" disabled>Read to the end</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast-stack" id="toastStack" aria-live="polite"></div>
-<script src="/js/agent.js?v=1"></script>
+<script src="/js/agent.js?v=2"></script>
 </body>
 </html>

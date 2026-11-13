@@ -137,6 +137,10 @@ async function move(reference, from, changes = {}) {
       try { await require('./agents').syncOrder('service', r.rows[0]); }
       catch (err) { console.warn('Agent earnings not updated for', reference, err.message); }
     }
+    // Text the customer (services/notify.js): only for a real change of status. Background; never throws.
+    if (changes.status && !froms.includes(changes.status)) {
+      try { require('./notify').serviceStatus(r.rows[0]); } catch (err) { console.warn('SMS skipped for', reference, err.message); }
+    }
   }
   return mapRow(r.rows[0]);
 }

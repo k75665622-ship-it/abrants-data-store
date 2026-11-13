@@ -514,3 +514,32 @@ Paused or closed agents, and the programme switched off, all mean the link shows
 
 **Neon**: agents are kept in memory, so opening a shop link costs no database query. The database is used when someone
 buys, when an agent or the owner opens their pages, and on payout day.
+
+**Sign-up**: agents read the terms (`/agent-terms.html`, also shown as a pop-up whose "I agree" only works once read to
+the end). The accepted version is saved (`agents.terms_version`, `TERMS_VERSION` in `services/agents.js`). After changing
+the terms, bump `TERMS_VERSION` and update the date on the page: every agent then sees "The agent terms have changed" on
+their dashboard until they read and accept them. With SMS set up (section 26), sign-up also needs a 6-digit code texted to
+the agent's phone. One MoMo number belongs to one agent.
+
+**Approving**: the store pays only into the MoMo number on the account, so before approving, start a MoMo transfer to that
+number and check that the name shown matches the agent's name, then cancel it. Admin reminds you when you press Approve.
+
+## 26. Text messages (SMS, Arkesel)
+
+The store texts customers and agents from its own name. Off until `ARKESEL_API_KEY` is set; nothing else changes without it.
+
+**Set up** (once): open an account at arkesel.com, buy SMS credit (about GH₵0.02–0.03 per SMS) and ask for a **sender ID**
+(the name people see, at most 11 letters, e.g. `ABRANTS`; approval takes a day or two). Then in Render → Environment add
+`ARKESEL_API_KEY` (from Arkesel → API Keys) and `SMS_SENDER` (the approved sender ID). Never paste the key anywhere else.
+Admin → Settings → Text messages shows the balance and the last messages, sends a test SMS and switches customer or agent
+messages off.
+
+**What is sent**
+- Data: when the order is placed with the network, when it is delivered (with the link to buy again) and when it
+  cannot be delivered (refund). Each one once per order, even when the network reports the same thing twice.
+- Result checkers: the Serial and PIN of every checker. AFA: received, approved (with the AFA ID), rejected or refunded.
+- Agents: the sign-up code, approved (with their shop link), paused, reopened, closed, and every payout.
+- Orders from an agent's shop are sent in the agent's shop name.
+
+Messages use plain characters only (`GHS`, not `GH₵`) so each fits in one SMS (160 characters). Sending happens in the
+background: a slow or failing SMS never holds up a payment, a delivery or a page. Network errors are tried once more.

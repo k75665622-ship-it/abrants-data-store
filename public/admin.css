@@ -738,3 +738,11 @@ body.has-selbar .toast-stack{bottom:calc(var(--nav-h) + var(--safe-b) + 150px)}
 .ag-price.warn .ag-price-gap{color:#ffb4b4;font-weight:700}
 @media (min-width:640px){.ag-price{grid-template-columns:minmax(0,1fr) 120px 130px}.ag-price-gap{grid-column:auto;text-align:right}}
 .ag-sub{margin:22px 0 8px;font-size:15px}
+
+/* Text messages (Settings) */
+#smsPanel .switch{white-space:normal;align-items:flex-start}
+#smsPanel .switch>span:last-child{padding-top:3px;line-height:1.4}
+.sms-test{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:4px 0 12px}
+.sms-test input{max-width:200px}
+.sms-log{display:grid;gap:8px;margin-top:6px}
+.sms-log .event strong{font-weight:600;white-space:pre-wrap;word-break:break-word}
