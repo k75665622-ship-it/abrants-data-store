@@ -10,7 +10,7 @@
 <link rel="icon" type="image/svg+xml" href="/icon.svg" />
 <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png" />
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-<link rel="stylesheet" href="admin.css?v=22" />
+<link rel="stylesheet" href="admin.css?v=23" />
 </head>
 <body>
 
@@ -538,6 +538,20 @@
               <div id="whResult" style="margin-top:14px"></div>
             </div>
           </div>
+
+          <div class="panel" style="margin-top:18px">
+            <div class="panel-head"><h3>Text messages (SMS)</h3></div>
+            <div class="panel-body" id="smsPanel">
+              <div id="smsState"></div>
+              <label class="switch" style="margin:10px 0 6px"><input type="checkbox" id="smsCustomers" /><span class="track"></span><span>Customers: order placed, delivered, PINs, AFA, refunds</span></label>
+              <label class="switch" style="margin:6px 0 12px"><input type="checkbox" id="smsAgents" /><span class="track"></span><span>Agents: approved, paused, paid</span></label>
+              <div class="sms-test">
+                <input id="smsTestPhone" type="tel" inputmode="numeric" maxlength="13" placeholder="0241234567" aria-label="Phone number for a test SMS" />
+                <button class="btn btn-ghost btn-sm" type="button" id="smsTestBtn">Send test SMS</button>
+              </div>
+              <div id="smsRecent"></div>
+            </div>
+          </div>
         </section>
 
         <!-- ------------------------ ACTIVITY LOG ---------------------- -->
@@ -691,10 +705,11 @@
 
 <div class="toast-stack" id="toastStack" aria-live="polite"></div>
 
-<script src="admin.js?v=21"></script>
+<script src="admin.js?v=22"></script>
 <script src="admin-customers.js"></script>
 <script src="admin-services.js?v=5"></script>
 <script src="admin-links.js?v=4"></script>
-<script src="admin-agents.js?v=2"></script>
+<script src="admin-agents.js?v=3"></script>
+<script src="admin-sms.js?v=1"></script>
 </body>
 </html>

@@ -52,6 +52,8 @@ const DEFAULT_SETTINGS = {
   maintenanceMessage: "We are doing a quick upgrade. Please check back in a few minutes.",
   lowWalletThreshold: 100,
   // Agent programme (services/agents.js). Off until the owner switches it on in Admin → Agents.
+  // Text messages (services/sms.js, services/notify.js): who gets them, once ARKESEL_API_KEY is set.
+  sms: { customers: true, agents: true },
   agents: {
     enabled: false, autoApprove: false, prices: {},
     holdHours: 24, minPayout: 20, payoutFee: 1,
@@ -325,13 +327,22 @@ async function updateOrder(reference, changes, eventType = 'order.updated') {
   if (!fields.length) return getOrder(reference);
   fields.push('updated_at = NOW()');
   values.push(reference);
+  // prev.old_status is the status before this change (the sub-select reads the row as it was), so a repeated
+  // update to the same status (Paystack sends several refund events) is not mistaken for a new step.
   const result = await pool.query(
-    `UPDATE orders SET ${fields.join(', ')} WHERE reference = $${next} RETURNING *`, values
+    `UPDATE orders SET ${fields.join(', ')}
+       FROM (SELECT reference AS prev_ref, status AS old_status FROM orders WHERE reference = $${next} FOR UPDATE) prev
+     WHERE orders.reference = prev.prev_ref RETURNING orders.*, prev.old_status`, values
   );
   if (!result.rows[0]) return null;
   await addEvent(reference, eventType, changes);
-  if (changes.status) await agentHook(result.rows[0]);
+  if (changes.status) { await agentHook(result.rows[0]); notifyHook(result.rows[0], result.rows[0].old_status); }
   return mapOrder(result.rows[0]);
+}
+
+// Text the customer about their order (services/notify.js). Runs in the background and never throws.
+function notifyHook(row, oldStatus) {
+  try { require('./notify').dataStatus(row, oldStatus); } catch (err) { console.warn('SMS skipped for', row.reference, err.message); }
 }
 
 // An order sold through an agent's shop: keep the agent's earnings in step with the order (services/agents.js).
@@ -397,7 +408,7 @@ async function transitionOrder(reference, fromStatus, changes, eventType = 'orde
   );
   if (!result.rows[0]) return null;
   await addEvent(reference, eventType, changes);
-  if (changes.status) await agentHook(result.rows[0]);
+  if (changes.status) { await agentHook(result.rows[0]); notifyHook(result.rows[0], fromStatus); }
   return mapOrder(result.rows[0]);
 }
 

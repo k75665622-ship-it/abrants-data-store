@@ -89,6 +89,9 @@ async function initAgentDb() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       UNIQUE (order_kind, order_ref, entry)
     );
+    -- Which version of the agent terms (public/agent-terms.html) the agent accepted, and when.
+    ALTER TABLE agents ADD COLUMN IF NOT EXISTS terms_version TEXT;
+    ALTER TABLE agents ADD COLUMN IF NOT EXISTS terms_accepted_at TIMESTAMPTZ;
     CREATE INDEX IF NOT EXISTS idx_agent_earnings_agent ON agent_earnings (agent_id, payout_id, status);
     CREATE TABLE IF NOT EXISTS agent_payouts (
       id BIGSERIAL PRIMARY KEY,
@@ -126,6 +129,7 @@ function mapAgent(r) {
     prices: r.prices && typeof r.prices === 'object' ? r.prices : {}, adminNote: r.admin_note || '',
     mustChangePassword: Boolean(r.must_change_password), createdAt: r.created_at, approvedAt: r.approved_at,
     lastLoginAt: r.last_login_at, momoChangedAt: r.momo_changed_at,
+    termsVersion: r.terms_version || null, termsAcceptedAt: r.terms_accepted_at || null,
   };
 }
 function remember(a) {
@@ -185,8 +189,16 @@ function cleanWhatsapp(v) {
 
 /* ------------------------------------------------------------------ accounts */
 
-async function register(input) {
-  const b = input || {};
+// The version of the agent terms (public/agent-terms.html). Change it whenever the terms change.
+const TERMS_VERSION = '2026-11-13';
+
+/** Another agent (of any status) already uses this MoMo number. One wallet, one agent. */
+function momoTaken(number, exceptId = null) {
+  return [...byId.values()].some((x) => x.momoNumber === number && x.id !== Number(exceptId));
+}
+
+/** Everything typed on the sign-up form, checked. -> { value } or { error, field } */
+async function checkSignup(b) {
   const s = await settingsNow();
   if (!s.enabled) return { error: 'Agent sign-up is closed right now.', status: 403 };
   const name = cleanText(b.name, 60);
@@ -195,25 +207,100 @@ async function register(input) {
   if (name.length < 2) return { error: 'Enter your full name.', field: 'name' };
   if (shopName.length < 2) return { error: 'Give your shop a name.', field: 'shopName' };
   if (!PHONE_RE.test(phone)) return { error: 'Enter a valid 10-digit phone number.', field: 'phone' };
+  if ([...byId.values()].some((x) => x.phone === phone)) return { error: 'This phone number already has an agent account. Log in instead.', status: 409, field: 'phone' };
   const problem = passwordProblem(b.password);
   if (problem) return { error: problem, field: 'password' };
   const momo = cleanMomo({ ...b, momoNumber: b.momoNumber || phone });
   if (momo.error) return momo;
-  if (b.agree !== true) return { error: 'Please accept the agent terms.', field: 'agree' };
+  if (momoTaken(momo.value.momoNumber)) return { error: 'This MoMo number is already used by another agent.', status: 409, field: 'momoNumber' };
+  if (b.agree !== true) return { error: 'Please read and accept the agent terms.', field: 'agree' };
+  return { value: { name, shopName, phone, password: b.password, ...momo.value }, settings: s };
+}
+
+/*
+ * Phone check at sign-up: a 6-digit code by SMS. The code is not stored anywhere: the page gets a signed note
+ * (phone, expiry and a fingerprint of the code) and sends it back with the code. Only when SMS is set up.
+ */
+const CODE_MINUTES = 10;
+const codeTries = new Map(); // note -> wrong codes so far
+const codeSends = new Map(); // phone -> { n, reset }
+function codeKey() {
+  const secret = process.env.CUSTOMER_SECRET || process.env.ADMIN_SECRET;
+  return secret ? crypto.createHmac('sha256', secret).update('abrants-agent-code-v1').digest() : null;
+}
+const codeHash = (phone, code, exp) => crypto.createHmac('sha256', codeKey()).update(`${phone}|${code}|${exp}`).digest('hex');
+function codeNote(phone, code) {
+  const exp = Date.now() + CODE_MINUTES * 60 * 1000;
+  const body = Buffer.from(JSON.stringify({ p: phone, e: exp, h: codeHash(phone, code, exp) })).toString('base64url');
+  return `${body}.${crypto.createHmac('sha256', codeKey()).update(body).digest('hex')}`;
+}
+function codeOk(note, phone, code) {
+  const [body, sig] = String(note || '').split('.');
+  if (!body || !/^[a-f0-9]{64}$/.test(sig || '') || !codeKey()) return 'Ask for a new code.';
+  const expected = crypto.createHmac('sha256', codeKey()).update(body).digest('hex');
+  if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return 'Ask for a new code.';
+  let n; try { n = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')); } catch { return 'Ask for a new code.'; }
+  if (n.p !== phone) return 'The code was sent to a different number. Ask for a new code.';
+  if (!(Date.now() < n.e)) return 'That code has expired. Ask for a new one.';
+  const tries = codeTries.get(body) || 0;
+  if (tries >= 5) return 'Too many wrong codes. Ask for a new one.';
+  if (!/^\d{6}$/.test(String(code || '').trim()) || codeHash(phone, String(code).trim(), n.e) !== n.h) {
+    codeTries.set(body, tries + 1);
+    if (codeTries.size > 5000) codeTries.clear();
+    return 'That code is not right. Check the SMS and try again.';
+  }
+  codeTries.set(body, 99); // a code works once
+  return null;
+}
+
+/** Step 1 of sign-up: checks the form and texts a code. -> { codeNeeded: false } when SMS is not set up. */
+async function startSignup(input) {
+  const v = await checkSignup(input || {});
+  if (v.error) return v;
+  const sms = lazy('sms');
+  if (!sms.configured() || !codeKey()) return { codeNeeded: false };
+  const phone = v.value.phone;
+  const now = Date.now();
+  let c = codeSends.get(phone);
+  if (!c || now >= c.reset) c = { n: 0, reset: now + 30 * 60 * 1000 };
+  if (c.n >= 3) return { error: 'We have sent you 3 codes already. Wait 30 minutes and try again.', status: 429 };
+  c.n += 1; codeSends.set(phone, c);
+  if (codeSends.size > 5000) for (const [k, x] of codeSends) if (x.reset <= now) codeSends.delete(k);
+  const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+  try { await lazy('notify').agentCode(phone, code); }
+  catch (err) {
+    console.warn('Agent code SMS failed:', err.message);
+    return { error: 'We could not send the code to that number. Check it and try again.', status: 502, field: 'phone' };
+  }
+  return { codeNeeded: true, codeToken: codeNote(phone, code), sentTo: phone.slice(0, 3) + '••••' + phone.slice(7) };
+}
+
+/** Step 2 (or the only step when SMS is not set up): creates the account. */
+async function register(input) {
+  const b = input || {};
+  const v = await checkSignup(b);
+  if (v.error) return v;
+  const { name, shopName, phone, momoNumber, momoNetwork, momoName } = v.value;
+  if (lazy('sms').configured() && codeKey()) {
+    const problem = codeOk(b.codeToken, phone, b.code);
+    if (problem) return { error: problem, field: 'code' };
+  }
 
   const hash = await hashPassword(b.password);
-  const status = s.autoApprove ? 'active' : 'pending';
+  const status = v.settings.autoApprove ? 'active' : 'pending';
   const base = slugBase(shopName);
   const tries = [base, ...[2, 3, 4, 5, 6, 7, 8, 9].map((n) => `${base}-${n}`), `${base}-${crypto.randomBytes(2).toString('hex')}`];
   for (const slug of tries) {
     try {
       const r = await pool.query(
-        `INSERT INTO agents (slug, name, shop_name, phone, password_hash, status, whatsapp, momo_number, momo_network, momo_name, approved_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, CASE WHEN $6 = 'active' THEN NOW() END) RETURNING *`,
-        [slug, name, shopName, phone, hash, status, phone, momo.value.momoNumber, momo.value.momoNetwork, momo.value.momoName]
+        `INSERT INTO agents (slug, name, shop_name, phone, password_hash, status, whatsapp, momo_number, momo_network, momo_name, approved_at,
+           terms_version, terms_accepted_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, CASE WHEN $6 = 'active' THEN NOW() END, $11, NOW()) RETURNING *`,
+        [slug, name, shopName, phone, hash, status, phone, momoNumber, momoNetwork, momoName, TERMS_VERSION]
       );
       const agent = remember(mapAgent(r.rows[0]));
-      if (status === 'pending') await alert('info', `New agent waiting for approval: ${agent.shopName} (${agent.name}, ${agent.phone}). See Admin → Agents.`);
+      if (status === 'pending') await alert('info', `New agent waiting for approval: ${agent.shopName} (${agent.name}, ${agent.phone}). Check the MoMo name, then approve in Admin → Agents.`);
+      else lazy('notify').agentStatus(agent, 'pending');
       return { agent };
     } catch (err) {
       if (err.code !== '23505') throw err;
@@ -243,6 +330,12 @@ async function updateProfile(id, b) {
   return { agent: await reload(id) };
 }
 
+/** The agent read and accepted the current terms (shown on the dashboard after the terms change). */
+async function acceptTerms(id) {
+  await pool.query('UPDATE agents SET terms_version = $2, terms_accepted_at = NOW() WHERE id = $1', [id, TERMS_VERSION]);
+  return { agent: await reload(id) };
+}
+
 async function updateMomo(id, b) {
   const a = getAgent(id);
   if (!a) return { error: 'Not found.', status: 404 };
@@ -251,6 +344,7 @@ async function updateMomo(id, b) {
   if (m.error) return m;
   const same = m.value.momoNumber === a.momoNumber && m.value.momoNetwork === a.momoNetwork && m.value.momoName === a.momoName;
   if (same) return { agent: a };
+  if (momoTaken(m.value.momoNumber, a.id)) return { error: 'This MoMo number is already used by another agent.', field: 'momoNumber', status: 409 };
   // A new MoMo number waits a day before automatic payouts use it: if someone else got into the account,
   // the store has time to notice before money goes to them.
   await pool.query(`UPDATE agents SET momo_number = $2, momo_network = $3, momo_name = $4, recipient_code = NULL, recipient_for = NULL,
@@ -277,8 +371,11 @@ async function resetPassword(id) {
 
 async function setStatus(id, status) {
   if (!STATUSES.includes(status) || status === 'pending') return null;
+  const before = getAgent(id);
   await pool.query(`UPDATE agents SET status = $2, approved_at = CASE WHEN $2 = 'active' THEN COALESCE(approved_at, NOW()) ELSE approved_at END WHERE id = $1`, [id, status]);
-  return reload(id);
+  const after = await reload(id);
+  if (after && before) lazy('notify').agentStatus(after, before.status); // approved / paused / closed / reopened, by SMS
+  return after;
 }
 
 async function setNote(id, note) {
@@ -619,7 +716,9 @@ async function setPayout(id, changes, fromStatuses) {
   const r = await pool.query(`UPDATE agent_payouts SET ${sets.join(', ')} WHERE id = $${vals.length - 1} AND status = ANY($${vals.length}) RETURNING *`, vals);
   if (!r.rows[0]) return null;
   if (changes.status === 'failed') await release(Number(id));
-  return mapPayout(r.rows[0]);
+  const p = mapPayout(r.rows[0]);
+  if (changes.status === 'paid') lazy('notify').agentPaid(getAgent(p.agentId), p);
+  return p;
 }
 
 async function alert(level, text) { try { await lazy('fulfillment').addAlert(level, text); } catch (e) { /* alerts are best effort */ } }
@@ -661,7 +760,11 @@ async function createPayout(agentId, { method, note = '', trigger = 'admin', ign
     await client.query('ROLLBACK').catch(() => {});
     throw err;
   } finally { client.release(); }
-  if (method === 'manual') return { payout: await getPayout(payout.id) };
+  if (method === 'manual') {
+    const done = await getPayout(payout.id);
+    lazy('notify').agentPaid(a, done);
+    return { payout: done };
+  }
   return { payout: await sendTransfer(payout, a) };
 }
 
@@ -808,7 +911,7 @@ async function autoPayoutTick() {
 function publicAgent(a) {
   return { id: a.id, name: a.name, shopName: a.shopName, slug: a.slug, phone: a.phone, status: a.status, whatsapp: a.whatsapp,
     momoNumber: a.momoNumber, momoNetwork: a.momoNetwork, momoName: a.momoName, createdAt: a.createdAt, approvedAt: a.approvedAt,
-    mustChangePassword: a.mustChangePassword };
+    mustChangePassword: a.mustChangePassword, termsVersion: a.termsVersion, termsAcceptedAt: a.termsAcceptedAt };
 }
 function adminAgent(a, b) {
   return { ...publicAgent(a), adminNote: a.adminNote, lastLoginAt: a.lastLoginAt, momoChangedAt: a.momoChangedAt,
@@ -853,7 +956,7 @@ async function dashboard(a) {
   const b = (await balances([a.id])).get(a.id) || { readyGHS: 0, heldGHS: 0, onTheWayGHS: 0, sendingGHS: 0, paidGHS: 0, earnedGHS: 0, sales: 0 };
   return {
     agent: publicAgent(a),
-    programme: { open: s.enabled, minPayoutGHS: s.minPayout, payoutFeeGHS: s.payoutFee, holdHours: s.holdHours,
+    programme: { open: s.enabled, minPayoutGHS: s.minPayout, payoutFeeGHS: s.payoutFee, holdHours: s.holdHours, termsVersion: TERMS_VERSION,
       payoutDay: s.autoPayout && s.payoutMethod === 'paystack' ? s.payoutDay : null,
       // What share of the amount added on top of the agent price reaches the agent (Paystack's cut when the store pays it).
       marginFactor: (await getSettings()).customerPaysFee !== false ? 1 : 1 - feeRate() },
@@ -866,7 +969,7 @@ async function dashboard(a) {
 }
 
 module.exports = {
-  initAgentDb, loadAgents, getAgent, shopAgent, register, login, updateProfile, updateMomo, changePassword, resetPassword,
+  initAgentDb, loadAgents, getAgent, shopAgent, startSignup, register, login, TERMS_VERSION, acceptTerms, updateProfile, updateMomo, changePassword, resetPassword,
   setStatus, setNote, setSession, clearSession, agentFromRequest, products, agentProducts, setAgentPrices, setBasePrices,
   saveProgramme, settingsNow, quoteData, quoteChecker, quoteAfa, earning, syncOrder, reconcile, balances, sales, payouts,
   getPayout, createPayout, submitOtp, checkPayout, markPayout, transferEvent, payAllDue, autoPayoutTick, overview,

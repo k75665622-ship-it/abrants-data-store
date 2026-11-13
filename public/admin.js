@@ -166,7 +166,7 @@
     if (name === 'links' && window.AbrantsLinks) window.AbrantsLinks.load();
     if (name === 'agents' && window.AbrantsAgents) window.AbrantsAgents.load();
     if (name === 'numbers') loadBlocked();
-    if (name === 'settings') { loadSettings(); loadProviders(); }
+    if (name === 'settings') { loadSettings(); loadProviders(); if (window.AbrantsSms) window.AbrantsSms.load(); }
     if (name === 'activity') loadAudit();
 
     window.scrollTo({ top: 0, behavior: 'smooth' });

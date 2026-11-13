@@ -46,10 +46,19 @@ function requireAgent(req, res, next) {
 pub.get('/programme', async (req, res) => {
   const s = await agents.settingsNow();
   res.setHeader('Cache-Control', 'no-store');
-  res.json({ open: s.enabled, autoApprove: s.autoApprove, networks: agents.NETWORKS });
+  res.json({ open: s.enabled, autoApprove: s.autoApprove, networks: agents.NETWORKS, termsVersion: agents.TERMS_VERSION });
 });
 
-pub.post('/register', limit('agent-register', 60 * 60 * 1000, 8), async (req, res) => {
+// Step 1: check the form and text a code to the phone (when SMS is set up).
+pub.post('/register/code', limit('agent-code', 60 * 60 * 1000, 20), async (req, res) => {
+  try {
+    const out = await agents.startSignup(req.body);
+    if (out.error) return fail(res, out);
+    res.json(out);
+  } catch (err) { console.error('Agent code error:', err.message); res.status(500).json({ error: 'Could not send the code. Please try again.' }); }
+});
+
+pub.post('/register', limit('agent-register', 60 * 60 * 1000, 20), async (req, res) => {
   try {
     const out = await agents.register(req.body);
     if (out.error) return fail(res, out);
@@ -98,6 +107,13 @@ pub.put('/profile', requireAgent, async (req, res) => {
   try {
     const out = await agents.updateProfile(req.agent.id, req.body || {});
     if (out.error) return fail(res, out);
+    res.json({ agent: agents.publicAgent(out.agent) });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Could not save.' }); }
+});
+
+pub.post('/terms', requireAgent, async (req, res) => {
+  try {
+    const out = await agents.acceptTerms(req.agent.id);
     res.json({ agent: agents.publicAgent(out.agent) });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Could not save.' }); }
 });
