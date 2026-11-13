@@ -352,6 +352,16 @@ a.need:active{transform:scale(.985)}
 }
 .need-help-btn:active{transform:translateY(1px)}
 
+/* Become an agent (only while the agent programme is on) */
+.need-agent{
+  --c:var(--yellow);--c-soft:rgba(255,210,28,.16);
+  grid-column:1/-1;min-height:0;background:var(--navy);border-color:var(--navy);color:#fff;
+}
+.need-agent .need-ico{background:var(--yellow);color:var(--navy);font:700 22px/1 var(--display)}
+.need-agent .need-txt{color:#aeb7c9}
+.need-agent .need-go{margin-top:12px;padding:12px 18px;border-radius:999px;background:var(--yellow);color:var(--navy)}
+@media (hover:hover){a.need-agent:hover{border-color:var(--navy-3)}}
+
 /* How buying works */
 .buy-steps{list-style:none;counter-reset:st;margin:0;padding:0;display:grid;gap:10px}
 .buy-steps li{
@@ -711,3 +721,24 @@ body.has-mobilebar{padding-bottom:82px}
 .shop-bar-chat{flex:none;display:inline-flex;align-items:center;min-height:32px;padding:0 12px;border-radius:999px;background:#25d366;color:#06301a;font-weight:700;font-size:13px}
 /* The store's own accounts and offers do not apply in an agent's shop. */
 .in-shop #accountLink,.in-shop .footer-account,.in-shop #memberPromo,.in-shop #offerBanner,.in-shop #guestHint,.in-shop .agent-cta,.in-shop .bar-icon[href="/account.html"]{display:none !important}
+
+/* "Become an agent" invite: a small card above the phone bar, never covering the checkout. */
+.agent-pop{
+  position:fixed;left:12px;right:12px;bottom:calc(84px + var(--safe-b));z-index:110;
+  display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12px;align-items:center;
+  background:var(--navy);color:#fff;border-radius:var(--r-lg);padding:16px 16px 14px;box-shadow:var(--shadow-lg);
+  transform:translateY(16px);opacity:0;transition:transform .28s cubic-bezier(.22,1,.36,1),opacity .2s ease;
+}
+.agent-pop[hidden]{display:none}
+.agent-pop.open{transform:none;opacity:1}
+.agent-pop-ico{grid-row:1;width:44px;height:44px;border-radius:14px;display:grid;place-items:center;background:var(--yellow);color:var(--navy);font:700 22px/1 var(--display)}
+.agent-pop-txt{grid-row:1;padding-right:26px;display:grid;gap:2px}
+.agent-pop-txt strong{font:700 17px/1.2 var(--display);letter-spacing:-.01em}
+.agent-pop-txt span{font-size:13.5px;color:#aeb7c9;line-height:1.45}
+.agent-pop-go{grid-column:1/-1;margin-top:10px;display:flex;align-items:center;justify-content:center;min-height:48px;border-radius:var(--r);background:linear-gradient(180deg,var(--yellow),var(--yellow-2));color:var(--navy);font-weight:700;font-size:15px}
+.agent-pop-x{position:absolute;top:8px;right:8px;width:36px;height:36px;border-radius:50%;color:#aeb7c9;font-size:22px;line-height:1;display:grid;place-items:center}
+.agent-pop-x:hover{background:rgba(255,255,255,.08);color:#fff}
+@media (prefers-reduced-motion:reduce){.agent-pop{transition:none}}
+@media (min-width:900px){
+  .agent-pop{left:auto;right:24px;bottom:24px;width:380px}
+}

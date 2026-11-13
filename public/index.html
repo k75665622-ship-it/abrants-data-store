@@ -18,7 +18,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="/css/style.css?v=12" />
+<link rel="stylesheet" href="/css/style.css?v=13" />
 </head>
 <body class="has-mobilebar">
 
@@ -76,6 +76,12 @@
         <span class="need-hook">258 MTN minutes for GH₵10&nbsp;a&nbsp;month</span>
         <span class="need-txt">One of the cheapest call bundles on MTN. Register once with your Ghana Card.</span>
         <span class="need-go">Get started <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></span>
+      </a>
+      <a class="need need-agent" id="needAgent" href="/agent.html" hidden>
+        <span class="need-ico" aria-hidden="true">₵</span>
+        <b>Become an agent</b>
+        <span class="need-txt">Sell data with your own shop link and earn on every sale.</span>
+        <span class="need-go">Start earning <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></span>
       </a>
       <div class="need need-help" id="needHelp" hidden>
         <span class="need-ico"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-12.3 7.5L3 20.5l1.6-5.2A8.4 8.4 0 1 1 21 11.5z"/></svg></span>
@@ -302,10 +308,17 @@
   </div>
 </div>
 
+<div class="agent-pop" id="agentPop" role="dialog" aria-labelledby="agentPopTitle" hidden>
+  <button type="button" class="agent-pop-x" id="agentPopClose" aria-label="Close">×</button>
+  <span class="agent-pop-ico" aria-hidden="true">₵</span>
+  <div class="agent-pop-txt"><strong id="agentPopTitle">Become an agent</strong><span>Sell data with your own shop link. Earn on every sale.</span></div>
+  <a class="agent-pop-go" id="agentPopGo" href="/agent.html">Start earning</a>
+</div>
+
 <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="false"></div>
 
 <script src="/js/track.js?v=2"></script>
 <script src="/js/shop.js?v=1"></script>
-<script src="/js/app.js?v=13"></script>
+<script src="/js/app.js?v=14"></script>
 </body>
 </html>
