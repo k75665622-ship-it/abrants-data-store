@@ -67,9 +67,11 @@ app.get('/api/ping', (req, res) => {
 app.use('/api/webhook/paystack', express.raw({ type: 'application/json', limit: '256kb' }));
 app.use('/api/webhook/datahustle', express.raw({ type: 'application/json', limit: '256kb' }));
 
+// An agent's logo upload is the one bigger request (the page shrinks the picture first; services/agentShop.js checks it).
+app.use('/api/agent/logo', express.json({ limit: '260kb' }));
 // Everything else can be parsed as normal JSON with a deliberately small body limit.
 app.use((req, res, next) => {
-  if (req.path === '/api/webhook/paystack' || req.path === '/api/webhook/datahustle') return next();
+  if (req.path === '/api/webhook/paystack' || req.path === '/api/webhook/datahustle' || req.path === '/api/agent/logo') return next();
   express.json({ limit: '32kb' })(req, res, next);
 });
 
@@ -84,8 +86,30 @@ app.use('/api', apiRoutes);
 // Pages that are gone: bill payments (removed) and the get-started page (now part of the home page).
 // Old links open the store; the browser keeps a #section, so /welcome.html#afa lands on the AFA section.
 app.get(['/bills.html', '/welcome.html'], (req, res) => res.redirect(302, '/'));
-// An agent's shop: the normal store, which shows that agent's prices (public/js/shop.js). /agent is their own page.
-app.get(/^\/s\/[A-Za-z0-9-]{1,40}\/?$/, (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+// An agent's own shop page (services/agentShop.js): public/shop.html with the shop's details written in, from memory.
+// /agent is the agent's own page.
+const agentShop = require('./services/agentShop');
+app.get(/^\/s\/([A-Za-z0-9-]{1,40})\/?$/, async (req, res) => {
+  try {
+    const out = await agentShop.render(req, req.params[0]);
+    res.setHeader('Cache-Control', 'private, no-store'); // it knows whether the visitor is the shop's owner
+    res.status(out.status).type('html').send(out.html);
+  } catch (err) { console.error('Shop page:', err.message); res.redirect(302, '/'); }
+});
+app.get(/^\/s\/([A-Za-z0-9-]{1,40})\/logo$/, async (req, res) => {
+  try {
+    const logo = await agentShop.getLogo(req.params[0]);
+    if (!logo) return res.status(404).end();
+    res.setHeader('Cache-Control', String(req.query.v) === String(logo.v) ? 'public, max-age=31536000, immutable' : 'public, max-age=300');
+    res.type(logo.type).send(logo.data);
+  } catch (err) { res.status(500).end(); }
+});
+app.get(/^\/s\/([A-Za-z0-9-]{1,40})\/qr\.svg$/, (req, res) => {
+  const a = require('./services/agents').bySlug.get(req.params[0].toLowerCase());
+  if (!a || a.status === 'deleted') return res.status(404).end();
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  res.type('image/svg+xml').send(agentShop.qrSvg(`${agentShop.origin(req)}/s/${a.slug}`));
+});
 app.get('/agent', (req, res) => res.redirect(302, '/agent.html'));
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -130,6 +154,11 @@ initDb()
       const agentPay = () => require('./services/agents').autoPayoutTick().catch((e) => console.warn('Agent payouts failed:', e.message));
       setInterval(agentPay, 60 * 60 * 1000).unref();
       setTimeout(agentPay, 5 * 60 * 1000).unref();
+      // Agents: shops paused for a set time reopen by themselves; closing shops are deleted once nothing is owed.
+      // From memory every 5 minutes; the database only when a shop is due.
+      const agentCare = () => require('./services/agentCare').tick().catch((e) => console.warn('Agent check failed:', e.message));
+      setInterval(agentCare, 5 * 60 * 1000).unref();
+      setTimeout(agentCare, 60 * 1000).unref();
       // Render's free plan: stay awake (never touches the database).
       require('./services/keepAwake').startKeepAwake();
       // Out of stock handling: try the first provider again / reopen paused networks after an hour.

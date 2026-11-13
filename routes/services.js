@@ -36,9 +36,13 @@ pub.get('/', async (req, res) => {
     const chk = (x) => (shop ? agents.quoteChecker(shop, x, 1, s).unitGHS : x.price);
     const afa = (x) => (shop ? agents.quoteAfa(shop, x, s).unitGHS : x.price);
     res.setHeader('Cache-Control', 'no-store');
+    // In a shop: only what the agent sells.
+    const sold = (key) => !shop || agents.sells(shop, key);
     res.json({
-      checkers: c.checkers.filter((x) => x.available).map((x) => ({ code: x.code, name: x.name, price: chk(x), charge: chargeFor(chk(x), customerPays), stock: x.stock })),
-      afa: c.afa.available ? { price: afa(c.afa), charge: chargeFor(afa(c.afa), customerPays) } : null,
+      checkers: c.checkers.filter((x) => x.available && sold(agents.keyForChecker(x.code)))
+        .map((x) => ({ code: x.code, name: x.name, price: chk(x), charge: chargeFor(chk(x), customerPays), stock: x.stock,
+          popular: Boolean(shop && shop.featured.includes(agents.keyForChecker(x.code))) })),
+      afa: c.afa.available && sold(agents.KEY_AFA) ? { price: afa(c.afa), charge: chargeFor(afa(c.afa), customerPays) } : null,
       regions: c.regions, customerPaysFee: customerPays, feeRate: feeRate(),
     });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Could not load.' }); }
@@ -59,6 +63,7 @@ pub.post('/checkout', limit(15), optionalCustomer(), async (req, res) => {
     if (b.kind === 'checker') {
       const item = c.checkers.find((x) => x.code === String(b.code || '').toUpperCase());
       if (!item || !item.available) return res.status(409).json({ error: 'This checker is not available right now.' });
+      if (shop && !agents.sells(shop, agents.keyForChecker(item.code))) return res.status(409).json({ error: 'This shop does not sell this checker.' });
       const quantity = Math.floor(Number(b.quantity || 1));
       if (!(quantity >= 1 && quantity <= 5)) return res.status(400).json({ error: 'Choose 1 to 5 checkers.', field: 'quantity' });
       if (item.stock != null && item.stock < quantity) return res.status(409).json({ error: `Only ${item.stock} left.`, field: 'quantity' });
@@ -72,6 +77,7 @@ pub.post('/checkout', limit(15), optionalCustomer(), async (req, res) => {
       }
     } else if (b.kind === 'afa') {
       if (!c.afa.available) return res.status(409).json({ error: 'AFA registration is not available right now.' });
+      if (shop && !agents.sells(shop, agents.KEY_AFA)) return res.status(409).json({ error: 'This shop does not offer AFA registration.' });
       const v = svc.cleanAfa(b);
       if (v.error) return res.status(400).json({ error: v.error, field: v.field });
       order = { kind: 'afa', code: 'AFA', name: 'AFA registration', quantity: 1, phone: v.phone, afa: v.afa,

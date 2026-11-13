@@ -1,11 +1,13 @@
 /*
  * Agent programme API (see services/agents.js).
  *   /api/agent/*          the agent's own account: sign up, log in, prices, sales, payouts, MoMo details
- *   /api/shop/:slug       what a shop link shows (public, memory only)
+ *   /api/shop/:slug       what a shop link shows (public, memory only); the page itself is /s/:slug (server.js)
  *   /api/admin/agents/*   Admin → Agents (mounted after requireAdmin)
  */
 const express = require('express');
 const agents = require('../services/agents');
+const care = require('../services/agentCare');
+const shop = require('../services/agentShop');
 const { siteOrigin } = require('../services/siteUrl');
 
 /* Small in-memory limiters (one server instance). */
@@ -97,7 +99,9 @@ pub.get('/sales', requireAgent, async (req, res) => {
 
 pub.put('/prices', requireAgent, limit('agent-prices', 60 * 1000, 30), async (req, res) => {
   try {
-    const out = await agents.setAgentPrices(req.agent.id, req.body && req.body.prices);
+    const b = req.body || {};
+    const show = b.hidden !== undefined || b.featured !== undefined ? { hidden: b.hidden, featured: b.featured } : null;
+    const out = await agents.setAgentPrices(req.agent.id, b.prices, show);
     if (out.error) return fail(res, out);
     res.json({ products: await agents.agentProducts(out.agent) });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Could not save your prices.' }); }
@@ -116,6 +120,56 @@ pub.post('/terms', requireAgent, async (req, res) => {
     const out = await agents.acceptTerms(req.agent.id);
     res.json({ agent: agents.publicAgent(out.agent) });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Could not save.' }); }
+});
+
+// Who is logged in, for the home page's "My shop" and the shop page. Memory only.
+pub.get('/whoami', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  const a = agents.agentFromRequest(req);
+  if (!a) return res.status(401).json({ error: 'Please log in.' });
+  const p = agents.publicAgent(a);
+  res.json({ shopName: p.shopName, slug: p.slug, status: p.status, logo: p.logo, theme: p.theme, unread: p.unread, strikes: p.strikes });
+});
+
+// My shop: name, WhatsApp, about line, announcement, colour.
+pub.put('/shop', requireAgent, limit('agent-shop', 60 * 1000, 30), async (req, res) => {
+  try {
+    const out = await shop.updateShop(req.agent.id, req.body || {});
+    if (out.error) return fail(res, out);
+    res.json({ agent: agents.publicAgent(out.agent) });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Could not save your shop.' }); }
+});
+
+// Logo or photo, as a data URL (the page shrinks it first). server.js lets this one request be bigger than the rest.
+pub.post('/logo', requireAgent, limit('agent-logo', 60 * 60 * 1000, 30), async (req, res) => {
+  try {
+    const out = await shop.setLogo(req.agent.id, req.body && req.body.image);
+    if (out.error) return fail(res, out);
+    res.json({ agent: agents.publicAgent(out.agent) });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Could not save your picture.' }); }
+});
+pub.delete('/logo', requireAgent, async (req, res) => {
+  try { res.json({ agent: agents.publicAgent((await shop.removeLogo(req.agent.id)).agent) }); }
+  catch (err) { console.error(err); res.status(500).json({ error: 'Could not remove your picture.' }); }
+});
+
+pub.get('/messages', requireAgent, async (req, res) => {
+  try { res.setHeader('Cache-Control', 'no-store'); res.json(await care.messages(req.agent.id, { limit: 60 })); }
+  catch (err) { console.error(err); res.status(500).json({ error: 'Could not load your messages.' }); }
+});
+pub.post('/messages/read', requireAgent, async (req, res) => {
+  try { await care.markRead(req.agent.id); res.json({ ok: true }); }
+  catch (err) { console.error(err); res.status(500).json({ error: 'Could not save.' }); }
+});
+
+// Delete my shop (Settings). Closed at once; deleted when nothing is owed any more.
+pub.post('/delete', requireAgent, limit('agent-delete', 15 * 60 * 1000, 10), async (req, res) => {
+  try {
+    const out = await care.selfDelete(req.agent.id, req.body && req.body.password);
+    if (out.error) return fail(res, out);
+    agents.clearSession(res);
+    res.json(out);
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Could not delete your shop.' }); }
 });
 
 pub.put('/momo', requireAgent, limit('agent-momo', 15 * 60 * 1000, 10), async (req, res) => {
@@ -138,9 +192,8 @@ pub.put('/password', requireAgent, limit('agent-password', 15 * 60 * 1000, 10), 
 /* ================================================================ shop link (public) */
 async function shopInfo(req, res) {
   res.setHeader('Cache-Control', 'no-store');
-  const a = await agents.shopAgent(req.params.slug);
-  if (!a) return res.json({ open: false });
-  res.json({ open: true, slug: a.slug, name: a.shopName, whatsapp: a.whatsapp || '' });
+  const { a, open, owner } = await shop.shopFor(req, req.params.slug);
+  res.json(shop.view(a, { open, owner }));
 }
 
 /* ================================================================ admin */
@@ -208,11 +261,57 @@ function admin(audit) {
   r.post('/:id/status', wrap(async (req, res) => {
     const status = String(req.body?.status || '');
     if (!['active', 'suspended', 'rejected'].includes(status)) return res.status(400).json({ error: 'Choose approve, suspend or close.' });
+    const cur = agents.getAgent(req.params.id);
+    if (cur && cur.deleteRequestedAt) return res.status(409).json({ error: 'This shop is being deleted.' });
     const a = await agents.setStatus(req.params.id, status);
     if (!a) return res.status(404).json({ error: 'Agent not found.' });
     await audit(req, 'agents.status', { id: a.id, shop: a.shopName, status });
     res.json(agents.publicAgent(a));
   }, 'Could not change the agent.'));
+
+  // The inbox, strikes, pausing for a set time and deleting (services/agentCare.js).
+  const careRoute = (name, fn, msg) => r.post(name, wrap(async (req, res) => {
+    const out = await fn(req);
+    if (out.error) return fail(res, out);
+    res.json(out);
+  }, msg));
+  careRoute('/message-all', async (req) => {
+    const out = await care.messageAll({ text: req.body?.text, sms: req.body?.sms === true });
+    if (!out.error) await audit(req, 'agents.message_all', { sent: out.sent, sms: req.body?.sms === true });
+    return out;
+  }, 'Could not send the message.');
+  careRoute('/:id/message', async (req) => {
+    const out = await care.sendMessage(req.params.id, { text: req.body?.text, sms: req.body?.sms !== false });
+    if (!out.error) await audit(req, 'agents.message', { id: Number(req.params.id) });
+    return out;
+  }, 'Could not send the message.');
+  careRoute('/:id/strike', async (req) => {
+    const out = await care.strike(req.params.id, { reason: req.body?.reason, sms: req.body?.sms !== false });
+    if (!out.error) await audit(req, 'agents.strike', { id: Number(req.params.id), strikes: out.strikes });
+    return out;
+  }, 'Could not give the strike.');
+  careRoute('/:id/strikes/:mid/remove', async (req) => {
+    const out = await care.removeStrike(req.params.id, req.params.mid);
+    if (!out.error) await audit(req, 'agents.strike_removed', { id: Number(req.params.id), message: Number(req.params.mid) });
+    return out;
+  }, 'Could not remove the strike.');
+  careRoute('/:id/pause', async (req) => {
+    const out = await care.pause(req.params.id, { reason: req.body?.reason, days: req.body?.days, sms: req.body?.sms !== false });
+    if (out.error) return out;
+    await audit(req, 'agents.pause', { id: Number(req.params.id), days: Number(req.body?.days) });
+    return { agent: agents.publicAgent(out.agent) };
+  }, 'Could not pause the shop.');
+  careRoute('/:id/delete', async (req) => {
+    const out = await care.remove(req.params.id, { by: 'admin', reason: req.body?.reason, pay: req.body?.pay !== false, block: req.body?.block === true });
+    if (!out.error) await audit(req, 'agents.delete', { id: Number(req.params.id), pay: req.body?.pay !== false, block: req.body?.block === true, deleted: out.deleted });
+    return out;
+  }, 'Could not delete the shop.');
+  careRoute('/:id/remove-logo', async (req) => {
+    if (!agents.getAgent(req.params.id)) return { error: 'Agent not found.', status: 404 };
+    await shop.removeLogo(Number(req.params.id));
+    await audit(req, 'agents.remove_logo', { id: Number(req.params.id) });
+    return { ok: true };
+  }, 'Could not remove the picture.');
 
   r.post('/:id/note', wrap(async (req, res) => {
     const a = await agents.setNote(req.params.id, req.body?.note);

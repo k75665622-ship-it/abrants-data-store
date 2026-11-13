@@ -113,13 +113,15 @@ router.get('/plans', optionalCustomer(), async (req, res) => {
     const shop = req.query.shop ? await agents.shopAgent(req.query.shop) : null;
     if (shop) {
       const settings = await getSettings();
-      return res.json(plans.map((p) => {
+      // Only what the agent sells; the bundles they marked "Popular" say so.
+      return res.json(plans.filter((p) => agents.sells(shop, agents.keyForPlan(p.id))).map((p) => {
         const q = agents.quoteData(shop, p, settings);
         return {
           id: p.id, network: p.network, networkCode: p.networkCode, capacityGB: p.capacityGB, label: p.label, validity: p.validity,
           priceGHS: q.priceGHS, pricePerGB: p.capacityGB > 0 ? q.priceGHS / p.capacityGB : q.priceGHS, special: false,
+          popular: shop.featured.includes(agents.keyForPlan(p.id)),
         };
-      }));
+      }).sort((x, y) => Number(y.popular) - Number(x.popular))); // popular first, otherwise the usual order
     }
     const offers = req.customer ? await listOffers(req.customer.id, { onlyUsable: true }) : [];
     res.json(plans.map((p) => {
@@ -195,6 +197,7 @@ router.post('/checkout', checkoutLimit, optionalCustomer(), async (req, res) => 
     // The price is always worked out here from the database, never taken from the browser.
     // In an agent's shop it is the agent's price (store offers do not apply there).
     const shop = req.body?.shop ? await agents.shopAgent(req.body.shop) : null;
+    if (shop && !agents.sells(shop, agents.keyForPlan(plan.id))) return res.status(409).json({ error: 'This shop does not sell this bundle.' });
     const agentQuote = shop ? agents.quoteData(shop, plan, settings) : null;
     const offers = req.customer && !shop ? await listOffers(req.customer.id, { onlyUsable: true }) : [];
     const quote = agentQuote ? { priceGHS: agentQuote.priceGHS, offerId: null } : resolvePrice(plan, offers);

@@ -12,6 +12,9 @@
   var CUSTOMER = null;
 
   var $ = function (id) { return document.getElementById(id); };
+  // Parts of the home page that an agent's shop page (shop.html) does not have.
+  var some = function (id, fn) { var el = $(id); if (el) fn(el); };
+  var SHOP_PAGE = document.body.classList.contains('shop-page');
   var plansGrid = $('plansGrid');
   var tabsEl = $('networkTabs');
   var sheet = $('checkoutSheet');
@@ -91,27 +94,27 @@
         if (!data) return;
         SETTINGS = data;
 
-        if (data.announcementEnabled && data.announcement) {
+        if (data.announcementEnabled && data.announcement && $('announceBar')) {
           $('announceText').textContent = data.announcement;
           $('announceBar').hidden = false;
         }
-        if (data.storeName) {
+        if (data.storeName && !SHOP_PAGE) {
           document.title = data.storeName + ' — Fast, affordable data bundles';
         }
         var contact = data.supportWhatsapp || data.supportPhone;
-        if (contact) {
+        if (contact && !SHOP_PAGE) {
           var help = data.supportWhatsapp
             ? 'https://wa.me/' + String(data.supportWhatsapp).replace(/[^\d]/g, '').replace(/^0(\d{9})$/, '233$1')
             : 'tel:' + data.supportPhone;
-          $('supportLink').href = help;
-          $('supportStrip').hidden = false;
+          some('supportLink', function (el) { el.href = help; });
+          some('supportStrip', function (el) { el.hidden = false; });
           // "Need help?" card at the top
-          $('helpLink').href = help;
-          if (!data.supportWhatsapp) $('helpLinkText').textContent = 'Call us';
-          $('needHelp').hidden = false;
+          some('helpLink', function (el) { el.href = help; });
+          if (!data.supportWhatsapp) some('helpLinkText', function (el) { el.textContent = 'Call us'; });
+          some('needHelp', function (el) { el.hidden = false; });
         }
         if (data.agentsOpen) inviteAgents();
-        if (data.channelLink && /^https:\/\//i.test(data.channelLink)) {
+        if (data.channelLink && /^https:\/\//i.test(data.channelLink) && $('channelLink')) {
           $('channelLink').href = data.channelLink;
           $('channelStrip').hidden = false;
         }
@@ -135,7 +138,9 @@
   // Shown only while the owner has the agent programme switched on, never inside an agent's shop, never over the
   // checkout, and at most once every 3 days for someone who closes it (30 days for someone who opens it).
   function inviteAgents() {
-    if (document.documentElement.classList.contains('in-shop')) return;
+    if (SHOP_PAGE || document.documentElement.classList.contains('in-shop')) return;
+    // Someone who already has a shop sees "My shop" instead (js/myshop.js).
+    try { if (localStorage.getItem('abrants_agent') === '1') return; } catch (e) { /* private mode */ }
     if ($('agentCta')) $('agentCta').hidden = false;
     if ($('needAgent')) $('needAgent').hidden = false;
     var pop = $('agentPop');
@@ -166,6 +171,7 @@
   function shopQuery() { return window.abrantsShopQuery ? window.abrantsShopQuery() : ''; }
 
   function loadPlans() {
+    if (SHOP_PAGE && !shopQuery()) return; // a closed shop shows no bundles
     fetch('/api/plans' + shopQuery())
       .then(function (res) {
         if (!res.ok) throw new Error('Unable to load bundles.');
@@ -222,8 +228,12 @@
     plansGrid.innerHTML = plans.map(function (plan) {
       var unit = Number(plan.capacityGB) > 0 ? Number(plan.priceGHS) / Number(plan.capacityGB) : null;
       var isBest = plan.id === bestId && plans.length > 1;
-      return '<button type="button" class="plan-card' + (plan.special ? ' special-plan' : (isBest ? ' featured-plan' : '')) + '" data-plan="' + esc(plan.id) + '">' +
-        (plan.special ? '<span class="plan-tag mine">YOUR PRICE</span>' : (isBest ? '<span class="plan-tag">BEST VALUE</span>' : '')) +
+      // In an agent's shop: the bundles the agent marked "Popular" (they come first), then the best value.
+      var tag = plan.special ? '<span class="plan-tag mine">YOUR PRICE</span>'
+        : plan.popular ? '<span class="plan-tag popular">Popular</span>'
+        : isBest ? '<span class="plan-tag">' + (SHOP_PAGE ? 'Best value' : 'BEST VALUE') + '</span>' : '';
+      return '<button type="button" class="plan-card' + (plan.special ? ' special-plan' : (plan.popular ? ' popular-plan' : (isBest ? ' featured-plan' : ''))) + '" data-plan="' + esc(plan.id) + '">' +
+        tag +
         '<span class="plan-size">' + esc(plan.label) + '</span>' +
         '<span class="plan-validity">Valid ' + esc(plan.validity || '30 days') + '</span>' +
         '<span class="plan-price">' +
@@ -402,6 +412,7 @@
   if (yearEl) yearEl.textContent = String(new Date().getFullYear());
 
   function loadMe() {
+    if (SHOP_PAGE || !$('accountLink')) return; // customer accounts and offers do not apply in an agent's shop
     return fetch('/api/account/me', { credentials: 'same-origin' })
       .then(function (res) { return res.ok ? res.json() : null; })
       .then(function (data) {
@@ -426,9 +437,9 @@
   loadSettings();
   loadPlans();
   loadMe();
-  // Result checkers and AFA: show what is on sale right now, or "Coming soon".
-  fetch('/api/services' + shopQuery()).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
-    if (!d) return;
+  // Result checkers and AFA: show what is on sale right now, or "Coming soon". (The shop page does its own.)
+  if (!SHOP_PAGE) fetch('/api/services' + shopQuery()).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+    if (!d || !$('needChkText')) return;
     var chk = d.checkers || [];
     if (chk.length) {
       var low = Math.min.apply(null, chk.map(function (c) { return c.price; }));

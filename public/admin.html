@@ -10,7 +10,7 @@
 <link rel="icon" type="image/svg+xml" href="/icon.svg" />
 <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png" />
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-<link rel="stylesheet" href="admin.css?v=23" />
+<link rel="stylesheet" href="admin.css?v=24" />
 </head>
 <body>
 
@@ -272,7 +272,13 @@
               <div class="ag-join">
                 <span class="lk-url" id="agJoinUrl"></span>
                 <button class="btn btn-ghost btn-sm" type="button" id="agCopyJoin">Copy sign-up link</button>
+                <button class="btn btn-ghost btn-sm" type="button" id="agMsgAll">Message all agents</button>
               </div>
+              <form class="ag-msg-all hidden" id="agMsgAllForm" autocomplete="off">
+                <label class="field"><span>Message to every agent</span><textarea name="text" maxlength="1000" rows="3"></textarea></label>
+                <label class="switch"><input type="checkbox" name="sms" /><span class="track"></span><span>Also send by SMS (costs one SMS per agent)</span></label>
+                <div class="drawer-actions"><button class="btn btn-primary btn-sm" type="submit">Send to all agents</button><button class="btn btn-ghost btn-sm" type="button" id="agMsgAllCancel">Cancel</button></div>
+              </form>
             </div>
           </div>
           <div class="stats-grid lk-stats" id="agStats" style="margin-top:14px"></div>
@@ -285,6 +291,8 @@
                 <button class="chip" data-ag-filter="pending">Waiting</button>
                 <button class="chip" data-ag-filter="active">Active</button>
                 <button class="chip" data-ag-filter="suspended">Paused</button>
+                <button class="chip" data-ag-filter="rejected">Closed</button>
+                <button class="chip" data-ag-filter="deleted">Deleted</button>
               </div>
               <div id="agList"></div>
             </div>
@@ -709,7 +717,7 @@
 <script src="admin-customers.js"></script>
 <script src="admin-services.js?v=5"></script>
 <script src="admin-links.js?v=4"></script>
-<script src="admin-agents.js?v=3"></script>
+<script src="admin-agents.js?v=4"></script>
 <script src="admin-sms.js?v=1"></script>
 </body>
 </html>

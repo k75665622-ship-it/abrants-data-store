@@ -22,7 +22,7 @@ const { feeRate, round2 } = require('./fees');
 
 const NETWORKS = ['MTN', 'Telecel', 'AirtelTigo'];
 const MOMO_BANK = { MTN: 'MTN', Telecel: 'VOD', AirtelTigo: 'ATL' }; // Paystack's mobile money codes for Ghana
-const STATUSES = ['pending', 'active', 'suspended', 'rejected'];
+const STATUSES = ['pending', 'active', 'suspended', 'rejected']; // plus 'deleted' (services/agentCare.js)
 const MAX_PRICE = 10000;
 const DEFAULTS = {
   enabled: false, autoApprove: false, prices: {},
@@ -113,6 +113,41 @@ async function initAgentDb() {
       paid_at TIMESTAMPTZ
     );
     CREATE INDEX IF NOT EXISTS idx_agent_payouts_agent ON agent_payouts (agent_id, created_at DESC);
+    -- The shop's look (services/agentShop.js): about line, announcement, colour, products hidden or marked popular.
+    ALTER TABLE agents ADD COLUMN IF NOT EXISTS bio TEXT;
+    ALTER TABLE agents ADD COLUMN IF NOT EXISTS announcement TEXT;
+    ALTER TABLE agents ADD COLUMN IF NOT EXISTS theme TEXT;
+    ALTER TABLE agents ADD COLUMN IF NOT EXISTS hidden JSONB NOT NULL DEFAULT '[]'::jsonb;
+    ALTER TABLE agents ADD COLUMN IF NOT EXISTS featured JSONB NOT NULL DEFAULT '[]'::jsonb;
+    ALTER TABLE agents ADD COLUMN IF NOT EXISTS logo_v INT NOT NULL DEFAULT 0;
+    -- Kept apart so loading every agent into memory stays small.
+    CREATE TABLE IF NOT EXISTS agent_logos (
+      agent_id BIGINT PRIMARY KEY REFERENCES agents(id) ON DELETE CASCADE,
+      data BYTEA NOT NULL,
+      type TEXT NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    -- Pausing for a set time, closing and deleting (services/agentCare.js).
+    ALTER TABLE agents ADD COLUMN IF NOT EXISTS suspended_until TIMESTAMPTZ;
+    ALTER TABLE agents ADD COLUMN IF NOT EXISTS status_reason TEXT;
+    ALTER TABLE agents ADD COLUMN IF NOT EXISTS delete_requested_at TIMESTAMPTZ;
+    ALTER TABLE agents ADD COLUMN IF NOT EXISTS forfeited_at TIMESTAMPTZ;
+    ALTER TABLE agents ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+    -- The agent's inbox: messages from the store, strikes, pauses, payouts.
+    CREATE TABLE IF NOT EXISTS agent_messages (
+      id BIGSERIAL PRIMARY KEY,
+      agent_id BIGINT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL,
+      title TEXT NOT NULL,
+      body TEXT,
+      strike BOOLEAN NOT NULL DEFAULT false,
+      removed_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      read_at TIMESTAMPTZ
+    );
+    CREATE INDEX IF NOT EXISTS idx_agent_messages_agent ON agent_messages (agent_id, created_at DESC);
+    -- Phone and MoMo numbers (hashed) that may not open a shop again.
+    CREATE TABLE IF NOT EXISTS agent_bans (hash TEXT PRIMARY KEY, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
   `);
   await loadAgents();
 }
@@ -130,8 +165,15 @@ function mapAgent(r) {
     mustChangePassword: Boolean(r.must_change_password), createdAt: r.created_at, approvedAt: r.approved_at,
     lastLoginAt: r.last_login_at, momoChangedAt: r.momo_changed_at,
     termsVersion: r.terms_version || null, termsAcceptedAt: r.terms_accepted_at || null,
+    bio: r.bio || '', announcement: r.announcement || '', theme: r.theme || 'gold',
+    hidden: Array.isArray(r.hidden) ? r.hidden : [], featured: Array.isArray(r.featured) ? r.featured : [], logoV: Number(r.logo_v) || 0,
+    suspendedUntil: r.suspended_until || null, statusReason: r.status_reason || '',
+    deleteRequestedAt: r.delete_requested_at || null, forfeitedAt: r.forfeited_at || null, deletedAt: r.deleted_at || null,
   };
 }
+// Counts kept beside each agent (unread messages, strikes, delivered orders), so pages never count in the database.
+const extra = new Map();
+const extraOf = (id) => { const k = Number(id); if (!extra.has(k)) extra.set(k, { unread: 0, strikes: 0, delivered: 0 }); return extra.get(k); }
 function remember(a) {
   if (!a) return null;
   const old = byId.get(a.id);
@@ -141,8 +183,14 @@ function remember(a) {
 }
 async function loadAgents() {
   const r = await pool.query('SELECT * FROM agents');
-  byId.clear(); bySlug.clear();
+  byId.clear(); bySlug.clear(); extra.clear();
   for (const row of r.rows) remember(mapAgent(row));
+  const m = await pool.query(`SELECT agent_id, COUNT(*) FILTER (WHERE read_at IS NULL)::int AS unread,
+    COUNT(*) FILTER (WHERE strike AND removed_at IS NULL)::int AS strikes FROM agent_messages GROUP BY agent_id`);
+  for (const x of m.rows) Object.assign(extraOf(x.agent_id), { unread: x.unread, strikes: x.strikes });
+  const d = await pool.query("SELECT agent_id, COUNT(*)::int AS n FROM agent_earnings WHERE entry = 'sale' AND status = 'available' GROUP BY agent_id");
+  for (const x of d.rows) extraOf(x.agent_id).delivered = x.n;
+  await lazy('agentCare').loadBans();
 }
 async function reload(id) {
   const r = await pool.query('SELECT * FROM agents WHERE id = $1', [id]);
@@ -190,7 +238,7 @@ function cleanWhatsapp(v) {
 /* ------------------------------------------------------------------ accounts */
 
 // The version of the agent terms (public/agent-terms.html). Change it whenever the terms change.
-const TERMS_VERSION = '2026-11-13';
+const TERMS_VERSION = '2026-11-13.2'; // .2: the shop's look, strikes, pausing and deleting
 
 /** Another agent (of any status) already uses this MoMo number. One wallet, one agent. */
 function momoTaken(number, exceptId = null) {
@@ -213,6 +261,9 @@ async function checkSignup(b) {
   const momo = cleanMomo({ ...b, momoNumber: b.momoNumber || phone });
   if (momo.error) return momo;
   if (momoTaken(momo.value.momoNumber)) return { error: 'This MoMo number is already used by another agent.', status: 409, field: 'momoNumber' };
+  if (lazy('agentCare').banned(phone) || lazy('agentCare').banned(momo.value.momoNumber)) {
+    return { error: 'This number cannot open a shop. Contact the store if you think this is a mistake.', status: 403, field: 'phone' };
+  }
   if (b.agree !== true) return { error: 'Please read and accept the agent terms.', field: 'agree' };
   return { value: { name, shopName, phone, password: b.password, ...momo.value }, settings: s };
 }
@@ -316,7 +367,7 @@ async function login(phone, password) {
   // Same work for unknown numbers, so a wrong number cannot be told apart from a wrong password by timing.
   const ok = await verifyPassword(String(password || ''), a ? a.passwordHash : 'scrypt$00000000000000000000000000000000$' + '00'.repeat(64));
   if (!a || !ok) return null;
-  if (a.status === 'rejected') return { blocked: true };
+  if (a.status === 'rejected' || a.status === 'deleted') return { blocked: true };
   pool.query('UPDATE agents SET last_login_at = NOW() WHERE id = $1', [a.id]).catch(() => {});
   return { agent: a };
 }
@@ -369,12 +420,19 @@ async function resetPassword(id) {
   return temp;
 }
 
-async function setStatus(id, status) {
+// quiet: the caller sends its own SMS and inbox message (a timed pause, a deletion).
+async function setStatus(id, status, { reason = '', until = null, quiet = false } = {}) {
   if (!STATUSES.includes(status) || status === 'pending') return null;
   const before = getAgent(id);
-  await pool.query(`UPDATE agents SET status = $2, approved_at = CASE WHEN $2 = 'active' THEN COALESCE(approved_at, NOW()) ELSE approved_at END WHERE id = $1`, [id, status]);
+  if (!before || before.status === 'deleted') return null;
+  await pool.query(`UPDATE agents SET status = $2, approved_at = CASE WHEN $2 = 'active' THEN COALESCE(approved_at, NOW()) ELSE approved_at END,
+      suspended_until = $3, status_reason = $4 WHERE id = $1`,
+    [id, status, status === 'suspended' ? until : null, status === 'active' ? null : (cleanText(reason, 300) || null)]);
   const after = await reload(id);
-  if (after && before) lazy('notify').agentStatus(after, before.status); // approved / paused / closed / reopened, by SMS
+  if (after && before.status !== after.status && !quiet) {
+    lazy('notify').agentStatus(after, before.status); // approved / paused / closed / reopened, by SMS
+    await lazy('agentCare').statusMessage(after, before.status);
+  }
   return after;
 }
 
@@ -402,7 +460,7 @@ function cookieFlags() { return `HttpOnly; Path=/; SameSite=Lax${process.env.NOD
 function setSession(res, a) { res.setHeader('Set-Cookie', `${COOKIE}=${encodeURIComponent(sessionToken(a))}; ${cookieFlags()}; Max-Age=${SESSION_DAYS * 86400}`); }
 function clearSession(res) { res.setHeader('Set-Cookie', `${COOKIE}=; ${cookieFlags()}; Max-Age=0`); }
 
-/** The signed-in agent (any status but rejected), from memory. */
+/** The signed-in agent (any status but closed or deleted), from memory. */
 function agentFromRequest(req) {
   const key = sessionKey();
   const raw = String(req.headers.cookie || '').split(';').map((x) => x.trim()).find((x) => x.startsWith(COOKIE + '='));
@@ -417,7 +475,7 @@ function agentFromRequest(req) {
   const age = Date.now() - Number(issued);
   if (!/^\d+$/.test(id) || !(age >= 0 && age < SESSION_DAYS * 86400 * 1000)) return null;
   const a = getAgent(id);
-  if (!a || a.status === 'rejected' || fp(a.passwordHash) !== f) return null;
+  if (!a || a.status === 'rejected' || a.status === 'deleted' || fp(a.passwordHash) !== f) return null;
   return a;
 }
 
@@ -463,9 +521,13 @@ async function agentProducts(agent) {
     const sell = Math.max(mine ?? p.storePrice, p.agentPrice);
     return { key: p.key, kind: p.kind, group: p.group, name: p.name, label: p.label, network: p.network || null,
       agentPrice: p.agentPrice, storePrice: p.storePrice, myPrice: mine, sellPrice: round2(sell),
-      belowAgentPrice: mine != null && mine < p.agentPrice, earn: earning(sell, p.agentPrice, 1, customerPays, s) };
+      belowAgentPrice: mine != null && mine < p.agentPrice, earn: earning(sell, p.agentPrice, 1, customerPays, s),
+      hidden: agent.hidden.includes(p.key), popular: agent.featured.includes(p.key) };
   });
 }
+
+/** In this shop: not hidden by the agent. */
+const sells = (agent, key) => !agent.hidden.includes(key);
 
 function earning(sellUnit, baseUnit, quantity, customerPays) {
   const diff = (Number(sellUnit) - Number(baseUnit)) * (quantity || 1);
@@ -487,8 +549,12 @@ const quoteData = (agent, plan, settings) => quote(agent, keyForPlan(plan.id), p
 const quoteChecker = (agent, item, quantity, settings) => quote(agent, keyForChecker(item.code), item.price, quantity, settings);
 const quoteAfa = (agent, afa, settings) => quote(agent, KEY_AFA, afa.price, 1, settings);
 
-/** Saves an agent's selling prices. Empty means "the store price". Never below the agent price; no upper limit. */
-async function setAgentPrices(id, input) {
+/**
+ * Saves an agent's selling prices. Empty means "the store price". Never below the agent price; no upper limit.
+ * show (optional): { hidden: [keys not sold in the shop], featured: [keys marked "Popular", 6 at most] }.
+ */
+const MAX_POPULAR = 6;
+async function setAgentPrices(id, input, show = null) {
   const a = getAgent(id);
   if (!a) return { error: 'Not found.', status: 404 };
   const list = await products();
@@ -505,7 +571,14 @@ async function setAgentPrices(id, input) {
   }
   // Prices for products that are no longer sold are dropped.
   for (const key of Object.keys(next)) if (!known.has(key)) delete next[key];
-  await pool.query('UPDATE agents SET prices = $2::jsonb WHERE id = $1', [id, JSON.stringify(next)]);
+  const keys = (v) => [...new Set((Array.isArray(v) ? v : []).map(String))].filter((k) => known.has(k));
+  const hidden = show && show.hidden !== undefined ? keys(show.hidden) : a.hidden.filter((k) => known.has(k));
+  let featured = show && show.featured !== undefined ? keys(show.featured) : a.featured.filter((k) => known.has(k));
+  featured = featured.filter((k) => !hidden.includes(k));
+  if (featured.length > MAX_POPULAR) return { error: `Mark at most ${MAX_POPULAR} products as popular.` };
+  if (hidden.length === known.size) return { error: 'Keep at least one product in your shop.' };
+  await pool.query('UPDATE agents SET prices = $2::jsonb, hidden = $3::jsonb, featured = $4::jsonb WHERE id = $1',
+    [id, JSON.stringify(next), JSON.stringify(hidden), JSON.stringify(featured)]);
   return { agent: await reload(id) };
 }
 
@@ -569,18 +642,22 @@ async function syncOrder(kind, row) {
   const agentId = row.agent_id == null ? null : Number(row.agent_id);
   const amount = Number(row.agent_earning_ghs);
   if (!agentId || !(amount > 0)) return;
+  const owner = getAgent(agentId);
+  if (owner && owner.forfeitedAt) return; // deleted without pay (services/agentCare.js)
   const ref = row.reference;
   const done = kind === 'data' ? DATA_DONE.includes(row.status) : svcDone(row);
   const bad = kind === 'data' ? DATA_BAD.includes(row.status) : SVC_BAD.includes(row.status);
   if (done) {
     const hold = Number((await settingsNow()).holdHours) || 0;
-    await pool.query(
+    const ins = await pool.query(
       `INSERT INTO agent_earnings (agent_id, order_kind, order_ref, entry, amount_ghs, status, available_at)
        VALUES ($1,$2,$3,'sale',$4,'available', NOW() + make_interval(hours => $5::int))
        ON CONFLICT (order_kind, order_ref, entry) DO UPDATE SET status = 'available', available_at = EXCLUDED.available_at
-         WHERE agent_earnings.status = 'cancelled' AND agent_earnings.payout_id IS NULL`,
+         WHERE agent_earnings.status = 'cancelled' AND agent_earnings.payout_id IS NULL
+       RETURNING (xmax = 0) AS fresh`,
       [agentId, kind, ref, amount, hold]
     );
+    if (ins.rows[0] && ins.rows[0].fresh) extraOf(agentId).delivered += 1; // "orders delivered" on the shop page
     // Delivered after all (for example after a retry): a claw-back that was not paid out yet no longer applies.
     await pool.query(`UPDATE agent_earnings SET status = 'cancelled' WHERE order_kind = $1 AND order_ref = $2 AND entry = 'clawback'
       AND status = 'available' AND payout_id IS NULL`, [kind, ref]);
@@ -606,12 +683,14 @@ async function reconcile(agentId = null) {
     INSERT INTO agent_earnings (agent_id, order_kind, order_ref, entry, amount_ghs, status, available_at)
     SELECT agent_id, 'data', reference, 'sale', agent_earning_ghs, 'available', updated_at + make_interval(hours => $1::int)
       FROM orders WHERE agent_id IS NOT NULL AND agent_earning_ghs > 0 AND status = ANY($3) AND ($2::bigint IS NULL OR agent_id = $2)
+       AND agent_id NOT IN (SELECT id FROM agents WHERE forfeited_at IS NOT NULL)
     ON CONFLICT DO NOTHING`, [hold, only, DATA_DONE]);
   await pool.query(`
     INSERT INTO agent_earnings (agent_id, order_kind, order_ref, entry, amount_ghs, status, available_at)
     SELECT agent_id, 'service', reference, 'sale', agent_earning_ghs, 'available', updated_at + make_interval(hours => $1::int)
       FROM service_orders WHERE agent_id IS NOT NULL AND agent_earning_ghs > 0
        AND ((kind = 'checker' AND status = 'completed') OR (kind = 'afa' AND status = 'approved')) AND ($2::bigint IS NULL OR agent_id = $2)
+       AND agent_id NOT IN (SELECT id FROM agents WHERE forfeited_at IS NOT NULL)
     ON CONFLICT DO NOTHING`, [hold, only]);
   const badJoin = `((e.order_kind = 'data' AND e.order_ref IN (SELECT reference FROM orders WHERE status = ANY($2)))
       OR (e.order_kind = 'service' AND e.order_ref IN (SELECT reference FROM service_orders WHERE status = ANY($3))))`;
@@ -621,6 +700,7 @@ async function reconcile(agentId = null) {
     INSERT INTO agent_earnings (agent_id, order_kind, order_ref, entry, amount_ghs, status, available_at)
     SELECT e.agent_id, e.order_kind, e.order_ref, 'clawback', -e.amount_ghs, 'available', NOW() FROM agent_earnings e
      WHERE e.entry = 'sale' AND e.status = 'available' AND e.payout_id IS NOT NULL AND ($1::bigint IS NULL OR e.agent_id = $1) AND ${badJoin}
+       AND e.agent_id NOT IN (SELECT id FROM agents WHERE forfeited_at IS NOT NULL)
     ON CONFLICT DO NOTHING`, [only, DATA_BAD, SVC_BAD]);
 }
 
@@ -717,8 +797,17 @@ async function setPayout(id, changes, fromStatuses) {
   if (!r.rows[0]) return null;
   if (changes.status === 'failed') await release(Number(id));
   const p = mapPayout(r.rows[0]);
-  if (changes.status === 'paid') lazy('notify').agentPaid(getAgent(p.agentId), p);
+  if (changes.status === 'paid') await paidNow(p);
   return p;
+}
+
+// Money reached the agent: SMS, a line in their inbox, and a shop waiting to be deleted may now be deleted.
+async function paidNow(p) {
+  const a = getAgent(p.agentId);
+  lazy('notify').agentPaid(a, p);
+  const care = lazy('agentCare');
+  await care.paidMessage(a, p).catch((e) => console.warn('Inbox (paid):', e.message));
+  if (a && a.deleteRequestedAt && !a.deletedAt) await care.finishDelete(a.id).catch((e) => console.warn('Delete after payout:', e.message));
 }
 
 async function alert(level, text) { try { await lazy('fulfillment').addAlert(level, text); } catch (e) { /* alerts are best effort */ } }
@@ -762,7 +851,7 @@ async function createPayout(agentId, { method, note = '', trigger = 'admin', ign
   } finally { client.release(); }
   if (method === 'manual') {
     const done = await getPayout(payout.id);
-    lazy('notify').agentPaid(a, done);
+    await paidNow(done);
     return { payout: done };
   }
   return { payout: await sendTransfer(payout, a) };
@@ -874,13 +963,15 @@ async function payAllDue({ trigger = 'admin', method } = {}) {
   const results = [];
   for (const [id, b] of bal) {
     const a = getAgent(id);
-    if (!a || a.status !== 'active' || b.readyGHS < s.minPayout || b.readyGHS <= s.payoutFee) continue;
+    if (!a || b.readyGHS <= s.payoutFee) continue;
+    const leaving = Boolean(a.deleteRequestedAt && !a.deletedAt && !a.forfeitedAt); // last payment before the shop is deleted
+    if (!leaving && (a.status !== 'active' || b.readyGHS < s.minPayout)) continue;
     if (a.momoChangedAt && Date.now() - new Date(a.momoChangedAt).getTime() < 24 * 3600 * 1000) {
       results.push({ agentId: a.id, shopName: a.shopName, skipped: 'MoMo number changed in the last 24 hours' });
       continue;
     }
     try {
-      const out = await createPayout(a.id, { method: how, trigger });
+      const out = await createPayout(a.id, { method: how, trigger, ignoreMinimum: leaving });
       results.push({ agentId: a.id, shopName: a.shopName, ...(out.error ? { skipped: out.error } : { payout: out.payout }) });
     } catch (err) {
       results.push({ agentId: a.id, shopName: a.shopName, skipped: 'Error: ' + err.message });
@@ -909,13 +1000,17 @@ async function autoPayoutTick() {
 /* ------------------------------------------------------------------ views */
 
 function publicAgent(a) {
+  const x = extraOf(a.id);
   return { id: a.id, name: a.name, shopName: a.shopName, slug: a.slug, phone: a.phone, status: a.status, whatsapp: a.whatsapp,
     momoNumber: a.momoNumber, momoNetwork: a.momoNetwork, momoName: a.momoName, createdAt: a.createdAt, approvedAt: a.approvedAt,
-    mustChangePassword: a.mustChangePassword, termsVersion: a.termsVersion, termsAcceptedAt: a.termsAcceptedAt };
+    mustChangePassword: a.mustChangePassword, termsVersion: a.termsVersion, termsAcceptedAt: a.termsAcceptedAt,
+    bio: a.bio, announcement: a.announcement, theme: a.theme, logo: lazy('agentShop').logoUrl(a), hidden: a.hidden, featured: a.featured,
+    suspendedUntil: a.suspendedUntil, statusReason: a.statusReason, deleteRequestedAt: a.deleteRequestedAt,
+    unread: x.unread, strikes: x.strikes, delivered: x.delivered };
 }
 function adminAgent(a, b) {
   return { ...publicAgent(a), adminNote: a.adminNote, lastLoginAt: a.lastLoginAt, momoChangedAt: a.momoChangedAt,
-    pricesSet: Object.keys(a.prices).length, ...(b || {}) };
+    deletedAt: a.deletedAt, forfeitedAt: a.forfeitedAt, pricesSet: Object.keys(a.prices).length, ...(b || {}) };
 }
 
 async function overview() {
@@ -934,7 +1029,8 @@ async function overview() {
   const totals = agents.reduce((t, a) => ({ ready: t.ready + a.readyGHS, held: t.held + a.heldGHS, onTheWay: t.onTheWay + a.onTheWayGHS }), { ready: 0, held: 0, onTheWay: 0 });
   return {
     settings: s,
-    counts: { active: agents.filter((a) => a.status === 'active').length, pending: agents.filter((a) => a.status === 'pending').length, all: agents.length },
+    counts: { active: agents.filter((a) => a.status === 'active').length, pending: agents.filter((a) => a.status === 'pending').length,
+      all: agents.filter((a) => a.status !== 'deleted').length },
     month: { orders: m.orders, salesGHS: round2(m.sales), agentEarningsGHS: round2(m.earned) },
     owed: { readyGHS: round2(totals.ready), heldGHS: round2(totals.held), onTheWayGHS: round2(totals.onTheWay) },
     agents, payouts: await payouts({ limit: 40 }), products: await products(),
@@ -946,8 +1042,33 @@ async function agentDetail(id) {
   const a = getAgent(id);
   if (!a) return null;
   await reconcile(a.id);
-  const b = (await balances([a.id])).get(a.id);
-  return { agent: adminAgent(a, b), sales: await sales(a.id, { limit: 50, maskPhones: false }), payouts: await payouts({ agentId: a.id, limit: 30 }) };
+  const b = (await balances([a.id])).get(a.id) || { readyGHS: 0, heldGHS: 0, onTheWayGHS: 0, sendingGHS: 0, paidGHS: 0, earnedGHS: 0, sales: 0 };
+  return { agent: adminAgent(a, b), sales: await sales(a.id, { limit: 50, maskPhones: false }), payouts: await payouts({ agentId: a.id, limit: 30 }),
+    messages: await lazy('agentCare').messages(a.id, { limit: 60 }) };
+}
+
+// Orders and earnings today, this week (from Monday) and this month, counted when the order was placed.
+function since() { // the earlier of the start of this month and of this week (Monday, GMT = Ghana time)
+  const now = new Date();
+  const month = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
+  const day = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const week = day - ((now.getUTCDay() + 6) % 7) * 864e5;
+  return new Date(Math.min(month, week)).toISOString();
+}
+async function stats(agentId) {
+  const r = await pool.query(`
+    SELECT COUNT(*) FILTER (WHERE created_at >= date_trunc('day', NOW()))::int AS d_n,
+      COALESCE(SUM(earn) FILTER (WHERE created_at >= date_trunc('day', NOW())), 0) AS d_e,
+      COUNT(*) FILTER (WHERE created_at >= date_trunc('week', NOW()))::int AS w_n,
+      COALESCE(SUM(earn) FILTER (WHERE created_at >= date_trunc('week', NOW())), 0) AS w_e,
+      COUNT(*) FILTER (WHERE created_at >= date_trunc('month', NOW()))::int AS m_n,
+      COALESCE(SUM(earn) FILTER (WHERE created_at >= date_trunc('month', NOW())), 0) AS m_e FROM (
+      SELECT created_at, agent_earning_ghs AS earn FROM orders WHERE agent_id = $1 AND status = ANY($2) AND created_at >= $4
+      UNION ALL SELECT created_at, agent_earning_ghs FROM service_orders WHERE agent_id = $1 AND created_at >= $4
+        AND (status = ANY($3) OR (kind = 'checker' AND status = 'completed') OR (kind = 'afa' AND status = 'approved'))
+    ) x`, [agentId, [...DATA_DONE, ...DATA_OPEN], SVC_OPEN, since()]);
+  const x = r.rows[0];
+  return { today: { orders: x.d_n, earnedGHS: round2(x.d_e) }, week: { orders: x.w_n, earnedGHS: round2(x.w_e) }, month: { orders: x.m_n, earnedGHS: round2(x.m_e) } };
 }
 
 async function dashboard(a) {
@@ -961,6 +1082,7 @@ async function dashboard(a) {
       // What share of the amount added on top of the agent price reaches the agent (Paystack's cut when the store pays it).
       marginFactor: (await getSettings()).customerPaysFee !== false ? 1 : 1 - feeRate() },
     balances: b,
+    stats: await stats(a.id),
     products: await agentProducts(a),
     sales: await sales(a.id, { limit: 30 }),
     payouts: (await payouts({ agentId: a.id, limit: 20 })).map((p) => ({ id: p.id, sentGHS: p.sentGHS, feeGHS: p.feeGHS, amountGHS: p.amountGHS,
@@ -969,6 +1091,7 @@ async function dashboard(a) {
 }
 
 module.exports = {
+  byId, bySlug, extraOf, reload, cleanText, sells, MAX_POPULAR,
   initAgentDb, loadAgents, getAgent, shopAgent, startSignup, register, login, TERMS_VERSION, acceptTerms, updateProfile, updateMomo, changePassword, resetPassword,
   setStatus, setNote, setSession, clearSession, agentFromRequest, products, agentProducts, setAgentPrices, setBasePrices,
   saveProgramme, settingsNow, quoteData, quoteChecker, quoteAfa, earning, syncOrder, reconcile, balances, sales, payouts,

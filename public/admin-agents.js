@@ -8,9 +8,13 @@
   };
   var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   var NET = { MTN: 'MTN', Telecel: 'Telecel', AirtelTigo: 'AirtelTigo' };
-  var STATUS = { pending: 'Waiting', active: 'Active', suspended: 'Paused', rejected: 'Closed' };
+  var STATUS = { pending: 'Waiting', active: 'Active', suspended: 'Paused', rejected: 'Closed', deleted: 'Deleted', deleting: 'Deleting' };
+  var PAUSE = [[7, '1 week'], [14, '2 weeks'], [30, '1 month'], [90, '3 months'], [180, '6 months'], [0, 'Until I reopen it']];
+  var KIND = { strike: 'Strike', paused: 'Paused', approved: 'Approved', reopened: 'Reopened', paid: 'Paid', message: 'Message' };
+  var stateOf = function (a) { return a.deleteRequestedAt && a.status !== 'deleted' ? 'deleting' : a.status; };
+  var day = function (v) { try { return new Date(v).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }); } catch (e) { return ''; } };
   var PSTATE = { paid: 'Paid', sending: 'Sending', otp: 'Needs code', failed: 'Failed' };
-  var st = { data: null, filter: 'all', method: 'manual', openId: null };
+  var st = { data: null, filter: 'all', method: 'manual', openId: null, detail: null };
 
   function toast(message, kind) {
     var el = document.createElement('div');
@@ -60,9 +64,13 @@
 
   function agentRow(a) {
     var due = a.readyGHS > 0;
+    var s = stateOf(a);
+    var flags = (a.strikes ? '<span class="ag-strike-chip">' + a.strikes + ' strike' + (a.strikes > 1 ? 's' : '') + '</span>' : '') +
+      (a.status === 'suspended' && a.suspendedUntil ? '<span class="ag-until">until ' + esc(day(a.suspendedUntil)) + '</span>' : '');
     return '<div class="lk-card ag-card" data-ag-open="' + a.id + '">' +
-      '<div class="lk-top"><div><strong>' + esc(a.shopName) + '</strong><small>' + esc(a.name) + ' · ' + esc(a.phone) + '</small></div>' +
-      '<span class="ag-pill ' + esc(a.status) + '">' + esc(STATUS[a.status] || a.status) + '</span></div>' +
+      '<div class="lk-top"><div><strong>' + esc(a.shopName) + '</strong><small>' + (a.status === 'deleted' ? 'Deleted ' + esc(day(a.deletedAt)) : esc(a.name) + ' · ' + esc(a.phone)) + '</small>' +
+      (flags ? '<div class="ag-flags">' + flags + '</div>' : '') + '</div>' +
+      '<span class="ag-pill ' + esc(s) + '">' + esc(STATUS[s] || s) + '</span></div>' +
       '<div class="lk-nums ag-nums">' +
       '<div><b>' + a.sales + '</b><span>sales</span></div>' +
       '<div><b' + (due ? ' class="pos"' : '') + '>' + money(a.readyGHS) + '</b><span>ready to pay</span></div>' +
@@ -75,7 +83,7 @@
   }
 
   function renderList() {
-    var list = (st.data.agents || []).filter(function (a) { return st.filter === 'all' ? a.status !== 'rejected' : a.status === st.filter; });
+    var list = (st.data.agents || []).filter(function (a) { return st.filter === 'all' ? a.status !== 'rejected' && a.status !== 'deleted' : a.status === st.filter; });
     Array.prototype.forEach.call(document.querySelectorAll('#agFilter .chip'), function (c) { c.classList.toggle('active', c.getAttribute('data-ag-filter') === st.filter); });
     $('#agList').innerHTML = list.length ? list.map(agentRow).join('') : '<p class="muted" style="margin:6px 0">' + (st.data.agents.length ? 'None here.' : 'No agents yet. Share the sign-up link.') + '</p>';
   }
@@ -170,15 +178,32 @@
     $('#agDrawer').classList.remove('hidden');
     api('/api/admin/agents/' + id).then(function (d) {
       var a = d.agent;
+      st.detail = d;
+      if (a.status === 'deleted') {
+        box.innerHTML = '<div class="drawer-head"><div><span class="ag-pill deleted">Deleted</span><h2>' + esc(a.shopName) + '</h2>' +
+          '<small class="muted">Deleted ' + esc(when(a.deletedAt)) + (a.statusReason ? '. Reason: ' + esc(a.statusReason) : '') + (a.forfeitedAt ? '. Unpaid earnings were not paid.' : '') + '</small></div></div>' +
+          '<p class="muted">Personal details have been erased. The shop link stays closed and cannot be taken by anyone else.</p>' +
+          '<h3 class="ag-sub">Sales</h3>' + (d.sales.length ? d.sales.map(saleLine).join('') : '<p class="muted">No sales.</p>') +
+          '<h3 class="ag-sub">Payouts</h3>' + (d.payouts.length ? d.payouts.map(payoutRow).join('') : '<p class="muted">No payouts.</p>');
+        return;
+      }
+      var leaving = Boolean(a.deleteRequestedAt);
       var recentMomo = a.momoChangedAt && (Date.now() - new Date(a.momoChangedAt).getTime() < 24 * 3600 * 1000);
-      var statusBtns = a.status === 'active'
-        ? '<button class="btn btn-ghost btn-sm" type="button" data-ag-status="suspended" data-id="' + a.id + '">Pause shop</button>'
+      var statusBtns = leaving ? '' : a.status === 'active'
+        ? ''
         : '<button class="btn btn-primary btn-sm" type="button" data-ag-status="active" data-id="' + a.id + '">' + (a.status === 'pending' ? 'Approve' : 'Reopen shop') + '</button>';
       var canPay = a.readyGHS > st.data.settings.payoutFee;
       box.innerHTML =
-        '<div class="drawer-head"><div><span class="ag-pill ' + esc(a.status) + '">' + esc(STATUS[a.status] || a.status) + '</span>' +
-        '<h2>' + esc(a.shopName) + '</h2><small class="muted">' + esc(a.name) + ' · ' + esc(a.phone) + '</small></div></div>' +
+        '<div class="drawer-head"><div><span class="ag-pill ' + esc(stateOf(a)) + '">' + esc(STATUS[stateOf(a)] || a.status) + '</span>' +
+        (a.strikes ? ' <span class="ag-strike-chip">' + a.strikes + ' strike' + (a.strikes > 1 ? 's' : '') + '</span>' : '') +
+        '<h2>' + esc(a.shopName) + '</h2><small class="muted">' + esc(a.name) + ' · ' + esc(a.phone) + '</small></div>' +
+        (a.logo ? '<img class="ag-drawer-logo" src="' + esc(a.logo) + '" alt="Shop logo" />' : '') + '</div>' +
+        (leaving ? '<div class="alert-strip warn"><span class="ico">!</span><div>Being deleted' + (a.statusReason ? ' (' + esc(a.statusReason) + ')' : '') +
+          '. It is deleted for good once they have been paid what they are owed.</div></div>' : '') +
+        (a.status === 'suspended' ? '<div class="alert-strip warn"><span class="ico">!</span><div>Paused ' + (a.suspendedUntil ? 'until ' + esc(day(a.suspendedUntil)) + ' (it reopens by itself)' : 'until you reopen it') +
+          (a.statusReason ? '. Reason: ' + esc(a.statusReason) : '') + '</div></div>' : '') +
         '<div class="lk-url">' + esc(d.shopUrl) + '</div>' +
+        (a.bio || a.announcement ? '<div class="ag-said">' + (a.bio ? '<p><b>About:</b> ' + esc(a.bio) + '</p>' : '') + (a.announcement ? '<p><b>Announcement:</b> ' + esc(a.announcement) + '</p>' : '') + '</div>' : '') +
         '<div class="detail-grid">' +
         '<div class="detail-box"><span>Ready to pay</span><strong class="' + (canPay ? 'pos' : '') + '">' + money(a.readyGHS) + '</strong></div>' +
         '<div class="detail-box"><span>On hold / on the way</span><strong>' + money(a.heldGHS) + ' / ' + money(a.onTheWayGHS) + '</strong></div>' +
@@ -192,20 +217,96 @@
         (canPay && st.method === 'paystack' ? '<button class="btn btn-primary btn-sm" type="button" data-pay="paystack" data-id="' + a.id + '">Send ' + money(a.readyGHS - st.data.settings.payoutFee) + ' by Paystack</button>' : '') +
         (canPay ? '<button class="btn ' + (st.method === 'paystack' ? 'btn-ghost' : 'btn-primary') + ' btn-sm" type="button" data-pay="manual" data-id="' + a.id + '">I paid ' + money(a.readyGHS - st.data.settings.payoutFee) + ' by MoMo</button>' : '') +
         statusBtns +
-        '<button class="btn btn-ghost btn-sm" type="button" data-reset="' + a.id + '">New password</button>' +
-        (a.status !== 'rejected' ? '<button class="btn btn-danger btn-sm" type="button" data-ag-status="rejected" data-id="' + a.id + '">Close account</button>' : '') +
+        (leaving ? '' : '<button class="btn btn-ghost btn-sm" type="button" data-reset="' + a.id + '">New password</button>') +
+        (a.logo ? '<button class="btn btn-ghost btn-sm" type="button" data-remove-logo="' + a.id + '">Remove logo</button>' : '') +
         '</div>' +
+        (leaving ? '' :
+          '<h3 class="ag-sub">Messages and strikes</h3>' +
+          '<div class="chip-row ag-actions">' +
+            '<button class="chip" type="button" data-ag-act="message">Send a message</button>' +
+            '<button class="chip" type="button" data-ag-act="strike">Give strike ' + (a.strikes + 1) + '</button>' +
+            (['active', 'suspended'].indexOf(a.status) !== -1 ? '<button class="chip" type="button" data-ag-act="pause">' + (a.status === 'suspended' ? 'Change the pause' : 'Pause the shop') + '</button>' : '') +
+            '<button class="chip chip-danger" type="button" data-ag-act="delete">Delete the shop</button>' +
+          '</div>' +
+          '<form class="ag-act-form hidden" id="agActForm" data-id="' + a.id + '" autocomplete="off"></form>') +
+        (d.messages && d.messages.length ? '<div class="ag-history">' + d.messages.map(function (m) {
+          return '<div class="event ag-hist ' + esc(m.kind) + (m.removed ? ' removed' : '') + '"><small>' + esc(when(m.createdAt)) + ' · ' + esc(KIND[m.kind] || m.kind) + (m.read ? ' · read' : '') + '</small>' +
+            '<strong>' + esc(m.title) + (m.removed ? ' (removed)' : '') + '</strong>' + (m.body ? '<p>' + esc(m.body) + '</p>' : '') +
+            (m.strike && !m.removed ? '<button class="btn btn-ghost btn-sm" type="button" data-unstrike="' + m.id + '" data-id="' + a.id + '">Remove this strike</button>' : '') + '</div>';
+        }).join('') + '</div>' : '') +
         '<label class="field"><span>Note</span><input id="agNote" maxlength="300" value="' + esc(a.adminNote) + '" /></label>' +
         '<div class="drawer-actions"><button class="btn btn-ghost btn-sm" type="button" data-note="' + a.id + '">Save note</button></div>' +
         '<h3 class="ag-sub">Sales</h3>' +
-        (d.sales.length ? d.sales.map(function (s) {
-          return '<div class="event"><small>' + esc(when(s.createdAt)) + ' · ' + esc(s.reference) + '</small><strong>' + esc(s.what) + ' · ' + esc(s.phone) + ' · ' + money(s.priceGHS) +
-            ' · <span class="' + (s.state === 'delivered' ? 'pos' : (s.state === 'on_the_way' ? '' : 'neg')) + '">+' + money(s.earningGHS) + ' ' + esc(s.state.replace(/_/g, ' ')) + '</span></strong></div>';
-        }).join('') : '<p class="muted">No sales yet.</p>') +
+        (d.sales.length ? d.sales.map(saleLine).join('') : '<p class="muted">No sales yet.</p>') +
         '<h3 class="ag-sub">Payouts</h3>' +
         (d.payouts.length ? d.payouts.map(payoutRow).join('') : '<p class="muted">No payouts yet.</p>');
     }).catch(function (err) { box.innerHTML = '<p class="muted">' + esc(err.message) + '</p>'; });
   }
+  function saleLine(s) {
+    return '<div class="event"><small>' + esc(when(s.createdAt)) + ' · ' + esc(s.reference) + '</small><strong>' + esc(s.what) + ' · ' + esc(s.phone) + ' · ' + money(s.priceGHS) +
+      ' · <span class="' + (s.state === 'delivered' ? 'pos' : (s.state === 'on_the_way' ? '' : 'neg')) + '">+' + money(s.earningGHS) + ' ' + esc(s.state.replace(/_/g, ' ')) + '</span></strong></div>';
+  }
+
+  // The form under "Messages and strikes": one at a time.
+  function actForm(kind) {
+    var f = $('#agActForm');
+    if (!f) return;
+    var a = st.detail.agent;
+    var owed = (a.readyGHS || 0) + (a.heldGHS || 0) + (a.onTheWayGHS || 0) + (a.sendingGHS || 0);
+    var sms = '<label class="switch"><input type="checkbox" name="sms" checked /><span class="track"></span><span>Also send by SMS</span></label>';
+    var html = {
+      message: '<label class="field"><span>Message to ' + esc(a.shopName) + '</span><textarea name="text" maxlength="1000" rows="3"></textarea></label>' + sms +
+        '<div class="drawer-actions"><button class="btn btn-primary btn-sm" type="submit">Send message</button>',
+      strike: '<label class="field"><span>What did they do wrong? They see this.</span><textarea name="reason" maxlength="400" rows="3" placeholder="You told customers on WhatsApp that bundles are free this week."></textarea></label>' + sms +
+        (a.strikes >= 2 ? '<p class="muted">This is strike ' + (a.strikes + 1) + '. Their message says the shop can be paused or deleted next time.</p>' : '') +
+        '<div class="drawer-actions"><button class="btn btn-primary btn-sm" type="submit">Give strike ' + (a.strikes + 1) + '</button>',
+      pause: '<label class="field"><span>Why? They see this.</span><textarea name="reason" maxlength="300" rows="2"></textarea></label>' +
+        '<label class="field"><span>For how long</span><select name="days">' + PAUSE.map(function (p) { return '<option value="' + p[0] + '"' + (p[0] === 30 ? ' selected' : '') + '>' + p[1] + '</option>'; }).join('') + '</select></label>' + sms +
+        '<div class="drawer-actions"><button class="btn btn-primary btn-sm" type="submit">Pause the shop</button>',
+      delete: '<label class="field"><span>Why? They get this by SMS.</span><textarea name="reason" maxlength="300" rows="2"></textarea></label>' +
+        '<label class="switch"><input type="checkbox" name="pay" checked /><span class="track"></span><span>Pay what they have earned first' + (owed > 0 ? ' (' + money(owed) + ')' : '') + '</span></label>' +
+        '<label class="switch"><input type="checkbox" name="block" checked /><span class="track"></span><span>Don\'t let this phone or MoMo number open a shop again</span></label>' +
+        '<p class="muted">The shop closes now. Their name, phone, MoMo, logo and messages are erased' + (owed > 0 ? ' once they are paid (or now, if you do not pay them)' : '') + '. Sales and payout records stay.</p>' +
+        '<div class="drawer-actions"><button class="btn btn-danger btn-sm" type="submit">Delete the shop</button>',
+    }[kind];
+    f.dataset.kind = kind;
+    f.innerHTML = html + '<button class="btn btn-ghost btn-sm" type="button" data-act-cancel>Cancel</button></div>';
+    f.classList.remove('hidden');
+    Array.prototype.forEach.call(document.querySelectorAll('[data-ag-act]'), function (c) { c.classList.toggle('active', c.getAttribute('data-ag-act') === kind); });
+    var first = f.querySelector('textarea'); if (first) first.focus();
+  }
+  document.addEventListener('submit', function (e) {
+    if (e.target.id !== 'agActForm') return;
+    e.preventDefault();
+    var f = e.target, kind = f.dataset.kind, id = f.dataset.id, a = st.detail.agent;
+    var smsOn = f.sms ? f.sms.checked : true;
+    var call = {
+      message: ['message', { text: f.text && f.text.value, sms: smsOn }, 'Message sent.'],
+      strike: ['strike', { reason: f.reason && f.reason.value, sms: smsOn }, 'Strike given.'],
+      pause: ['pause', { reason: f.reason && f.reason.value, days: f.days && Number(f.days.value), sms: smsOn }, 'Shop paused.'],
+      delete: ['delete', { reason: f.reason && f.reason.value, pay: f.pay ? f.pay.checked : true, block: f.block ? f.block.checked : false }, ''],
+    }[kind];
+    if (kind === 'delete' && !confirm('Delete ' + a.shopName + ' for good? This cannot be undone.' + (f.pay && !f.pay.checked ? '\n\nThey will NOT be paid what they have not been paid yet.' : ''))) return;
+    var btn = f.querySelector('button[type="submit"]');
+    busy(btn, true, '…');
+    api('/api/admin/agents/' + id + '/' + call[0], 'POST', call[1]).then(function (out) {
+      toast(kind === 'delete' ? (out.deleted ? 'Deleted.' : 'Closed. It is deleted once they are paid ' + money(out.owedGHS) + '.') : call[2], 'success');
+      return refresh();
+    }).catch(function (err) { toast(err.message, 'error'); busy(btn, false); });
+  });
+
+  $('#agMsgAll').addEventListener('click', function () { $('#agMsgAllForm').classList.toggle('hidden'); var t = $('#agMsgAllForm textarea'); if (t) t.focus(); });
+  $('#agMsgAllCancel').addEventListener('click', function () { $('#agMsgAllForm').classList.add('hidden'); });
+  $('#agMsgAllForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var f = e.target, btn = f.querySelector('button[type="submit"]');
+    busy(btn, true, 'Sending…');
+    api('/api/admin/agents/message-all', 'POST', { text: f.text.value, sms: f.sms.checked }).then(function (out) {
+      toast('Sent to ' + out.sent + ' agent' + (out.sent === 1 ? '' : 's') + '.', 'success');
+      f.reset(); f.classList.add('hidden');
+    }).catch(function (err) { toast(err.message, 'error'); }).then(function () { busy(btn, false); });
+  });
+
   $('#agDrawerClose').addEventListener('click', closeDrawer);
   $('#agDrawer').addEventListener('click', function (e) { if (e.target.id === 'agDrawer') closeDrawer(); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && st.openId) closeDrawer(); });
@@ -358,6 +459,25 @@
       api('/api/admin/agents/' + t.getAttribute('data-reset') + '/reset-password', 'POST').then(function (r) {
         prompt('Temporary password. Send it to the agent; they must change it when they log in:', r.password);
       }).catch(function (err) { toast(err.message, 'error'); });
+      return;
+    }
+    if ((t = e.target.closest('[data-ag-act]'))) { actForm(t.getAttribute('data-ag-act')); return; }
+    if ((t = e.target.closest('[data-act-cancel]'))) {
+      $('#agActForm').classList.add('hidden');
+      Array.prototype.forEach.call(document.querySelectorAll('[data-ag-act]'), function (c) { c.classList.remove('active'); });
+      return;
+    }
+    if ((t = e.target.closest('[data-unstrike]'))) {
+      if (!confirm('Remove this strike? It stays in their inbox, marked as removed.')) return;
+      busy(t, true, '…');
+      api('/api/admin/agents/' + t.getAttribute('data-id') + '/strikes/' + t.getAttribute('data-unstrike') + '/remove', 'POST')
+        .then(function () { toast('Strike removed.', 'success'); return refresh(); }).catch(function (err) { toast(err.message, 'error'); busy(t, false); });
+      return;
+    }
+    if ((t = e.target.closest('[data-remove-logo]'))) {
+      if (!confirm('Remove this shop\'s logo? Their shop shows their initials instead.')) return;
+      api('/api/admin/agents/' + t.getAttribute('data-remove-logo') + '/remove-logo', 'POST')
+        .then(function () { toast('Logo removed.', 'success'); return refresh(); }).catch(function (err) { toast(err.message, 'error'); });
       return;
     }
     if ((t = e.target.closest('[data-note]'))) {
