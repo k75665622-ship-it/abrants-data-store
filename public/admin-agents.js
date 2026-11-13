@@ -100,6 +100,17 @@
       '<span class="ag-pill ' + esc(p.status) + '">' + esc(PSTATE[p.status] || p.status) + '</span></div>' + actions + '</div>';
   }
 
+  // Paying by hand or through Paystack: the buttons and options follow the choice straight away (Save keeps it).
+  function methodView() {
+    var ps = st.method === 'paystack';
+    $('#agAutoRow').classList.toggle('hidden', !ps);
+    $('#agBalance').classList.toggle('hidden', !ps);
+    $('#agPayAll').textContent = ps ? 'Pay everyone due' : 'Mark everyone due as paid';
+    var saved = st.data && st.data.settings && st.data.settings.payoutMethod;
+    $('#agPaySave').classList.toggle('btn-primary', saved !== st.method);
+    $('#agPaySave').classList.toggle('btn-ghost', saved === st.method);
+  }
+
   function renderPayouts(d) {
     var s = d.settings;
     st.method = s.payoutMethod;
@@ -110,9 +121,7 @@
     f.holdHours.value = s.holdHours;
     f.autoPayout.checked = !!s.autoPayout;
     f.payoutDay.value = String(s.payoutDay);
-    $('#agAutoRow').classList.toggle('hidden', st.method !== 'paystack');
-    $('#agBalance').classList.toggle('hidden', st.method !== 'paystack');
-    $('#agPayAll').textContent = st.method === 'paystack' ? 'Pay everyone due' : 'Mark everyone due as paid';
+    methodView();
     $('#agPayouts').innerHTML = (d.payouts || []).length ? d.payouts.map(payoutRow).join('') : '';
   }
 
@@ -285,7 +294,7 @@
     if ((t = e.target.closest('[data-ag-method]'))) {
       st.method = t.getAttribute('data-ag-method');
       Array.prototype.forEach.call(document.querySelectorAll('#agMethod .chip'), function (c) { c.classList.toggle('active', c === t); });
-      $('#agAutoRow').classList.toggle('hidden', st.method !== 'paystack');
+      methodView();
       return;
     }
     if ((t = e.target.closest('[data-ag-status]'))) {

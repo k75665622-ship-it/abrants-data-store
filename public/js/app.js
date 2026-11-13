@@ -110,7 +110,7 @@
           if (!data.supportWhatsapp) $('helpLinkText').textContent = 'Call us';
           $('needHelp').hidden = false;
         }
-        if (data.agentsOpen && $('agentCta')) $('agentCta').hidden = false;
+        if (data.agentsOpen) inviteAgents();
         if (data.channelLink && /^https:\/\//i.test(data.channelLink)) {
           $('channelLink').href = data.channelLink;
           $('channelStrip').hidden = false;
@@ -128,6 +128,38 @@
         }
       })
       .catch(function () { /* settings are optional */ });
+  }
+
+  /* ------------------------------------------------- agent programme invite */
+
+  // Shown only while the owner has the agent programme switched on, never inside an agent's shop, never over the
+  // checkout, and at most once every 3 days for someone who closes it (30 days for someone who opens it).
+  function inviteAgents() {
+    if (document.documentElement.classList.contains('in-shop')) return;
+    if ($('agentCta')) $('agentCta').hidden = false;
+    if ($('needAgent')) $('needAgent').hidden = false;
+    var pop = $('agentPop');
+    if (!pop) return;
+    var KEY = 'abrants_agent_invite';
+    var until = 0;
+    try { until = Number(localStorage.getItem(KEY) || 0); } catch (e) { /* private mode */ }
+    if (Date.now() < until) return;
+    var shown = false;
+    function later(days) { try { localStorage.setItem(KEY, String(Date.now() + days * 864e5)); } catch (e) { /* private mode */ } }
+    function show() {
+      if (shown || document.documentElement.classList.contains('in-shop')) return;
+      if (!sheet.hidden || !$('firstTimeConfirm').hidden) { setTimeout(show, 5000); return; }
+      shown = true;
+      window.removeEventListener('scroll', onScroll);
+      pop.hidden = false;
+      requestAnimationFrame(function () { pop.classList.add('open'); });
+    }
+    function onScroll() { if (window.scrollY > window.innerHeight * 1.2) show(); }
+    setTimeout(show, 8000);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    $('agentPopClose').addEventListener('click', function () { pop.hidden = true; later(3); });
+    $('agentPopGo').addEventListener('click', function () { later(30); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !pop.hidden && sheet.hidden) { pop.hidden = true; later(3); } });
   }
 
   // In an agent's shop (js/shop.js) the server answers with that agent's prices.
@@ -218,6 +250,7 @@
 
   function openSheet(plan) {
     SELECTED_PLAN = plan;
+    if ($('agentPop')) $('agentPop').hidden = true; // never over the checkout
     $('ckPlanLabel').textContent = plan.label;
     $('ckNetwork').textContent = plan.network + ' · delivered to your number';
     // Paystack's fee is paid by the customer on top of the bundle price (same rounding as the server).
