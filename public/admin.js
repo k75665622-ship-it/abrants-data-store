@@ -28,6 +28,7 @@
     bundles: ['Bundles & pricing', 'Control what you sell and what it costs.'],
     services: ['Checkers & AFA', 'Set prices, follow orders and retry stuck ones.'],
     links: ['Links', 'See what each link brings in.'],
+    agents: ['Agents', 'People who sell for you with their own shop link.'],
     customers: ['Customers & promos', 'See who buys the most and reward them.'],
     numbers: ['Blocked numbers', 'Stop specific numbers from buying.'],
     settings: ['Settings', 'Storefront content and support details.'],
@@ -163,6 +164,7 @@
     if (name === 'customers' && window.AbrantsCustomers) window.AbrantsCustomers.load();
     if (name === 'services' && window.AbrantsServices) window.AbrantsServices.load();
     if (name === 'links' && window.AbrantsLinks) window.AbrantsLinks.load();
+    if (name === 'agents' && window.AbrantsAgents) window.AbrantsAgents.load();
     if (name === 'numbers') loadBlocked();
     if (name === 'settings') { loadSettings(); loadProviders(); }
     if (name === 'activity') loadAudit();

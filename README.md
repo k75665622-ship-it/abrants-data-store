@@ -479,3 +479,38 @@ running. Nothing needs setting up: it starts by itself on Render and does nothin
 
 Render's free instances are meant for trying things out. For a shop taking payments the paid instance is the safer
 home: no sleeping, no monthly hour limit.
+
+## 25. Agents (Admin → Agents)
+
+People sign up at `/agent`, get their own shop link (`abrantsdata.com/s/kwame-data-hub`) and sell everything the
+store sells: data, result checkers and AFA. **Off until the owner switches it on** in Admin → Agents.
+
+**Money**
+- The owner sets an **agent price** per product (or "X% below store price for all"). Empty = the store price.
+- Each agent sets their own selling price: never below their agent price, no upper limit. Their shop shows their prices.
+- The agent earns *selling price − agent price*. When the store pays the Paystack fee, the agent's part of the fee
+  (1.95% of what they added) comes off their earning; when the customer pays it, they keep it all. Either way the store
+  takes exactly what it would on a sale at the agent price. Profit figures in Admin leave out the agents' share.
+- The earning is saved on the order (`agent_id`, `agent_base_ghs`, `agent_earning_ghs`, signed with the rest of the order
+  so it cannot be changed through Paystack). It becomes the agent's when the order is delivered (checker PINs sent, AFA
+  approved), then waits the **hold** (24 hours by default) before it can be paid. Failed or refunded orders earn
+  nothing; if the agent was already paid for one, the same amount comes off their next payout (`agent_earnings`).
+
+**Payouts** (to the agent's MoMo)
+- *I pay them by MoMo*: the owner sends it himself and presses "I paid …" (or "Mark everyone due as paid").
+- *Paystack sends it*: Paystack Transfers, from the Paystack balance, GH₵1 per MoMo transfer. Paystack only allows
+  transfers for **registered businesses**, the balance must hold the money, and if OTP is on Paystack sends a code that
+  is typed in Admin (or switch OTP off in Paystack's Preferences). Weekly automatic payouts are optional (from 10:00 on the
+  chosen day). Paystack reports the result (`transfer.success`, `transfer.failed`, `transfer.reversed`) to the webhook URL
+  the store already uses.
+- A payout covers everything ready, minus the payout fee (setting, GH₵1 by default). "Pay everyone due" only pays agents
+  above the minimum (GH₵20 by default) and waits a day after an agent changes their MoMo number.
+- A payout with no clear answer from Paystack is never retried blindly: "Check" asks Paystack; failed or reversed
+  payouts go back into the agent's balance.
+
+**Shops**: a shop link opens the normal store with the agent's name on top, their prices and a WhatsApp button to them.
+The store's own accounts and offers are hidden there. The shop is remembered for that browser tab only (`js/shop.js`).
+Paused or closed agents, and the programme switched off, all mean the link shows the normal store.
+
+**Neon**: agents are kept in memory, so opening a shop link costs no database query. The database is used when someone
+buys, when an agent or the owner opens their pages, and on payout day.

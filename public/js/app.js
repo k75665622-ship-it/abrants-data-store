@@ -110,6 +110,7 @@
           if (!data.supportWhatsapp) $('helpLinkText').textContent = 'Call us';
           $('needHelp').hidden = false;
         }
+        if (data.agentsOpen && $('agentCta')) $('agentCta').hidden = false;
         if (data.channelLink && /^https:\/\//i.test(data.channelLink)) {
           $('channelLink').href = data.channelLink;
           $('channelStrip').hidden = false;
@@ -129,8 +130,11 @@
       .catch(function () { /* settings are optional */ });
   }
 
+  // In an agent's shop (js/shop.js) the server answers with that agent's prices.
+  function shopQuery() { return window.abrantsShopQuery ? window.abrantsShopQuery() : ''; }
+
   function loadPlans() {
-    fetch('/api/plans')
+    fetch('/api/plans' + shopQuery())
       .then(function (res) {
         if (!res.ok) throw new Error('Unable to load bundles.');
         return res.json();
@@ -320,7 +324,7 @@
     fetch('/api/checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ planId: SELECTED_PLAN.id, phone: phone, email: email, confirmFirstTime: confirmed === true, campaign: window.abrantsFrom ? window.abrantsFrom() : '' })
+      body: JSON.stringify({ planId: SELECTED_PLAN.id, phone: phone, email: email, confirmFirstTime: confirmed === true, campaign: window.abrantsFrom ? window.abrantsFrom() : '', shop: window.abrantsShop ? window.abrantsShop() : '' })
     })
       .then(function (res) {
         return res.json().then(function (data) { return { ok: res.ok, status: res.status, data: data }; });
@@ -390,7 +394,7 @@
   loadPlans();
   loadMe();
   // Result checkers and AFA: show what is on sale right now, or "Coming soon".
-  fetch('/api/services').then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+  fetch('/api/services' + shopQuery()).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
     if (!d) return;
     var chk = d.checkers || [];
     if (chk.length) {

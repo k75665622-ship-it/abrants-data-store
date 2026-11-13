@@ -51,6 +51,12 @@ const DEFAULT_SETTINGS = {
   maintenanceMode: false,
   maintenanceMessage: "We are doing a quick upgrade. Please check back in a few minutes.",
   lowWalletThreshold: 100,
+  // Agent programme (services/agents.js). Off until the owner switches it on in Admin → Agents.
+  agents: {
+    enabled: false, autoApprove: false, prices: {},
+    holdHours: 24, minPayout: 20, payoutFee: 1,
+    payoutMethod: 'manual', autoPayout: false, payoutDay: 1, lastAutoPayout: null,
+  },
 };
 
 const ORDER_STATUSES = [
@@ -160,6 +166,12 @@ async function initDb() {
     -- DataHustle's own code for the order ("DM-..."), which its order-status address needs. Separate from
     -- provider_reference (its transaction reference) and purchase_id (its record id).
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS provider_order_ref TEXT;
+    -- Sold through an agent's shop (services/agents.js): the agent, the agent price the store set, and what the
+    -- agent earns on this order (their selling price minus the agent price, after Paystack's cut of the difference).
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS agent_id BIGINT;
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS agent_base_ghs NUMERIC(12,2);
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS agent_earning_ghs NUMERIC(12,2);
+    CREATE INDEX IF NOT EXISTS idx_orders_agent ON orders(agent_id, created_at DESC) WHERE agent_id IS NOT NULL;
     CREATE INDEX IF NOT EXISTS idx_orders_provider_order_ref ON orders(provider_order_ref) WHERE provider_order_ref IS NOT NULL;
     CREATE TABLE IF NOT EXISTS campaigns (
       code TEXT PRIMARY KEY,
@@ -201,9 +213,10 @@ function mapOrder(row) {
     paymentFeeGHS: row.payment_fee_ghs == null ? null : Number(row.payment_fee_ghs),
     customerFeeGHS: Number(row.customer_fee_ghs || 0),
     chargeGHS: Math.round((Number(row.price_ghs) + Number(row.customer_fee_ghs || 0)) * 100) / 100,
+    // An agent's share is the agent's money, not the store's: it comes off the profit.
     estimatedProfitGHS: row.provider_cost_ghs == null
       ? null
-      : Number(row.price_ghs) - Number(row.provider_cost_ghs) - Number(row.payment_fee_ghs || 0),
+      : Number(row.price_ghs) - Number(row.provider_cost_ghs) - Number(row.payment_fee_ghs || 0) - Number(row.agent_earning_ghs || 0),
     phone: row.phone,
     email: row.email,
     status: row.status,
@@ -219,6 +232,9 @@ function mapOrder(row) {
     listPriceGHS: row.list_price_ghs == null ? null : Number(row.list_price_ghs),
     source: row.source || 'store',
     campaign: row.campaign || null,
+    agentId: row.agent_id == null ? null : Number(row.agent_id),
+    agentBaseGHS: row.agent_base_ghs == null ? null : Number(row.agent_base_ghs),
+    agentEarningGHS: row.agent_earning_ghs == null ? null : Number(row.agent_earning_ghs),
     provider: row.provider || 'datahustle',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -236,8 +252,9 @@ async function createOrder(order) {
   const result = await pool.query(`
     INSERT INTO orders
       (reference, plan_id, network, network_code, capacity_gb, label, price_ghs, provider_cost_ghs, payment_fee_ghs,
-       phone, email, status, customer_id, offer_id, list_price_ghs, source, customer_fee_ghs, campaign)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'pending',$12,$13,$14,'store',$15,$16)
+       phone, email, status, customer_id, offer_id, list_price_ghs, source, customer_fee_ghs, campaign,
+       agent_id, agent_base_ghs, agent_earning_ghs)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'pending',$12,$13,$14,'store',$15,$16,$17,$18,$19)
     ON CONFLICT (reference) DO NOTHING
     RETURNING *
   `, [
@@ -246,6 +263,7 @@ async function createOrder(order) {
     order.paymentFeeGHS ?? null, order.phone, order.email || null,
     order.customerId ?? null, order.offerId ?? null, order.listPriceGHS ?? null,
     Number(order.customerFeeGHS || 0), order.campaign || null,
+    order.agentId ?? null, order.agentId ? (order.agentBaseGHS ?? null) : null, order.agentId ? (order.agentEarningGHS ?? null) : null,
   ]);
   // Safe to call twice for the same reference (e.g. webhook and status page at the same moment).
   if (!result.rows[0]) return getOrder(order.reference);
@@ -312,7 +330,16 @@ async function updateOrder(reference, changes, eventType = 'order.updated') {
   );
   if (!result.rows[0]) return null;
   await addEvent(reference, eventType, changes);
+  if (changes.status) await agentHook(result.rows[0]);
   return mapOrder(result.rows[0]);
+}
+
+// An order sold through an agent's shop: keep the agent's earnings in step with the order (services/agents.js).
+// Never lets a problem there stop the order itself; the agent figures are re-checked before any payout.
+async function agentHook(row) {
+  if (!row || row.agent_id == null) return;
+  try { await require('./agents').syncOrder('data', row); }
+  catch (err) { console.warn('Agent earnings not updated for', row.reference, err.message); }
 }
 
 // Atomically claims a pending order for fulfillment. This prevents the Paystack webhook
@@ -370,6 +397,7 @@ async function transitionOrder(reference, fromStatus, changes, eventType = 'orde
   );
   if (!result.rows[0]) return null;
   await addEvent(reference, eventType, changes);
+  if (changes.status) await agentHook(result.rows[0]);
   return mapOrder(result.rows[0]);
 }
 
@@ -559,8 +587,8 @@ async function getOrderStats() {
       COUNT(*) FILTER (WHERE status = 'refunding')::int AS refunding,
       COUNT(*) FILTER (WHERE status = 'refunded')::int AS refunded,
       COALESCE(SUM(price_ghs) FILTER (WHERE status IN ('paid','processing','fulfilled')), 0)::numeric AS revenue,
-      COALESCE(SUM((price_ghs - COALESCE(provider_cost_ghs,0) - COALESCE(payment_fee_ghs,0))) FILTER (WHERE status IN ('paid','processing','fulfilled') AND provider_cost_ghs IS NOT NULL), 0)::numeric AS estimated_profit,
-      COALESCE(SUM((price_ghs - COALESCE(provider_cost_ghs,0) - COALESCE(payment_fee_ghs,0))) FILTER (WHERE status = 'fulfilled' AND provider_cost_ghs IS NOT NULL), 0)::numeric AS realized_profit,
+      COALESCE(SUM((price_ghs - COALESCE(provider_cost_ghs,0) - COALESCE(payment_fee_ghs,0) - COALESCE(agent_earning_ghs,0))) FILTER (WHERE status IN ('paid','processing','fulfilled') AND provider_cost_ghs IS NOT NULL), 0)::numeric AS estimated_profit,
+      COALESCE(SUM((price_ghs - COALESCE(provider_cost_ghs,0) - COALESCE(payment_fee_ghs,0) - COALESCE(agent_earning_ghs,0))) FILTER (WHERE status = 'fulfilled' AND provider_cost_ghs IS NOT NULL), 0)::numeric AS realized_profit,
       COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '24 hours')::int AS last_24h,
       COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days')::int AS last_7d,
       COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days')::int AS last_30d
@@ -573,7 +601,7 @@ async function getOrderStats() {
       period,
       COUNT(*)::int AS orders,
       COALESCE(SUM(price_ghs) FILTER (WHERE status IN ('paid','processing','fulfilled')),0)::numeric AS revenue,
-      COALESCE(SUM((price_ghs - COALESCE(provider_cost_ghs,0) - COALESCE(payment_fee_ghs,0))) FILTER (WHERE status IN ('paid','processing','fulfilled') AND provider_cost_ghs IS NOT NULL),0)::numeric AS profit,
+      COALESCE(SUM((price_ghs - COALESCE(provider_cost_ghs,0) - COALESCE(payment_fee_ghs,0) - COALESCE(agent_earning_ghs,0))) FILTER (WHERE status IN ('paid','processing','fulfilled') AND provider_cost_ghs IS NOT NULL),0)::numeric AS profit,
       COUNT(*) FILTER (WHERE status='fulfilled')::int AS delivered,
       COUNT(*) FILTER (WHERE status IN ('delivery_failed','refunded'))::int AS failed_or_refunded
     FROM (
@@ -591,7 +619,7 @@ async function getOrderStats() {
       plan_id, network, label,
       COUNT(*)::int AS orders,
       COALESCE(SUM(price_ghs) FILTER (WHERE status IN ('paid','processing','fulfilled')),0)::numeric AS revenue,
-      COALESCE(SUM((price_ghs - COALESCE(provider_cost_ghs,0) - COALESCE(payment_fee_ghs,0))) FILTER (WHERE status IN ('paid','processing','fulfilled') AND provider_cost_ghs IS NOT NULL),0)::numeric AS profit
+      COALESCE(SUM((price_ghs - COALESCE(provider_cost_ghs,0) - COALESCE(payment_fee_ghs,0) - COALESCE(agent_earning_ghs,0))) FILTER (WHERE status IN ('paid','processing','fulfilled') AND provider_cost_ghs IS NOT NULL),0)::numeric AS profit
     FROM orders
     WHERE created_at >= CURRENT_DATE - INTERVAL '29 days'
     GROUP BY plan_id, network, label
@@ -603,7 +631,7 @@ async function getOrderStats() {
     SELECT d::date AS day,
       COUNT(o.*)::int AS orders,
       COALESCE(SUM(o.price_ghs) FILTER (WHERE o.status IN ('paid','processing','fulfilled')),0)::numeric AS revenue,
-      COALESCE(SUM((o.price_ghs - COALESCE(o.provider_cost_ghs,0) - COALESCE(o.payment_fee_ghs,0))) FILTER (WHERE o.status IN ('paid','processing','fulfilled') AND o.provider_cost_ghs IS NOT NULL),0)::numeric AS profit
+      COALESCE(SUM((o.price_ghs - COALESCE(o.provider_cost_ghs,0) - COALESCE(o.payment_fee_ghs,0) - COALESCE(o.agent_earning_ghs,0))) FILTER (WHERE o.status IN ('paid','processing','fulfilled') AND o.provider_cost_ghs IS NOT NULL),0)::numeric AS profit
     FROM generate_series(CURRENT_DATE - INTERVAL '13 days', CURRENT_DATE, INTERVAL '1 day') d
     LEFT JOIN orders o ON o.created_at::date = d::date
     GROUP BY d ORDER BY d

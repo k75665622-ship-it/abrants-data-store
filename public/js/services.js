@@ -13,6 +13,8 @@
   var cat = null, qty = 1, needHelp = false;
   // The link this visitor came through (js/track.js); empty when they came straight to the site.
   var from = function () { return window.abrantsFrom ? window.abrantsFrom() : ''; };
+  // The agent's shop this tab is in (js/shop.js); empty in the normal store.
+  var shop = function () { return window.abrantsShop ? window.abrantsShop() : ''; };
 
   function toast(msg, kind) {
     var el = document.createElement('div');
@@ -113,7 +115,7 @@
     if (!/^\S+@\S+\.\S+$/.test(email)) return showError('chkError', { message: 'Enter a valid email address.', field: 'email' }, form);
     store.set('sv-contact', { phone: phone, email: email });
     busy(btn, true, 'Opening payment…');
-    api('/api/services/checkout', { kind: 'checker', code: c.code, quantity: qty, phone: phone, email: email, campaign: from() })
+    api('/api/services/checkout', { kind: 'checker', code: c.code, quantity: qty, phone: phone, email: email, campaign: from(), shop: shop() })
       .then(function (d) { remember(d.reference, c.name + (qty > 1 ? ' × ' + qty : '')); location.href = d.authorizationUrl; })
       .catch(function (err) { busy(btn, false); showError('chkError', err, form); });
   });
@@ -135,7 +137,7 @@
     var form = this, btn = $('afaPay');
     clearError('afaError', form);
     fixCard(form.ghanaCard);
-    var body = { kind: 'afa', campaign: from() };
+    var body = { kind: 'afa', campaign: from(), shop: shop() };
     ['fullName', 'ghanaCard', 'dob', 'phone', 'region', 'location', 'occupation', 'email'].forEach(function (k) { body[k] = form[k].value.trim(); });
     var missing = ['fullName', 'ghanaCard', 'dob', 'phone', 'region', 'location', 'email'].filter(function (k) { return !body[k]; })[0];
     if (missing) return showError('afaError', { message: 'Fill in every field.', field: missing }, form);
@@ -266,7 +268,7 @@
   if (contact.phone) { $('chkPhone').value = contact.phone; $('paneAfa').phone.value = contact.phone; }
   if (contact.email) { $('chkEmail').value = contact.email; $('paneAfa').email.value = contact.email; }
 
-  api('/api/services').then(function (d) {
+  api('/api/services' + (window.abrantsShopQuery ? window.abrantsShopQuery() : '')).then(function (d) {
     cat = d;
     $('svLoading').hidden = true;
     var hasChk = d.checkers.length > 0, hasAfa = Boolean(d.afa);

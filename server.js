@@ -76,10 +76,17 @@ app.use((req, res, next) => {
 app.use('/api/admin', adminRoutes);
 app.use('/api/services', require('./routes/services').pub);
 app.use('/api/account', accountRoutes);
+// Agent programme: the agent's own account, and what a shop link shows (routes/agents.js).
+const agentRoutes = require('./routes/agents');
+app.use('/api/agent', agentRoutes.pub);
+app.get('/api/shop/:slug', agentRoutes.shopInfo);
 app.use('/api', apiRoutes);
 // Pages that are gone: bill payments (removed) and the get-started page (now part of the home page).
 // Old links open the store; the browser keeps a #section, so /welcome.html#afa lands on the AFA section.
 app.get(['/bills.html', '/welcome.html'], (req, res) => res.redirect(302, '/'));
+// An agent's shop: the normal store, which shows that agent's prices (public/js/shop.js). /agent is their own page.
+app.get(/^\/s\/[A-Za-z0-9-]{1,40}\/?$/, (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+app.get('/agent', (req, res) => res.redirect(302, '/agent.html'));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Tracking links: abrantsdata.com/k7m2x. A saved code leaves a short-lived note (cookie) for track.js and the
@@ -102,6 +109,7 @@ const PORT = process.env.PORT || 3000;
 initDb()
   .then(() => initCustomerDb())
   .then(() => require('./services/serviceOrders').initServiceDb())
+  .then(() => require('./services/agents').initAgentDb())
   .then(() => campaigns.loadKnown().catch((e) => console.warn('Could not load tracking links yet:', e.message)))
   .then(() => {
     app.listen(PORT, () => {
@@ -118,6 +126,10 @@ initDb()
       const poll = () => pollProviderOrders().catch((e) => console.warn('Delivery catch-up failed:', e.message));
       setTimeout(poll, 20 * 1000).unref();
       setInterval(poll, 2 * 60 * 1000).unref();
+      // Agents: weekly MoMo payouts, if switched on (checked hourly from memory; the database only on payout day).
+      const agentPay = () => require('./services/agents').autoPayoutTick().catch((e) => console.warn('Agent payouts failed:', e.message));
+      setInterval(agentPay, 60 * 60 * 1000).unref();
+      setTimeout(agentPay, 5 * 60 * 1000).unref();
       // Render's free plan: stay awake (never touches the database).
       require('./services/keepAwake').startKeepAwake();
       // Out of stock handling: try the first provider again / reopen paused networks after an hour.

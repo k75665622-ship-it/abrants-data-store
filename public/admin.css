@@ -699,3 +699,42 @@ body.has-selbar .toast-stack{bottom:calc(var(--nav-h) + var(--safe-b) + 150px)}
 .lk-edit{margin-top:10px}
 .lk-grid{display:grid;grid-template-columns:1fr;gap:10px}
 @media (min-width:640px){.lk-grid{grid-template-columns:2fr 1fr}}
+
+/* ==========================================================================
+   Agents
+   ========================================================================== */
+.ag-head .panel-body{display:grid;gap:14px}
+.ag-head .switch{white-space:normal}
+.ag-main-switch{font-size:15px;font-weight:800}
+.ag-join{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ag-join .lk-url{margin:0;flex:1 1 220px}
+#section-agents.ag-off #agStats,#section-agents.ag-off .ag-join{opacity:.55}
+.side-badge{margin-left:auto;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--accent);color:#141414;font-size:11px;font-weight:800;display:inline-grid;place-items:center}
+.ag-card{cursor:pointer}
+.ag-card:hover strong{text-decoration:underline}
+.ag-nums{margin-bottom:8px}
+@media (min-width:640px){.ag-nums{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.ag-pill{flex:none;font-size:11px;font-weight:800;padding:4px 9px;border-radius:999px;background:var(--panel-3);color:#c3cad6;white-space:nowrap}
+.ag-pill.active,.ag-pill.paid{background:var(--green-soft);color:var(--green)}
+.ag-pill.pending,.ag-pill.sending,.ag-pill.otp{background:var(--amber-soft);color:#ffe89a}
+.ag-pill.suspended,.ag-pill.rejected,.ag-pill.failed{background:var(--red-soft);color:#ffb4b4}
+.ag-method{margin-bottom:12px}
+.ag-pay-grid{display:grid;grid-template-columns:1fr;gap:10px}
+@media (min-width:640px){.ag-pay-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.ag-auto{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px}
+.ag-auto select{width:auto;min-width:150px}
+.ag-otp{display:flex;gap:8px;margin:10px 0 0}
+.ag-otp input{max-width:200px}
+.ag-note{color:#ffe89a !important}
+.ag-fill{display:flex;gap:8px;align-items:center;margin-bottom:12px}
+.ag-fill input{width:90px}
+.ag-price{display:grid;grid-template-columns:minmax(0,1fr) 110px;gap:4px 10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line-2)}
+.ag-price:last-child{border-bottom:0}
+.ag-price-name strong{display:block;font-size:14px}
+.ag-price-name small{display:block;color:var(--muted);font-size:11.5px;margin-top:2px}
+.ag-price input{text-align:right;font-weight:700}
+.ag-price-gap{grid-column:1/-1;font-size:11.5px;color:var(--muted-2)}
+.ag-price.warn input{border-color:rgba(248,113,113,.6)}
+.ag-price.warn .ag-price-gap{color:#ffb4b4;font-weight:700}
+@media (min-width:640px){.ag-price{grid-template-columns:minmax(0,1fr) 120px 130px}.ag-price-gap{grid-column:auto;text-align:right}}
+.ag-sub{margin:22px 0 8px;font-size:15px}

@@ -9,6 +9,7 @@ const { optionalCustomer } = require('../services/customers');
 const { getSettings, saveSettings, isNumberBlocked, normalizePhone, PHONE_RE } = require('../services/orderStore');
 const { feeRate, chargeFor, round2 } = require('../services/fees');
 const { cleanCode } = require('../services/campaigns');
+const agents = require('../services/agents');
 
 const hits = new Map();
 function limit(max) {
@@ -30,10 +31,14 @@ pub.get('/', async (req, res) => {
   try {
     const [c, s] = await Promise.all([svc.catalog(), getSettings()]);
     const customerPays = s.customerPaysFee !== false;
+    // In an agent's shop (?shop=kwame-data) the agent's prices are shown.
+    const shop = req.query.shop ? await agents.shopAgent(req.query.shop) : null;
+    const chk = (x) => (shop ? agents.quoteChecker(shop, x, 1, s).unitGHS : x.price);
+    const afa = (x) => (shop ? agents.quoteAfa(shop, x, s).unitGHS : x.price);
     res.setHeader('Cache-Control', 'no-store');
     res.json({
-      checkers: c.checkers.filter((x) => x.available).map((x) => ({ code: x.code, name: x.name, price: x.price, charge: chargeFor(x.price, customerPays), stock: x.stock })),
-      afa: c.afa.available ? { price: c.afa.price, charge: chargeFor(c.afa.price, customerPays) } : null,
+      checkers: c.checkers.filter((x) => x.available).map((x) => ({ code: x.code, name: x.name, price: chk(x), charge: chargeFor(chk(x), customerPays), stock: x.stock })),
+      afa: c.afa.available ? { price: afa(c.afa), charge: chargeFor(afa(c.afa), customerPays) } : null,
       regions: c.regions, customerPaysFee: customerPays, feeRate: feeRate(),
     });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Could not load.' }); }
@@ -48,6 +53,7 @@ pub.post('/checkout', limit(15), optionalCustomer(), async (req, res) => {
     if (!/^\S+@\S+\.\S+$/.test(email)) return res.status(400).json({ error: 'Enter a valid email address.', field: 'email' });
     const c = await svc.catalog();
     const reference = svc.newReference(b.kind);
+    const shop = b.shop ? await agents.shopAgent(b.shop) : null;
     let order;
 
     if (b.kind === 'checker') {
@@ -60,12 +66,20 @@ pub.post('/checkout', limit(15), optionalCustomer(), async (req, res) => {
       if (!PHONE_RE.test(phone)) return res.status(400).json({ error: 'Enter a valid 10-digit phone number.', field: 'phone' });
       order = { kind: 'checker', code: item.code, name: item.name, checkerTypeId: item.id, quantity, phone,
         priceGHS: round2(item.price * quantity), costGHS: item.cost == null ? null : round2(item.cost * quantity) };
+      if (shop) {
+        const q = agents.quoteChecker(shop, item, quantity, s);
+        Object.assign(order, { priceGHS: q.priceGHS, agentId: shop.id, agentBaseGHS: q.agentBaseGHS, agentEarningGHS: q.agentEarningGHS });
+      }
     } else if (b.kind === 'afa') {
       if (!c.afa.available) return res.status(409).json({ error: 'AFA registration is not available right now.' });
       const v = svc.cleanAfa(b);
       if (v.error) return res.status(400).json({ error: v.error, field: v.field });
       order = { kind: 'afa', code: 'AFA', name: 'AFA registration', quantity: 1, phone: v.phone, afa: v.afa,
         priceGHS: round2(c.afa.price), costGHS: c.afa.cost };
+      if (shop) {
+        const q = agents.quoteAfa(shop, c.afa, s);
+        Object.assign(order, { priceGHS: q.priceGHS, agentId: shop.id, agentBaseGHS: q.agentBaseGHS, agentEarningGHS: q.agentEarningGHS });
+      }
     } else {
       return res.status(400).json({ error: 'Choose what to buy.' });
     }

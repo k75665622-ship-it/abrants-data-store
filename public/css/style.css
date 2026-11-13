@@ -702,3 +702,12 @@ body.has-mobilebar{padding-bottom:82px}
   .afa-card h2{font-size:34px}
   .afa-how-title{margin-top:0}
 }
+
+/* ---------------------------------------------------------- Agent shops (js/shop.js) */
+.shop-bar{background:var(--navy);color:#fff;border-bottom:1px solid rgba(255,255,255,.08)}
+.shop-bar-in{min-height:44px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.shop-bar-name{display:flex;align-items:center;gap:8px;font:700 14.5px/1.25 var(--display);letter-spacing:-.01em;min-width:0;overflow-wrap:anywhere}
+.shop-bar-name i{font-style:normal}
+.shop-bar-chat{flex:none;display:inline-flex;align-items:center;min-height:32px;padding:0 12px;border-radius:999px;background:#25d366;color:#06301a;font-weight:700;font-size:13px}
+/* The store's own accounts and offers do not apply in an agent's shop. */
+.in-shop #accountLink,.in-shop .footer-account,.in-shop #memberPromo,.in-shop #offerBanner,.in-shop #guestHint,.in-shop .agent-cta,.in-shop .bar-icon[href="/account.html"]{display:none !important}

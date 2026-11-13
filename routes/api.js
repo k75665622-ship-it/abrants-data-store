@@ -86,12 +86,14 @@ function orderFromMetadata(reference, tx) {
     capacityGB: Number(o.capacityGB), priceGHS: price,
     providerCostGHS: num(o.providerCostGHS), paymentFeeGHS: num(o.paymentFeeGHS), customerFeeGHS: num(o.customerFeeGHS) || 0,
     customerId: num(o.customerId), offerId: num(o.offerId), listPriceGHS: num(o.listPriceGHS),
+    agentId: num(o.agentId), agentBaseGHS: num(o.agentBaseGHS), agentEarningGHS: num(o.agentEarningGHS),
     email: o.email || '',
   };
 }
 
 const { feeRate, chargeFor } = require('../services/fees');
 const { cleanCode } = require('../services/campaigns');
+const agents = require('../services/agents');
 
 function paymentMatchesOrder(tx, order) {
   const amountGHS = Number(tx.amount) / 100;
@@ -103,11 +105,23 @@ function paymentMatchesOrder(tx, order) {
 
 // Only bundles that are switched on in the admin dashboard are shown to customers.
 // A logged-in customer also sees their own special prices (decided here, on the server).
+// In an agent's shop (?shop=kwame-data) the agent's prices are shown instead.
 router.get('/plans', optionalCustomer(), async (req, res) => {
   try {
     const plans = await getPlans();
-    const offers = req.customer ? await listOffers(req.customer.id, { onlyUsable: true }) : [];
     res.setHeader('Cache-Control', 'private, no-store');
+    const shop = req.query.shop ? await agents.shopAgent(req.query.shop) : null;
+    if (shop) {
+      const settings = await getSettings();
+      return res.json(plans.map((p) => {
+        const q = agents.quoteData(shop, p, settings);
+        return {
+          id: p.id, network: p.network, networkCode: p.networkCode, capacityGB: p.capacityGB, label: p.label, validity: p.validity,
+          priceGHS: q.priceGHS, pricePerGB: p.capacityGB > 0 ? q.priceGHS / p.capacityGB : q.priceGHS, special: false,
+        };
+      }));
+    }
+    const offers = req.customer ? await listOffers(req.customer.id, { onlyUsable: true }) : [];
     res.json(plans.map((p) => {
       const quote = resolvePrice(p, offers);
       const special = quote.offerId != null;
@@ -138,6 +152,7 @@ router.get('/settings', async (req, res) => {
       pauseMessage: s.pauseMessage || '',
       customerPaysFee: s.customerPaysFee !== false,
       paymentFeeRate: feeRate(),
+      agentsOpen: agents.conf(s).enabled === true,
     });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Could not load store settings.' }); }
 });
@@ -178,8 +193,11 @@ router.post('/checkout', checkoutLimit, optionalCustomer(), async (req, res) => 
     }
 
     // The price is always worked out here from the database, never taken from the browser.
-    const offers = req.customer ? await listOffers(req.customer.id, { onlyUsable: true }) : [];
-    const quote = resolvePrice(plan, offers);
+    // In an agent's shop it is the agent's price (store offers do not apply there).
+    const shop = req.body?.shop ? await agents.shopAgent(req.body.shop) : null;
+    const agentQuote = shop ? agents.quoteData(shop, plan, settings) : null;
+    const offers = req.customer && !shop ? await listOffers(req.customer.id, { onlyUsable: true }) : [];
+    const quote = agentQuote ? { priceGHS: agentQuote.priceGHS, offerId: null } : resolvePrice(plan, offers);
     const priceGHS = quote.priceGHS;
 
     const reference = `DB-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
@@ -198,6 +216,8 @@ router.post('/checkout', checkoutLimit, optionalCustomer(), async (req, res) => 
       customerId: req.customer ? req.customer.id : null, offerId: quote.offerId ?? null, listPriceGHS: plan.priceGHS,
       // The tracking link the visitor came through (see services/campaigns.js). Signed with the rest of the order.
       campaign: cleanCode(req.body?.campaign),
+      // The agent whose shop this was, and what they earn on it (services/agents.js). Signed too.
+      ...(shop ? { agentId: shop.id, agentBaseGHS: agentQuote.agentBaseGHS, agentEarningGHS: agentQuote.agentEarningGHS } : {}),
     };
 
     const origin = `${req.protocol}://${req.get('host')}`;
@@ -270,7 +290,10 @@ router.post('/webhook/paystack', async (req, res) => {
 
   try {
     const ref = String(event.data?.reference || event.data?.transaction_reference || '');
-    if (ref.startsWith('SV-')) {
+    if (String(event.event || '').startsWith('transfer.')) {
+      // Agent payouts to MoMo (services/agents.js).
+      await agents.transferEvent(event);
+    } else if (ref.startsWith('SV-')) {
       // Result checkers and AFA registration.
       const services = require('../services/serviceOrders');
       if (event.event === 'charge.success') await services.confirmPayment(ref, event.data);
