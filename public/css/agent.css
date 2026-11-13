@@ -45,8 +45,6 @@ select{width:100%;min-height:50px;border:1px solid var(--line);border-radius:var
 .ag-money-grid span{display:block;font-size:11.5px;color:#9ca6b9;font-weight:600}
 .ag-money-grid strong{display:block;font:700 16px/1.3 var(--display);overflow-wrap:anywhere}
 
-.ag-tabs{grid-template-columns:repeat(4,minmax(0,1fr));position:sticky;top:calc(var(--header-h) + 6px);z-index:20;box-shadow:0 6px 16px rgba(245,246,250,.9)}
-.ag-tabs .seg-btn{font-size:13px;padding:0 4px}
 
 /* Prices */
 .ag-group{margin:0 0 16px}
@@ -120,3 +118,163 @@ select{width:100%;min-height:50px;border:1px solid var(--line);border-radius:var
 .ag-terms-text p{margin:0 0 10px}
 .ag-terms-text ul{margin:0 0 10px;padding-left:20px}
 .ag-terms-text li{margin-bottom:4px}
+
+/* ================================================================ "My shop" dashboard (js/agent-dash.js) */
+body.ag-dash{padding-bottom:calc(84px + var(--safe-b))}
+body.ag-dash .site-footer{display:none}
+
+/* who and where: the shop, its status and its link */
+.ag-id{background:var(--navy);color:#fff;border-radius:var(--r-lg);padding:16px;margin:0 0 14px}
+.ag-id-top{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center}
+.ag-face{width:54px;height:54px;border-radius:50%;overflow:hidden;display:grid;place-items:center;font:700 19px/1 var(--display);box-shadow:0 0 0 3px rgba(255,255,255,.14)}
+.ag-face img{width:100%;height:100%;object-fit:cover}
+.ag-id-text{min-width:0}
+.ag-id-text h1{margin:0 0 6px;font:700 21px/1.15 var(--display);letter-spacing:-.025em;overflow-wrap:anywhere}
+.ag-id-state{display:flex;flex-wrap:wrap;gap:6px;margin:0}
+.ag-strikes{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.04em;padding:4px 9px;border-radius:999px;background:#e5484d;color:#fff}
+.ag-strikes[hidden]{display:none}
+.ag-gear{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:#cfd6e4;background:rgba(255,255,255,.06)}
+.ag-gear:hover,.ag-gear.active{background:rgba(255,255,255,.14);color:#fff}
+.ag-link{margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.1)}
+.ag-link-url{font:600 14px/1.4 var(--body);background:rgba(255,255,255,.07);color:#fff;border-radius:var(--r-sm);padding:11px 12px;overflow-wrap:anywhere;margin-bottom:10px}
+.ag-link .ag-link-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.ag-link .ag-btn{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.14);color:#fff;min-height:44px}
+.ag-link .ag-btn-wa{background:#25d366;border-color:#25d366;color:#06301a}
+.ag-link .ag-btn[hidden]{display:none}
+.ag-link .ag-link-actions .ag-btn:last-child{grid-column:auto}
+.muted-card .ag-link-url{opacity:.6}
+
+/* The link and notices on Home only: the other tabs get straight to their content. */
+#dashView:not([data-tab="home"]) .ag-link,#dashView:not([data-tab="home"]) .ag-notice{display:none}
+#dashView:not([data-tab="home"]) .ag-id{padding-bottom:14px}
+
+/* home */
+.ag-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0 0 14px}
+.ag-stat{background:#fff;border:1px solid var(--line);border-radius:var(--r-md);padding:12px}
+.ag-stat span{display:block;font-size:12px;font-weight:700;color:var(--muted)}
+.ag-stat strong{display:block;font:700 18px/1.2 var(--display);letter-spacing:-.02em;margin-top:4px;overflow-wrap:anywhere}
+.ag-stat small{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+.ag-latest{display:block;width:100%;text-align:left;margin:0 0 14px;padding:14px 16px;border-radius:var(--r-md);background:#fff3f3;border:1px solid #f5c2c4;color:#8a1f23;font-weight:700;font-size:14.5px;line-height:1.45}
+.ag-latest[hidden]{display:none}
+.ag-h2-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:6px 0 8px}
+.ag-h2{margin:0;font:700 17px/1.2 var(--display);letter-spacing:-.015em}
+
+/* prices: shown or hidden, popular */
+.ag-row-flags{grid-column:1/-1;display:flex;gap:6px;margin-top:4px}
+.ag-flag{min-height:34px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:#fff;font-size:12.5px;font-weight:700;color:#59637a}
+.ag-flag-show[aria-pressed="true"]{background:var(--green-soft);border-color:#bfe9d3;color:#0a7a47}
+.ag-flag-pop[aria-pressed="true"]{background:#fff3c8;border-color:#f0d77a;color:#6f4f00}
+.ag-flag-pop[aria-pressed="true"]::before{content:"\2605  "}
+.ag-flag:disabled{opacity:.45;cursor:not-allowed}
+.ag-row.off{background:#f7f8fb}
+.ag-row.off .ag-row-name,.ag-row.off .ag-row-meta,.ag-row.off .ag-row-earn{opacity:.55}
+
+/* my shop: a small live picture of the signboard, then the form */
+.ag-preview{--acc:#ffc72c;--acc-ink:#221a00;--acc-deep:#6f4f00;margin:0 0 16px;filter:drop-shadow(0 12px 18px rgba(15,20,34,.12))}
+.ag-preview[data-theme="blue"]{--acc:#1d4ed8;--acc-ink:#fff;--acc-deep:#14307f}
+.ag-preview[data-theme="green"]{--acc:#15803d;--acc-ink:#fff;--acc-deep:#0d4f26}
+.ag-preview[data-theme="purple"]{--acc:#6d28d9;--acc-ink:#fff;--acc-deep:#431885}
+.ag-preview[data-theme="red"]{--acc:#c8102e;--acc-ink:#fff;--acc-deep:#7a0a1c}
+.ag-preview[data-theme="teal"]{--acc:#0f766e;--acc-ink:#fff;--acc-deep:#0a4a45}
+.ag-preview[data-theme="orange"]{--acc:#c2410c;--acc-ink:#fff;--acc-deep:#7a2807}
+.ag-preview[data-theme="pink"]{--acc:#be185d;--acc-ink:#fff;--acc-deep:#760e3a}
+.ag-preview-awning{
+  position:relative;z-index:2;height:30px;border-radius:12px 12px 0 0;
+  background:repeating-linear-gradient(90deg,var(--acc-deep) 0 20px,#fff 20px 40px);
+  -webkit-mask:linear-gradient(#000 0 0) top/100% 19px no-repeat,radial-gradient(10px 11px at 10px 0,#000 98%,transparent) 0 19px/20px 11px repeat-x;
+  mask:linear-gradient(#000 0 0) top/100% 19px no-repeat,radial-gradient(10px 11px at 10px 0,#000 98%,transparent) 0 19px/20px 11px repeat-x;
+}
+.ag-preview-board{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:12px;align-items:center;margin-top:-11px;padding:22px 16px 16px;border-radius:0 0 20px 20px;background:var(--acc);color:var(--acc-ink)}
+.ag-preview-stamp{grid-row:span 2;width:52px;height:52px;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:#fff;color:var(--acc-deep);border:3px solid #fff;font:700 18px/1 var(--display)}
+.ag-preview-stamp img{width:100%;height:100%;object-fit:cover}
+.ag-preview-board strong{font:700 24px/1 var(--display);letter-spacing:-.04em;overflow-wrap:anywhere}
+.ag-preview-board span:last-child{font-size:13px;line-height:1.4;opacity:.9;margin-top:4px}
+.ag-shop-form textarea{width:100%;border:1px solid var(--line);border-radius:var(--r-sm);padding:12px;font:inherit;font-size:16px;resize:vertical;min-height:72px;background:#fff}
+.ag-shop-form .field em{font-style:normal;font-weight:600;color:#98a0b2;margin-left:6px}
+.ag-logo-row{display:flex;align-items:center;gap:14px;margin:0 0 16px}
+.ag-logo{flex:none;width:72px;height:72px;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:var(--line-2);color:#59637a;font:700 22px/1 var(--display)}
+.ag-logo img{width:100%;height:100%;object-fit:cover}
+.ag-logo-actions{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.ag-file{position:relative;overflow:hidden;cursor:pointer}
+.ag-file input{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:0}
+.ag-file.busy{opacity:.6;pointer-events:none}
+.ag-file:focus-within{outline:3px solid var(--navy);outline-offset:2px}
+.ag-colours{border:0;margin:0 0 14px;padding:0;min-width:0}
+.ag-colours legend{font-size:12.5px;font-weight:700;color:#4d566b;margin-bottom:8px;padding:0}
+.ag-swatches{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.ag-swatch{position:relative;display:flex;align-items:center;gap:8px;min-height:44px;padding:0 10px;border:1px solid var(--line);border-radius:var(--r-sm);background:#fff;cursor:pointer;font-size:13px;font-weight:600}
+.ag-swatch input{position:absolute;opacity:0;pointer-events:none}
+.ag-swatch-dot{flex:none;width:20px;height:20px;border-radius:50%;background:var(--sw)}
+.ag-swatch:has(input:checked){border-color:var(--navy);box-shadow:0 0 0 2px var(--navy)}
+.ag-swatch:has(input:focus-visible){outline:3px solid var(--navy);outline-offset:2px}
+
+/* money: sales or payouts */
+.ag-sub-seg{margin:0 0 12px}
+
+/* inbox */
+.ag-msg{background:#fff;border:1px solid var(--line);border-radius:var(--r-md);padding:14px 16px;margin:0 0 10px;border-left:5px solid #cfd6e4}
+.ag-msg.unread{box-shadow:var(--shadow-sm)}
+.ag-msg.strike{border-left-color:#e5484d;background:#fffafa}
+.ag-msg.paused{border-left-color:#f0b429}
+.ag-msg.approved,.ag-msg.reopened,.ag-msg.paid{border-left-color:#12b76a}
+.ag-msg.message{border-left-color:var(--navy)}
+.ag-msg.removed{opacity:.6}
+.ag-msg.removed h3{text-decoration:line-through}
+.ag-msg.removed h3 em{text-decoration:none;font-style:normal;font-weight:600;font-size:13px;color:var(--muted)}
+.ag-msg-head{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:var(--muted);font-weight:600}
+.ag-msg-kind{font-weight:800}
+.ag-msg.strike .ag-msg-kind{color:#b3261e}
+.ag-msg h3{margin:4px 0 0;font:700 16.5px/1.3 var(--display);letter-spacing:-.01em}
+.ag-msg p{margin:6px 0 0;font-size:14.5px;line-height:1.55;color:#2c3446;white-space:pre-line}
+
+/* settings */
+.ag-settings-links{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
+.ag-danger{margin-top:22px;padding:16px;border:1px solid #f5c2c4;border-radius:var(--r-md);background:#fffafa}
+.ag-danger h2{margin:0 0 4px;font:700 16px/1.2 var(--display);color:#8a1f23}
+.ag-danger p{margin:0 0 12px;font-size:14px;color:#5b2a2c;line-height:1.5}
+.ag-btn-danger{background:#e5484d;border-color:#e5484d;color:#fff}
+.ag-pay-danger{background:#e5484d;color:#fff;box-shadow:none}
+.ag-delete-list{margin:0 0 14px;padding-left:18px;font-size:14.5px;line-height:1.55;color:#2c3446}
+.ag-delete-list li{margin-bottom:6px}
+
+/* QR poster */
+.ag-qr-body{display:grid;place-items:center;background:var(--line-2)}
+.ag-qr-body canvas{width:100%;max-width:340px;height:auto;border-radius:14px;box-shadow:var(--shadow-sm);margin:14px 0}
+.ag-qr-foot{display:flex;gap:8px}
+.ag-qr-foot .pay-btn{flex:1}
+
+/* after deleting */
+.ag-gone{max-width:520px;margin:30px auto;text-align:center}
+.ag-gone[hidden]{display:none}
+.ag-gone h1{font:700 28px/1.15 var(--display);letter-spacing:-.03em;margin:0 0 10px}
+.ag-gone p{font-size:15.5px;line-height:1.55;color:#4b5468;margin:0 0 20px}
+
+/* the bar at the bottom: Home, Prices, My shop, Money, Inbox */
+.ag-nav{
+  position:fixed;left:0;right:0;bottom:0;z-index:80;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));
+  padding:6px 6px calc(6px + var(--safe-b));background:rgba(255,255,255,.96);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border-top:1px solid var(--line);box-shadow:0 -8px 24px rgba(16,24,40,.07);
+}
+.ag-nav-btn{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:54px;border-radius:14px;color:#7b8499;font-size:11.5px;font-weight:700}
+.ag-nav-btn.active{color:var(--navy);background:var(--line-2)}
+.ag-nav-badge{position:absolute;top:5px;left:calc(50% + 6px);min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#e5484d;color:#fff;font:800 10.5px/18px var(--body);font-style:normal;text-align:center}
+.ag-nav-badge[hidden]{display:none}
+
+@media (min-width:600px){
+  .ag-link .ag-link-actions{grid-template-columns:repeat(4,auto);justify-content:start}
+  .ag-swatches{grid-template-columns:repeat(8,minmax(0,1fr))}
+  .ag-swatch{flex-direction:column;justify-content:center;gap:4px;padding:8px 4px;font-size:12px}
+}
+@media (min-width:900px){
+  body.ag-dash{padding-bottom:0}
+  body.ag-dash .site-footer{display:block}
+  .ag-nav{position:sticky;top:calc(var(--header-h) + 8px);bottom:auto;margin:0 0 16px;border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow-xs);padding:5px}
+  .ag-nav-btn{flex-direction:row;gap:8px;min-height:46px;font-size:14px}
+  .ag-nav-badge{position:static}
+  #dashView{display:flex;flex-direction:column}
+  #dashView[hidden]{display:none}
+  #dashView .ag-nav{order:3}
+  #dashView .ag-id{order:1}
+  #dashView .alert-card,#dashView .ag-notice{order:2}
+  #dashView .ag-pane{order:4}
+}

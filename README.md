@@ -508,9 +508,10 @@ store sells: data, result checkers and AFA. **Off until the owner switches it on
 - A payout with no clear answer from Paystack is never retried blindly: "Check" asks Paystack; failed or reversed
   payouts go back into the agent's balance.
 
-**Shops**: a shop link opens the normal store with the agent's name on top, their prices and a WhatsApp button to them.
-The store's own accounts and offers are hidden there. The shop is remembered for that browser tab only (`js/shop.js`).
-Paused or closed agents, and the programme switched off, all mean the link shows the normal store.
+**Shops**: a shop link opens the agent's own shop page (section 27). The store's own accounts and offers are not there.
+The shop is remembered for that browser tab (`js/shop.js`), so the checker/AFA page and the order page after paying carry
+the shop's name and lead back to it; opening abrantsdata.com itself leaves the shop. Paused, closed or deleted shops, and
+the programme switched off, show a polite "This shop is closed" page with a link to the store.
 
 **Neon**: agents are kept in memory, so opening a shop link costs no database query. The database is used when someone
 buys, when an agent or the owner opens their pages, and on payout day.
@@ -538,8 +539,42 @@ messages off.
 - Data: when the order is placed with the network, when it is delivered (with the link to buy again) and when it
   cannot be delivered (refund). Each one once per order, even when the network reports the same thing twice.
 - Result checkers: the Serial and PIN of every checker. AFA: received, approved (with the AFA ID), rejected or refunded.
-- Agents: the sign-up code, approved (with their shop link), paused, reopened, closed, and every payout.
+- Agents: the sign-up code, approved (with their shop link), paused (with the reason and until when), reopened, closed or
+  deleted, strikes, messages from the store (section 27), and every payout.
 - Orders from an agent's shop are sent in the agent's shop name.
 
 Messages use plain characters only (`GHS`, not `GH₵`) so each fits in one SMS (160 characters). Sending happens in the
 background: a slow or failing SMS never holds up a payment, a delivery or a page. Network errors are tried once more.
+
+## 27. The agent's own shop, "My shop", strikes and deleting
+
+**The shop page** (`/s/kwame-data-hub`, `public/shop.html`, `css/shop.css`, `js/shop-page.js`): a market stall. A striped
+awning over a signboard in the agent's colour with their logo or photo, shop name and a few words about them, WhatsApp and
+Share buttons, their announcement, then a price board: data by network (their "Popular" ones first), result checkers and
+AFA, at their prices. The checkout is the store's own (`js/app.js`). The server writes the shop's name, description and logo
+into the page (`services/agentShop.js`), so a link shared on WhatsApp previews with the shop's own name. When the agent
+opens their own shop, the WhatsApp button becomes **Manage my shop**.
+
+**My shop for the agent** (`/agent`, `js/agent-dash.js`): Home (money, today/this week/this month, latest sales),
+Prices (their price, shown or hidden in the shop, "Popular", 6 at most), My shop (logo or photo, 8 colours, about line,
+announcement, WhatsApp, with a live picture of the signboard), Money (sales and payouts), Inbox, and Settings (MoMo,
+password, log out, **Delete my shop**). A QR poster (shop colour, name, QR code and link) can be downloaded for WhatsApp
+status or printing. Logos are cut square and shrunk to 320 × 320 in the browser before upload (150 KB at most).
+
+**Home page**: someone logged in as an agent sees their shop instead of "Become an agent", and a shop button in the bar at
+the bottom (`js/myshop.js`, only for browsers where an agent has logged in).
+
+**Admin → Agents → an agent**: Send a message, Give a strike, Pause the shop (1 week, 2 weeks, 1, 3 or 6 months, or until
+you reopen it), Delete the shop, Remove logo. "Message all agents" at the top. Every one of these goes to the agent's Inbox
+and by SMS (section 26). A strike carries the reason; the third one says the shop can be paused or deleted next time. A
+strike given by mistake can be removed. A timed pause reopens by itself when the time is up (checked every 5 minutes,
+from memory). The admin decides what happens after strikes.
+
+**Deleting** (`services/agentCare.js`): the shop closes at once. When nothing is owed, it is deleted straight away;
+otherwise the agent is paid first ("Pay everyone due" pays them whatever the minimum), then it is deleted. Deleting erases
+the name, phone, password, MoMo details, logo, about line and messages; sales and payout records stay. The link stays
+reserved so nobody can take it over. The admin can delete without paying (fraud: unpaid earnings are cancelled and later
+deliveries earn nothing) and can stop the phone and MoMo numbers from signing up again (kept only as hashes).
+
+**Neon**: opening a shop page, its logo (after the first time), the home page's "My shop" and the agent's inbox when
+nothing is new read nothing from the database. The 5-minute check reads it only when a pause is due to end.

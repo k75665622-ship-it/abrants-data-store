@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="gold">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0b1020" />
+<meta name="format-detection" content="telephone=no" />
+<!--SHOP_HEAD-->
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/svg+xml" href="/icon.svg" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/style.css?v=14" />
+<link rel="stylesheet" href="/css/shop.css?v=1" />
+</head>
+<!-- An agent's shop (services/agentShop.js writes the shop's details in; js/shop-page.js draws it). -->
+<body class="shop-page">
+<!--SHOP_DATA-->
+
+<div class="announce" id="announceBar" hidden><span id="announceText"></span></div>
+
+<header class="sp-head">
+  <div class="wrap sp-head-in">
+    <a class="sp-id" href="#top" id="spId"><span class="sp-avatar" id="spAvatar" aria-hidden="true"></span><strong id="spHeadName"></strong></a>
+    <nav class="sp-head-nav" aria-label="Shop">
+      <a class="sp-head-link" href="/order-status.html">Track order</a>
+      <a class="sp-head-manage" id="spHeadManage" href="/agent.html" hidden>Manage my shop</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+  <div class="wrap sp-layout" id="spOpen" hidden>
+    <section class="sp-board" aria-labelledby="spName">
+      <div class="sp-awning" aria-hidden="true"></div>
+      <div class="sp-board-body">
+        <span class="sp-stamp" id="spStamp" aria-hidden="true"></span>
+        <h1 class="sp-name" id="spName"></h1>
+        <p class="sp-bio" id="spBio" hidden></p>
+        <div class="sp-actions">
+          <a class="sp-btn sp-btn-wa" id="spWa" href="#" target="_blank" rel="noopener" hidden>
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm5.3 14.2c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.3-.7-2.8-1.1-4.6-3.9-4.7-4.1-.1-.2-1.1-1.5-1.1-2.9s.7-2.1 1-2.4c.3-.3.6-.3.8-.3h.6c.2 0 .4 0 .6.5l.9 2.1c.1.2.1.4 0 .6l-.4.6-.4.5c-.1.1-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.4 2.4 1.5.3.2.5.1.6-.1l.9-1c.2-.3.4-.2.7-.1l2 1c.3.1.5.2.5.3.1.2.1.8-.1 1.6z"/></svg>
+            Chat on WhatsApp</a>
+          <a class="sp-btn sp-btn-manage" id="spManage" href="/agent.html" hidden>Manage my shop</a>
+          <button type="button" class="sp-btn sp-btn-share" id="spShare" aria-label="Share shop">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg>
+            <span class="sp-share-txt">Share shop</span></button>
+        </div>
+        <ul class="sp-facts" id="spFacts" hidden></ul>
+      </div>
+    </section>
+
+    <div class="sp-counter">
+      <p class="sp-note" id="spNote" hidden></p>
+
+      <div class="sp-switch" id="spSwitch" role="tablist" aria-label="What do you want to buy?" hidden>
+        <button type="button" role="tab" class="sp-switch-btn active" data-pane="data" aria-selected="true" aria-controls="paneData">Data</button>
+        <button type="button" role="tab" class="sp-switch-btn" data-pane="checkers" aria-selected="false" aria-controls="paneCheckers" hidden>Result checkers</button>
+        <button type="button" role="tab" class="sp-switch-btn" data-pane="afa" aria-selected="false" aria-controls="paneAfa" hidden>AFA</button>
+      </div>
+
+      <section class="sp-pane" id="paneData" aria-label="Data bundles">
+        <div class="network-tabs sp-nets" id="networkTabs" role="tablist" aria-label="Choose network"></div>
+        <div class="plans-grid sp-board-list" id="plansGrid" aria-live="polite">
+          <div class="sp-row-skel"></div><div class="sp-row-skel"></div><div class="sp-row-skel"></div><div class="sp-row-skel"></div>
+        </div>
+      </section>
+
+      <section class="sp-pane" id="paneCheckers" aria-label="Result checkers" hidden>
+        <div class="sp-board-list" id="spCheckers"></div>
+        <p class="sp-pane-note">You get the Serial and PIN on screen straight after paying, and by SMS.</p>
+      </section>
+
+      <section class="sp-pane" id="paneAfa" aria-label="MTN AFA registration" hidden>
+        <div class="sp-afa">
+          <h2>MTN AFA registration</h2>
+          <p>AFA is one of MTN's cheapest call bundles: 258 MTN minutes for GH₵10 a month. Register once with your Ghana Card, then buy AFA bundles by dialling *1848#.</p>
+          <div class="sp-afa-buy"><strong id="spAfaPrice"></strong><a class="sp-buy" href="/services.html#afa">Register</a></div>
+        </div>
+      </section>
+
+      <section class="sp-how" aria-labelledby="spHowTitle">
+        <h2 id="spHowTitle">How buying works</h2>
+        <ol>
+          <li><b>Pick</b><span>A bundle, a result checker or AFA.</span></li>
+          <li><b>Pay</b><span>With Mobile Money or card, through Paystack.</span></li>
+          <li><b>Receive</b><span>Data on the number you gave, usually within minutes.</span></li>
+        </ol>
+        <p class="sp-safe"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+          <span>If an order cannot be delivered, your money is refunded. Keep your order reference to <a href="/order-status.html">track your order</a>.</span></p>
+      </section>
+    </div>
+  </div>
+
+  <section class="wrap sp-closed" id="spClosed" hidden>
+    <div class="sp-closed-card">
+      <div class="sp-awning sp-awning-off" aria-hidden="true"></div>
+      <div class="sp-closed-body">
+        <h1 id="spClosedTitle">This shop is closed right now</h1>
+        <p id="spClosedText">You can still buy data, result checkers and MTN AFA from Abrants Data Store.</p>
+        <a class="pay-btn" id="spClosedGo" href="/">Go to Abrants Data Store</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="sp-foot">
+  <div class="wrap sp-foot-in">
+    <strong id="spFootName"></strong>
+    <span>Payments by Paystack. Orders delivered by <a href="/" id="spFootStore">Abrants Data Store</a>.</span>
+  </div>
+</footer>
+
+<div class="sp-owner" id="spOwnerBar" hidden>
+  <span>This is your shop, as customers see it.</span>
+  <a href="/agent.html">Manage</a>
+</div>
+
+<div class="sheet" id="checkoutSheet" hidden>
+  <div class="sheet-backdrop" data-close></div>
+  <div class="sheet-panel" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+    <div class="sheet-grip" aria-hidden="true"></div>
+    <div class="sheet-head">
+      <div>
+        <p class="section-kicker">SECURE CHECKOUT</p>
+        <h2 id="sheetTitle">Almost there.</h2>
+      </div>
+      <button class="sheet-close" id="closeCheckout" aria-label="Close checkout">×</button>
+    </div>
+
+    <div class="checkout-layout">
+      <div class="order-summary">
+        <div class="summary-badge">DATA BUNDLE</div>
+        <h3 id="ckPlanLabel">—</h3>
+        <p id="ckNetwork">—</p>
+        <div class="summary-price">
+          <strong id="ckPrice">—</strong>
+          <small id="ckValidity">30-day bundle</small>
+        </div>
+        <div class="summary-fee" id="ckFee" hidden></div>
+        <div class="summary-special" id="ckSpecial" hidden>
+          <span id="ckSpecialText"></span>
+        </div>
+      </div>
+
+      <div class="checkout-form">
+        <label class="field" for="phoneInput">
+          <span>Phone number to receive data</span>
+          <input type="tel" id="phoneInput" placeholder="055 123 4567" maxlength="10" inputmode="numeric"
+                 autocomplete="tel-national" enterkeyhint="next" />
+          <span class="network-detect" id="networkDetect" hidden></span>
+        </label>
+        <label class="field" for="emailInput">
+          <span>Email for your receipt</span>
+          <input type="email" id="emailInput" placeholder="you@example.com" autocomplete="email" enterkeyhint="go" />
+        </label>
+        <button class="pay-btn" id="payBtn">Continue to payment <span aria-hidden="true">→</span></button>
+        <p class="secure-note">🔒 Payments are securely processed by Paystack.</p>
+        <p class="ck-error" id="ckError" hidden role="alert"></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="confirm" id="firstTimeConfirm" hidden role="dialog" aria-modal="true" aria-labelledby="ftTitle">
+  <div class="confirm-backdrop"></div>
+  <div class="confirm-box">
+    <div class="confirm-icon" aria-hidden="true">📶</div>
+    <h3 id="ftTitle">First time on this number?</h3>
+    <p id="ftText"></p>
+    <div class="confirm-actions">
+      <button type="button" class="confirm-yes" id="ftYes">Yes, continue</button>
+      <button type="button" class="confirm-no" id="ftNo">No, go back</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="false"></div>
+
+<script src="/js/shop.js?v=2"></script>
+<script src="/js/shop-page.js?v=1"></script>
+<script src="/js/app.js?v=15"></script>
+</body>
+</html>

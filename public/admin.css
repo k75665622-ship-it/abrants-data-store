@@ -746,3 +746,25 @@ body.has-selbar .toast-stack{bottom:calc(var(--nav-h) + var(--safe-b) + 150px)}
 .sms-test input{max-width:200px}
 .sms-log{display:grid;gap:8px;margin-top:6px}
 .sms-log .event strong{font-weight:600;white-space:pre-wrap;word-break:break-word}
+
+/* Agents: strikes, pauses, deleting, messages (admin-agents.js) */
+.ag-pill.deleting,.ag-pill.deleted{background:var(--red-soft);color:#ffb4b4}
+.ag-flags{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.ag-strike-chip{display:inline-block;font-size:11px;font-weight:800;padding:3px 8px;border-radius:999px;background:#e5484d;color:#fff}
+.ag-until{font-size:11.5px;color:#ffe89a;font-weight:700}
+.ag-drawer-logo{width:56px;height:56px;border-radius:50%;object-fit:cover;flex:none;border:2px solid var(--line-2)}
+.ag-said{background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r);padding:10px 12px;margin:10px 0;font-size:13px}
+.ag-said p{margin:0 0 4px}
+.ag-said p:last-child{margin:0}
+.ag-actions{margin:6px 0 10px}
+.chip.chip-danger{border-color:rgba(229,72,77,.45);color:#ffb4b4}
+.chip.chip-danger.active{background:#e5484d;border-color:#e5484d;color:#fff}
+.ag-act-form{background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r);padding:12px;margin:0 0 12px}
+.ag-act-form textarea,.ag-msg-all textarea{width:100%;min-height:70px;resize:vertical}
+.ag-act-form .switch{margin:6px 0}
+.ag-msg-all{margin-top:12px;padding:12px;background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r)}
+.ag-history{display:grid;gap:8px;margin:0 0 6px}
+.ag-hist p{margin:6px 0 0;font-size:13px;white-space:pre-line;color:#c3cad6}
+.ag-hist.strike{border-color:rgba(229,72,77,.45)}
+.ag-hist.removed{opacity:.55}
+.ag-hist .btn{margin-top:8px}

@@ -5,7 +5,8 @@
  *   data     placed (sent to the network) / delivered / could not be delivered, money being refunded
  *   checkers the serial and PIN once bought / refund
  *   AFA      submitted / approved with the AFA ID / not approved / refund
- * Agents ("Agents"): shop approved, paused, closed, reopened; money sent to their MoMo.
+ * Agents ("Agents"): shop approved, paused (with the reason and until when), closed, reopened, deleted; strikes;
+ *   messages from the store; money sent to their MoMo.
  * The agent sign-up code is always sent when SMS is set up (it protects the sign-up).
  *
  * An order bought in an agent's shop is texted under the agent's shop name, with the agent's link to buy again.
@@ -104,9 +105,55 @@ const agentPaid = safely(async (a, payout) => {
   sms.send(a.phone, `Abrants: We have sent ${money(payout.sentGHS)} to your MoMo ${payout.momoNumber} for your agent sales. Thank you!`, 'agent.paid');
 });
 
+// Builds an SMS of at most 160 characters around a piece of free text (a reason, a message), shortening only that text.
+function fit(make, text) {
+  const t = sms.plain(text).replace(/\s+/g, ' ').replace(/[.\s]+$/, '');
+  for (let n = t.length; n >= 0; n -= 1) {
+    const cut = n < t.length ? t.slice(0, Math.max(0, n - 3)).replace(/\s+\S*$/, '') + '...' : t;
+    const out = make(cut);
+    if (sms.plain(out).length <= 160) return out;
+  }
+  return make('');
+}
+const shopShort = (a) => sms.plain(a.shopName).slice(0, 24);
+const smsDay = (d) => new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Africa/Accra' });
+
+/** A message from the store (Admin → Agents → Message). */
+const agentMessage = safely(async (a, text) => {
+  if (!a || !(await allowed('agents'))) return;
+  const full = `Abrants: ${sms.plain(text).replace(/\s+/g, ' ')}`;
+  sms.send(a.phone, full.length <= 160 ? full : fit((t) => `Abrants: ${t} Read it all at ${host()}/agent`, text), 'agent.message');
+});
+
+const agentStrike = safely(async (a, n, reason) => {
+  if (!a || !(await allowed('agents'))) return;
+  sms.send(a.phone, fit((t) => `Abrants: Strike ${n} on your shop ${shopShort(a)}: ${t}. Please don't do it again. See ${host()}/agent`, reason), 'agent.strike');
+});
+
+const agentPaused = safely(async (a, until, reason) => {
+  if (!a || !(await allowed('agents'))) return;
+  const when = until ? `until ${smsDay(until)}` : 'until we reopen it';
+  sms.send(a.phone, fit((t) => `Abrants: Your agent shop ${shopShort(a)} is paused ${when}. Reason: ${t}. See ${host()}/agent`, reason), 'agent.paused');
+});
+
+/** Closed and (now or after the last payout) deleted. Sent even though they can no longer log in. */
+const agentDeleted = safely(async (a, { by, reason, waiting, owedGHS, pay }) => {
+  if (!a || !(await allowed('agents'))) return;
+  let text;
+  if (by === 'agent') {
+    text = `Abrants: Your agent shop ${shopShort(a)} is closed as you asked.` + (waiting
+      ? ` We will send your ${money(owedGHS)} to your MoMo, then delete your account.`
+      : ' Your account has been deleted.');
+  } else {
+    const after = waiting && pay ? ' Money you earned will be sent to your MoMo first.' : '';
+    text = fit((t) => `Abrants: Your agent shop ${shopShort(a)} has been closed and deleted. Reason: ${t}.${after}`, reason);
+  }
+  sms.send(a.phone, text, 'agent.deleted');
+});
+
 /** The sign-up code. Waits for Arkesel, so the page can say whether it was sent. */
 async function agentCode(phone, code) {
   return sms.sendNow(phone, `Your Abrants agent code is ${code}. It expires in 10 minutes. Do not share it with anyone.`, 'agent.code');
 }
 
-module.exports = { dataStatus, serviceStatus, agentStatus, agentPaid, agentCode };
+module.exports = { dataStatus, serviceStatus, agentStatus, agentPaid, agentCode, agentMessage, agentStrike, agentPaused, agentDeleted, fit };

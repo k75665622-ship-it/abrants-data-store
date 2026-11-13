@@ -361,6 +361,11 @@ a.need:active{transform:scale(.985)}
 .need-agent .need-txt{color:#aeb7c9}
 .need-agent .need-go{margin-top:12px;padding:12px 18px;border-radius:999px;background:var(--yellow);color:var(--navy)}
 @media (hover:hover){a.need-agent:hover{border-color:var(--navy-3)}}
+/* ...and for someone who already has a shop (js/myshop.js) */
+.need-myshop .myshop-face{width:52px;height:52px;border-radius:50%;overflow:hidden;font:700 18px/1 var(--display)}
+.need-myshop .myshop-face img{width:100%;height:100%;object-fit:cover}
+.need-myshop b{font-size:22px}
+.myshop-news{align-self:flex-start;margin-top:8px;padding:4px 10px;border-radius:999px;background:#e5484d;color:#fff;font-size:12.5px;font-weight:700}
 
 /* How buying works */
 .buy-steps{list-style:none;counter-reset:st;margin:0;padding:0;display:grid;gap:10px}
@@ -463,6 +468,12 @@ a.need:active{transform:scale(.985)}
   display:grid;place-items:center;
   border:1px solid var(--line);background:#fff;font-size:19px;
 }
+.mobilebar .bar-shop{position:relative;color:var(--navy)}
+.mobilebar .bar-dot{position:absolute;top:8px;right:8px;width:9px;height:9px;border-radius:50%;background:#e5484d;box-shadow:0 0 0 2px #fff}
+/* Five buttons (an agent's "My shop" added): still one line on a phone */
+.mobilebar:has(.bar-shop){gap:8px}
+.mobilebar:has(.bar-shop) .bar-icon{width:46px}
+.mobilebar:has(.bar-shop) .bar-cta{font-size:14px;white-space:nowrap}
 body.has-mobilebar{padding-bottom:82px}
 /* Small phones: keep "Buy data now" on one line */
 @media (max-width:359px){
@@ -714,13 +725,13 @@ body.has-mobilebar{padding-bottom:82px}
 }
 
 /* ---------------------------------------------------------- Agent shops (js/shop.js) */
-.shop-bar{background:var(--navy);color:#fff;border-bottom:1px solid rgba(255,255,255,.08)}
-.shop-bar-in{min-height:44px;display:flex;align-items:center;justify-content:space-between;gap:12px}
-.shop-bar-name{display:flex;align-items:center;gap:8px;font:700 14.5px/1.25 var(--display);letter-spacing:-.01em;min-width:0;overflow-wrap:anywhere}
-.shop-bar-name i{font-style:normal}
-.shop-bar-chat{flex:none;display:inline-flex;align-items:center;min-height:32px;padding:0 12px;border-radius:999px;background:#25d366;color:#06301a;font-weight:700;font-size:13px}
+/* On the checker/AFA page and the order page inside an agent's shop: the shop's name in the header. */
+.shop-brand{gap:10px;min-width:0}
+.shop-brand-av{flex:none;width:38px;height:38px;border-radius:50%;overflow:hidden;display:grid;place-items:center;color:#fff;font:700 14px/1 var(--display)}
+.shop-brand-av img{width:100%;height:100%;object-fit:cover}
+.shop-brand strong{display:block;max-width:52vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.01em;text-transform:none}
 /* The store's own accounts and offers do not apply in an agent's shop. */
-.in-shop #accountLink,.in-shop .footer-account,.in-shop #memberPromo,.in-shop #offerBanner,.in-shop #guestHint,.in-shop .agent-cta,.in-shop .bar-icon[href="/account.html"]{display:none !important}
+.in-shop .account-link,.in-shop #accountLink,.in-shop .footer-account,.in-shop #memberPromo,.in-shop #offerBanner,.in-shop #guestHint,.in-shop .agent-cta,.in-shop .bar-icon[href="/account.html"]{display:none !important}
 
 /* "Become an agent" invite: a small card above the phone bar, never covering the checkout. */
 .agent-pop{
