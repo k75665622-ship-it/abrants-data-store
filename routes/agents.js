@@ -122,6 +122,9 @@ pub.post('/terms', requireAgent, async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Could not save.' }); }
 });
 
+// Their customers' chats from their shop (routes/chat.js).
+require('./chat').shopSide(pub, requireAgent);
+
 // Who is logged in, for the home page's "My shop" and the shop page. Memory only.
 pub.get('/whoami', async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
@@ -129,6 +132,7 @@ pub.get('/whoami', async (req, res) => {
   if (!a) return res.status(401).json({ error: 'Please log in.' });
   const p = agents.publicAgent(a);
   res.json({ shopName: p.shopName, slug: p.slug, status: p.status, logo: p.logo, theme: p.theme, unread: p.unread, strikes: p.strikes,
+    chats: require('../services/chat').unreadCount(a.id, { touch: false }),
     programmeOff: agents.offInfo(await agents.settingsNow()) });
 });
 

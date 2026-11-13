@@ -555,6 +555,13 @@ AFA, at their prices. The checkout is the store's own (`js/app.js`). The server 
 into the page (`services/agentShop.js`), so a link shared on WhatsApp previews with the shop's own name. When the agent
 opens their own shop, the WhatsApp button becomes **Manage my shop**.
 
+**Customers stay in the shop** (`js/shop.js`): a shop has its own order page (`/s/kwame-data-hub/order`) and checker/AFA
+page (`/s/kwame-data-hub/services`), and Paystack sends customers back there after paying. On those pages the header,
+footer, tab title and help link are the shop's, and every link that would lead to the store's own pages (home, account,
+order page, checker page) leads to the shop's instead, including links a page adds later. The shop page itself has no
+link to the store. Only a closed shop points customers to the store, because it cannot sell. Opening the store's own
+address (abrantsdata.com) leaves the shop.
+
 **My shop for the agent** (`/agent`, `js/agent-dash.js`): Home (money, today/this week/this month, latest sales),
 Prices (their price, shown or hidden in the shop, "Popular", 6 at most), My shop (logo or photo, 8 colours, about line,
 announcement, WhatsApp, with a live picture of the signboard), Money (sales and payouts), Inbox, and Settings (MoMo,
@@ -585,10 +592,20 @@ next time they open their page, and sees the reason on their own shop page. Cust
 and, if you gave one, when it is back. With a date, shops switch back on by themselves that day (from 06:00), and agents
 are told. Switching back on by hand tells them too.
 
-## 28. Chat with us (Admin → Inbox)
+## 28. Chat with us (Admin → Inbox, and each agent's Inbox → Customers)
 
 A "Chat with us" button on the store, the checker/AFA page, the order page, the account page, the agent page and every
 agent shop (`js/chat.js`, `css/chat.css`, `services/chat.js`, `routes/chat.js`). Website only, never SMS.
+
+- **Whose chat it is**: on the store's own pages the chat is with Abrants (Admin → Inbox). Inside an agent's shop (the shop
+  page and its order and checker pages) it is with that agent: the chat shows the shop's name, logo and colour, and the
+  agent answers in their Inbox → Customers (`js/agent-chats.js`). Abrants does not see those chats. One browser can have
+  a chat with Abrants and with each shop, kept apart (one cookie each). The agent on their own shop, or a closed shop,
+  chats with Abrants. Deleting a shop deletes its customers' chats.
+- **The agent's side**: Inbox has Customers (their shop's chats, with an unread count) and From Abrants. A chat shows as
+  "Customer K7M2QD", with the phone number if they gave one; About shows their orders in this shop only. Ready-made
+  replies, Mark done, Delete. On a phone an open chat fills the screen. "My shop" on the home page and the agent page
+  count waiting chats.
 
 - **Who is writing**: a logged-in agent shows as their shop; a logged-in customer by name, phone and email; anyone else
   as "Visitor K7M2QD" (a chat ID with no 0/O or 1/I). A visitor's chat stays in that browser for a year (a cookie), so
@@ -602,7 +619,7 @@ agent shop (`js/chat.js`, `css/chat.css`, `services/chat.js`, `routes/chat.js`).
 - **Settings** (bottom of the Inbox): switch the chat button off, and how long chats with no new message are kept
   (7, 30 or 90 days; 30 by default). Old chats are deleted once a day.
 - **Neon**: chats and unread counts are kept in memory. The checks the pages make every few seconds (and the button on
-  every page) are answered from memory. The database is used when a message is sent, when someone reads new messages,
+  every page), for customers, Admin and agents alike, are answered from memory. The database is used when a message is sent, when someone reads new messages,
   and when a chat is opened for the first time after the server starts. Messages are small (a few hundred bytes each).
 - **Limits**: 1000 characters per message; 20 messages in 5 minutes per chat; 8 new chats an hour from one place.
 

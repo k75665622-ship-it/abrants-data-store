@@ -29,7 +29,9 @@
 @keyframes cw-in{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 
 .cw-head{display:flex;align-items:center;gap:12px;padding:12px 10px 12px 16px;padding-top:max(12px,env(safe-area-inset-top,0px));background:#0b1020;color:#fff;flex:none}
-.cw-logo{width:36px;height:36px;border-radius:11px;flex:none}
+.cw-logo{width:36px;height:36px;border-radius:11px;flex:none;overflow:hidden;display:grid;place-items:center;font:700 14px/1 'Space Grotesk','DM Sans',system-ui,sans-serif}
+.cw-logo img{width:100%;height:100%;object-fit:cover}
+.cw-shop .cw-logo{border-radius:50%}
 .cw-head-txt{flex:1;min-width:0;display:grid;gap:3px}
 .cw-head-txt strong{font:700 16.5px/1.15 'Space Grotesk','DM Sans',system-ui,sans-serif;letter-spacing:-.01em}
 .cw-state{display:flex;align-items:center;gap:6px;font-size:12.5px;color:#aeb7c9}

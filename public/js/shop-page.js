@@ -58,6 +58,9 @@
 
   function open(d) {
     var url = location.origin + '/s/' + d.slug;
+    // Everything stays in the shop: its own order page and checker/AFA page.
+    $('spTrack').href = $('spTrack2').href = '/s/' + d.slug + '/order';
+    $('spAfaGo').href = '/s/' + d.slug + '/services#afa';
     $('spOpen').hidden = false;
     var face = d.logo ? '<img src="' + esc(d.logo) + '" alt="" />' : '<span>' + esc(initials(d.name)) + '</span>';
     $('spAvatar').innerHTML = face;
@@ -107,7 +110,7 @@
       var chk = s.checkers || [];
       if (chk.length) {
         $('spCheckers').innerHTML = chk.map(function (c) {
-          return '<a class="sp-line" href="/services.html#checkers">' +
+          return '<a class="sp-line" href="/s/' + encodeURIComponent(d.slug) + '/services#checkers">' +
             '<span class="sp-line-name">' + esc(c.name) + (c.popular ? ' <i class="plan-tag popular">Popular</i>' : '') + '</span>' +
             '<span class="sp-line-price">' + money(c.price) + '</span><span class="sp-buy">Buy</span></a>';
         }).join('');

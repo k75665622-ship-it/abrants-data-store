@@ -17,8 +17,8 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="/css/style.css?v=14" />
 <link rel="stylesheet" href="/css/account.css?v=4" />
-<link rel="stylesheet" href="/css/agent.css?v=5" />
-<link rel="stylesheet" href="/css/chat.css?v=1" />
+<link rel="stylesheet" href="/css/agent.css?v=6" />
+<link rel="stylesheet" href="/css/chat.css?v=2" />
 </head>
 <body class="page-fill ag-page">
 
@@ -242,11 +242,21 @@
 
     <!-- Inbox -->
     <section class="ag-pane" id="pane-inbox" hidden>
+      <div class="seg ag-sub-seg" role="tablist" aria-label="Inbox">
+        <button type="button" role="tab" class="seg-btn active" data-inbox="customers" aria-selected="true">Customers<i class="ag-seg-badge" id="chatCount" hidden></i></button>
+        <button type="button" role="tab" class="seg-btn" data-inbox="store" aria-selected="false">From Abrants<i class="ag-seg-badge" id="storeCount" hidden></i></button>
+      </div>
+      <div id="inboxCustomers">
+        <div id="acList" class="ac-list"></div>
+        <div id="acThread" class="ac-thread" hidden></div>
+      </div>
+      <div id="inboxStore" hidden>
       <button type="button" class="ag-chat-cta" id="openChat">
         <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-12.3 7.5L3 20.5l1.6-5.2A8.4 8.4 0 1 1 21 11.5z"/></svg>
         <span><strong>Chat with Abrants</strong><small>Questions about your shop, a payout or a customer's order</small></span>
       </button>
       <div id="inboxList"><div class="skeleton" style="min-height:120px"></div></div>
+      </div>
     </section>
 
     <!-- Settings -->
@@ -378,7 +388,8 @@
 
 <div class="toast-stack" id="toastStack" aria-live="polite"></div>
 <script src="/js/agent.js?v=3"></script>
-<script src="/js/agent-dash.js?v=5"></script>
-<script src="/js/chat.js?v=1"></script>
+<script src="/js/agent-chats.js?v=1"></script>
+<script src="/js/agent-dash.js?v=6"></script>
+<script src="/js/chat.js?v=2"></script>
 </body>
 </html>

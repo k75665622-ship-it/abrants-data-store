@@ -1,4 +1,5 @@
-/* "Chat with us": a chat with the store on every page of the website, answered in Admin → Inbox.
+/* "Chat with us": a chat with the store on every page of the website, answered in Admin → Inbox. Inside an agent's shop
+   (js/shop.js) the chat is with that shop instead, answered by the agent on their page (Inbox → Customers).
    No login needed. A visitor gets a chat ID and keeps the chat in this browser; a logged-in customer or agent is
    shown to the store by name. The page checks for answers every few seconds while the chat is open, and now and then
    while it is closed; the server answers those checks from memory (services/chat.js). */
@@ -29,7 +30,10 @@
   var ICON_CHAT = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-12.3 7.5L3 20.5l1.6-5.2A8.4 8.4 0 1 1 21 11.5z"/></svg>';
   var ICON_SEND = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13"/><path d="m12 5 7 7-7 7"/></svg>';
 
-  var st = { open: false, me: null, thread: null, msgs: [], lastId: 0, online: false, timer: null, sending: false, loaded: false };
+  var st = { open: false, me: null, thread: null, msgs: [], lastId: 0, online: false, timer: null, sending: false, loaded: false, with: null };
+  var COLOURS = { gold: '#ffc72c', blue: '#1d4ed8', green: '#15803d', purple: '#6d28d9', red: '#c8102e', teal: '#0f766e', orange: '#c2410c', pink: '#be185d' };
+  function shopSlug() { try { return (window.abrantsShop && window.abrantsShop()) || ''; } catch (e) { return ''; } }
+  function q(sep) { var s = shopSlug(); return s ? sep + 'shop=' + encodeURIComponent(s) : ''; }
   var el = {};
 
   function build() {
@@ -46,7 +50,7 @@
     panel.setAttribute('role', 'dialog');
     panel.setAttribute('aria-labelledby', 'cwTitle');
     panel.innerHTML =
-      '<header class="cw-head"><img class="cw-logo" src="/icon.svg" alt="" width="36" height="36" />' +
+      '<header class="cw-head"><span class="cw-logo" id="cwAv" aria-hidden="true"><img src="/icon.svg" alt="" width="36" height="36" /></span>' +
         '<div class="cw-head-txt"><strong id="cwTitle">Abrants support</strong><span class="cw-state" id="cwState"></span></div>' +
         '<button type="button" class="cw-x" id="cwClose" aria-label="Close the chat">×</button></header>' +
       '<p class="cw-who" id="cwWho" hidden></p>' +
@@ -65,7 +69,7 @@
     document.body.appendChild(launch);
     document.body.appendChild(panel);
     el = { launch: launch, panel: panel, dot: launch.querySelector('.cw-dot') };
-    ['cwState', 'cwClose', 'cwWho', 'cwBody', 'cwStart', 'cwChips', 'cwPhoneRow', 'cwPhone', 'cwErr', 'cwForm', 'cwText', 'cwSend'].forEach(function (id) { el[id] = document.getElementById(id); });
+    ['cwAv', 'cwTitle', 'cwState', 'cwClose', 'cwWho', 'cwBody', 'cwStart', 'cwChips', 'cwPhoneRow', 'cwPhone', 'cwErr', 'cwForm', 'cwText', 'cwSend'].forEach(function (id) { el[id] = document.getElementById(id); });
 
     launch.addEventListener('click', open);
     el.cwClose.addEventListener('click', close);
@@ -122,7 +126,19 @@
     }).join('');
   }
   function state() {
-    el.cwState.innerHTML = st.online ? '<i class="on"></i>Online now' : '<i></i>We reply here as soon as we can';
+    el.cwState.innerHTML = st.online ? '<i class="on"></i>Online now' : '<i></i>' + (st.with ? 'Replies here as soon as they can' : 'We reply here as soon as we can');
+  }
+  // Who answers: Abrants, or the shop (its name and logo).
+  function header() {
+    var w = st.with;
+    el.cwTitle.textContent = w ? w.name : 'Abrants support';
+    if (w) {
+      el.cwAv.style.background = COLOURS[w.theme] || COLOURS.gold;
+      el.cwAv.style.color = w.theme === 'gold' ? '#221a00' : '#fff';
+      el.cwAv.innerHTML = w.logo ? '<img src="' + esc(w.logo) + '" alt="" width="36" height="36" />'
+        : esc(String(w.name).trim().split(/\s+/).slice(0, 2).map(function (x) { return x.charAt(0); }).join('').toUpperCase());
+    }
+    el.panel.classList.toggle('cw-shop', Boolean(w));
   }
   function who() {
     var m = st.me || {};
@@ -134,9 +150,9 @@
   }
   function render() {
     var html = '', lastDay = '';
-    var welcome = st.me && st.me.kind === 'agent'
-      ? 'Hello! How can we help with your shop?'
-      : 'Hello! How can we help? If it is about an order, tell us the phone number you used.';
+    var welcome = st.with ? 'Hello! This is ' + st.with.name + '. How can I help? If it is about an order, tell me the phone number you used.'
+      : st.me && st.me.kind === 'agent' ? 'Hello! How can we help with your shop?'
+        : 'Hello! How can we help? If it is about an order, tell us the phone number you used.';
     html += '<div class="cw-msg them cw-welcome"><p>' + esc(welcome) + '</p></div>';
     var mineLast = null;
     st.msgs.forEach(function (m) { if (!m.fromAdmin && !m.pending) mineLast = m; });
@@ -182,7 +198,7 @@
     return added;
   }
   function seen() {
-    if (st.thread && st.thread.unread) { st.thread.unread = 0; badge(0); api('/api/chat/seen', 'POST', {}).catch(function () { /* later */ }); }
+    if (st.thread && st.thread.unread) { st.thread.unread = 0; badge(0); api('/api/chat/seen', 'POST', { shop: shopSlug() }).catch(function () { /* later */ }); }
   }
 
   function open() {
@@ -191,9 +207,9 @@
     el.launch.hidden = true;
     document.documentElement.classList.add('cw-is-open');
     if (!st.loaded) el.cwBody.innerHTML = '<p class="cw-day">Loading…</p>';
-    api('/api/chat/open').then(function (d) {
+    api('/api/chat/open' + q('?')).then(function (d) {
       st.loaded = true;
-      st.me = d.me; st.thread = d.thread; st.online = d.online;
+      st.me = d.me; st.thread = d.thread; st.online = d.online; st.with = d.with; header();
       st.msgs = []; st.lastId = 0; take(d.messages);
       chips(); state(); render(); seen();
     }).catch(function (err) { el.cwBody.innerHTML = '<p class="cw-day">' + esc(err.message) + '</p>'; });
@@ -217,7 +233,7 @@
     var temp = { id: -Date.now(), fromAdmin: false, text: text, pending: true };
     st.msgs.push(temp); render();
     el.cwText.value = ''; grow();
-    api('/api/chat/send', 'POST', { text: text, phone: el.cwPhone.value, context: context() }).then(function (d) {
+    api('/api/chat/send', 'POST', { text: text, phone: el.cwPhone.value, context: context(), shop: shopSlug() }).then(function (d) {
       st.msgs = st.msgs.filter(function (m) { return m !== temp; });
       take([d.message]);
       st.thread = d.thread;
@@ -236,11 +252,11 @@
   function poll() {
     if (document.hidden) return schedule(st.open ? 4000 : 45000);
     if (!st.open) { // closed: only the number of new answers
-      api('/api/chat/hello').then(function (h) { st.online = h.online; badge(h.unread); })
+      api('/api/chat/hello' + q('?')).then(function (h) { st.online = h.online; badge(h.unread); })
         .catch(function () { /* try again later */ }).then(function () { schedule(45000); });
       return;
     }
-    api('/api/chat/poll?after=' + st.lastId).then(function (d) {
+    api('/api/chat/poll?after=' + st.lastId + q('&')).then(function (d) {
       st.online = d.online;
       if (d.thread) st.thread = d.thread;
       if (st.open) {
@@ -257,10 +273,11 @@
   }
 
   function start() {
-    api('/api/chat/hello').then(function (h) {
+    // In a shop, wait until the shop is confirmed open (js/shop.js), so the chat goes to the right place.
+    (window.abrantsShopInfo || Promise.resolve(null)).then(function () { return api('/api/chat/hello' + q('?')); }).then(function (h) {
       if (!h.enabled) return;
       build();
-      st.online = h.online;
+      st.online = h.online; st.with = h.with; header();
       badge(h.unread);
       if (h.hasChat) { st.thread = { unread: h.unread, adminReadId: 0 }; schedule(45000); }
     }).catch(function () { /* the page works without chat */ });
