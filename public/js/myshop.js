@@ -21,7 +21,8 @@
     var dark = me.theme === 'gold' || !COLOURS[me.theme];
     var face = me.logo ? '<img src="' + esc(me.logo) + '" alt="" />'
       : esc(String(me.shopName || '').trim().split(/\s+/).slice(0, 2).map(function (w) { return w.charAt(0); }).join('').toUpperCase());
-    var news = me.unread ? me.unread + ' new message' + (me.unread > 1 ? 's' : '') : '';
+    var waiting = (me.unread || 0) + (me.chats || 0); // messages from the store + customers' chats
+    var news = waiting ? waiting + ' new message' + (waiting > 1 ? 's' : '') : '';
 
     var card = $('needAgent');
     if (card) {

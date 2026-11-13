@@ -1106,6 +1106,7 @@ async function dashboard(a) {
       // What share of the amount added on top of the agent price reaches the agent (Paystack's cut when the store pays it).
       marginFactor: (await getSettings()).customerPaysFee !== false ? 1 : 1 - feeRate() },
     balances: b,
+    chats: lazy('chat').unreadCount(a.id, { touch: false }), // customers' chats not read yet
     stats: await stats(a.id),
     products: await agentProducts(a),
     sales: await sales(a.id, { limit: 30 }),

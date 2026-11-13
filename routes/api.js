@@ -227,7 +227,8 @@ router.post('/checkout', checkoutLimit, optionalCustomer(), async (req, res) => 
     const tx = await initializeTransaction({
       email, amountGHS: chargeGHS, reference,
       metadata: { phone, network: plan.network, label: plan.label, planId: plan.id, abrants: (() => { const d = JSON.stringify(orderFields); return { d, sig: signOrderText(reference, d) }; })() },
-      callbackUrl: `${origin}/order-status.html`,
+      // Bought in an agent's shop: back to the shop's own order page, so the customer stays in the shop.
+      callbackUrl: shop ? `${origin}/s/${shop.slug}/order` : `${origin}/order-status.html`,
     });
     res.json({ authorizationUrl: tx.authorization_url, reference });
   } catch (err) {

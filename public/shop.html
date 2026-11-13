@@ -14,7 +14,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="/css/style.css?v=14" />
 <link rel="stylesheet" href="/css/shop.css?v=1" />
-<link rel="stylesheet" href="/css/chat.css?v=1" />
+<link rel="stylesheet" href="/css/chat.css?v=2" />
 </head>
 <!-- An agent's shop (services/agentShop.js writes the shop's details in; js/shop-page.js draws it). -->
 <body class="shop-page">
@@ -26,7 +26,7 @@
   <div class="wrap sp-head-in">
     <a class="sp-id" href="#top" id="spId"><span class="sp-avatar" id="spAvatar" aria-hidden="true"></span><strong id="spHeadName"></strong></a>
     <nav class="sp-head-nav" aria-label="Shop">
-      <a class="sp-head-link" href="/order-status.html">Track order</a>
+      <a class="sp-head-link" id="spTrack" href="/order-status.html">Track order</a>
       <a class="sp-head-manage" id="spHeadManage" href="/agent.html" hidden>Manage my shop</a>
     </nav>
   </div>
@@ -78,7 +78,7 @@
         <div class="sp-afa">
           <h2>MTN AFA registration</h2>
           <p>AFA is one of MTN's cheapest call bundles: 258 MTN minutes for GH₵10 a month. Register once with your Ghana Card, then buy AFA bundles by dialling *1848#.</p>
-          <div class="sp-afa-buy"><strong id="spAfaPrice"></strong><a class="sp-buy" href="/services.html#afa">Register</a></div>
+          <div class="sp-afa-buy"><strong id="spAfaPrice"></strong><a class="sp-buy" id="spAfaGo" href="/services.html#afa">Register</a></div>
         </div>
       </section>
 
@@ -90,7 +90,7 @@
           <li><b>Receive</b><span>Data on the number you gave, usually within minutes.</span></li>
         </ol>
         <p class="sp-safe"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
-          <span>If an order cannot be delivered, your money is refunded. Keep your order reference to <a href="/order-status.html">track your order</a>.</span></p>
+          <span>If an order cannot be delivered, your money is refunded. Keep your order reference to <a href="/order-status.html" id="spTrack2">track your order</a>.</span></p>
       </section>
     </div>
   </div>
@@ -110,7 +110,7 @@
 <footer class="sp-foot">
   <div class="wrap sp-foot-in">
     <strong id="spFootName"></strong>
-    <span>Payments by Paystack. Orders delivered by <a href="/" id="spFootStore">Abrants Data Store</a>.</span>
+    <span>Payments by Paystack.</span>
   </div>
 </footer>
 
@@ -180,9 +180,9 @@
 
 <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="false"></div>
 
-<script src="/js/shop.js?v=2"></script>
-<script src="/js/shop-page.js?v=2"></script>
+<script src="/js/shop.js?v=3"></script>
+<script src="/js/shop-page.js?v=3"></script>
 <script src="/js/app.js?v=15"></script>
-<script src="/js/chat.js?v=1"></script>
+<script src="/js/chat.js?v=2"></script>
 </body>
 </html>

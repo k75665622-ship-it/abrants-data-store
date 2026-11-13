@@ -102,7 +102,7 @@ pub.post('/checkout', limit(15), optionalCustomer(), async (req, res) => {
       email, amountGHS: charge, reference,
       // Personal details stay in our database; Paystack only sees what was bought.
       metadata: { service: order.kind, item: order.name, quantity: order.quantity },
-      callbackUrl: `${req.protocol}://${req.get('host')}/services.html`,
+      callbackUrl: `${req.protocol}://${req.get('host')}${shop ? `/s/${shop.slug}/services` : '/services.html'}`,
     });
     res.json({ authorizationUrl: tx.authorization_url, reference });
   } catch (err) {

@@ -98,6 +98,10 @@ app.get(/^\/s\/([A-Za-z0-9-]{1,40})\/?$/, async (req, res) => {
     res.status(out.status).type('html').send(out.html);
   } catch (err) { console.error('Shop page:', err.message); res.redirect(302, '/'); }
 });
+// Inside a shop, the order page and the checker/AFA page have the shop's address too, so a customer (and Paystack's
+// return after paying) stays in the shop even if the browser forgets it (js/shop.js reads the address).
+app.get(/^\/s\/([A-Za-z0-9-]{1,40})\/order\/?$/, (req, res) => res.sendFile(path.join(__dirname, 'public', 'order-status.html')));
+app.get(/^\/s\/([A-Za-z0-9-]{1,40})\/services\/?$/, (req, res) => res.sendFile(path.join(__dirname, 'public', 'services.html')));
 app.get(/^\/s\/([A-Za-z0-9-]{1,40})\/logo$/, async (req, res) => {
   try {
     const logo = await agentShop.getLogo(req.params[0]);

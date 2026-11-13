@@ -254,12 +254,19 @@
 
   /* ------------------------------------------------------------ start */
   $('year').textContent = new Date().getFullYear();
-  fetch('/api/settings').then(function (r) { return r.json(); }).then(function (s) {
-    var n = String(s.supportWhatsapp || '').replace(/[^\d]/g, '').replace(/^0(\d{9})$/, '233$1');
+  // Help goes to the store, or inside an agent's shop to that agent (never to the store from inside a shop).
+  Promise.all([
+    fetch('/api/settings').then(function (r) { return r.json(); }).catch(function () { return {}; }),
+    window.abrantsShop && window.abrantsShop() ? window.abrantsShopInfo : null
+  ]).then(function (x) {
+    var s = x[0] || {}, shop = x[1];
+    var inShop = window.abrantsShop && window.abrantsShop();
+    var n = String((inShop ? shop && shop.whatsapp : s.supportWhatsapp) || '').replace(/[^\d]/g, '').replace(/^0(\d{9})$/, '233$1');
     if (n) $('svHelp').href = 'https://wa.me/' + n;
-    else if (s.supportPhone) $('svHelp').href = 'tel:' + s.supportPhone;
+    else if (!inShop && s.supportPhone) $('svHelp').href = 'tel:' + s.supportPhone;
+    if (n && shop) $('svHelp').textContent = 'Chat with ' + shop.name + ' on WhatsApp';
     if (needHelp && $('svHelp').getAttribute('href') !== '#') $('svHelp').hidden = false;
-  }).catch(function () {});
+  });
 
   var params = new URLSearchParams(location.search);
   var ref = params.get('reference') || params.get('trxref');

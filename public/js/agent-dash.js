@@ -65,10 +65,10 @@
     $('mPayInfo').textContent = 'To ' + (Ag.NET[a.momoNetwork] || a.momoNetwork) + ' ' + a.momoNumber + '. Paid from ' + money(p.minPayoutGHS) +
       (p.payoutFeeGHS > 0 ? ', less a ' + money(p.payoutFeeGHS) + ' transfer fee' : '') + (p.payoutDay != null ? ', every ' + Ag.DAYS[p.payoutDay] : '') + '.';
     renderStats(d.stats);
-    badge(a.unread);
-    var latest = $('homeMsg');
-    latest.hidden = !a.unread;
-    latest.textContent = a.unread ? 'You have ' + a.unread + ' new message' + (a.unread > 1 ? 's' : '') + ' from the store. Open your inbox.' : '';
+    st.storeUnread = a.unread; st.chatUnread = d.chats || 0;
+    badge();
+    if (window.AgChats) window.AgChats.setUnread(st.chatUnread);
+    latestNote();
 
     renderSales(d.sales, false);
     $('homeSales').innerHTML = d.sales.slice(0, 5).map(saleCard).join('') ||
@@ -112,9 +112,21 @@
     $('agStats').innerHTML = tile('Today', s.today) + tile('This week', s.week) + tile('This month', s.month);
   }
 
-  function badge(n) {
+  // The Inbox badge: messages from the store not read yet, plus customers' chats not read yet.
+  function badge() {
+    var n = (st.storeUnread || 0) + (st.chatUnread || 0);
     $('inboxBadge').hidden = !n;
     $('inboxBadge').textContent = n > 9 ? '9+' : String(n || '');
+    $('storeCount').hidden = !st.storeUnread;
+    $('storeCount').textContent = String(st.storeUnread || '');
+  }
+  function latestNote() {
+    var c = st.chatUnread || 0, m = st.storeUnread || 0;
+    var parts = [];
+    if (c) parts.push(c + ' customer chat' + (c > 1 ? 's' : '') + ' waiting for you');
+    if (m) parts.push(m + ' new message' + (m > 1 ? 's' : '') + ' from the store');
+    $('homeMsg').hidden = !parts.length;
+    $('homeMsg').textContent = parts.length ? 'You have ' + parts.join(' and ') + '. Open your inbox.' : '';
   }
 
   /* ------------------------------------------------------------ tabs */
@@ -129,7 +141,8 @@
       if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
     $('openSettings').classList.toggle('active', name === 'settings');
-    if (name === 'inbox') loadInbox();
+    if (name === 'inbox') { if (window.AgChats) window.AgChats.show(st.storeUnread); else loadInbox(); }
+    else if (window.AgChats) window.AgChats.hide();
     try { history.replaceState(null, '', name === 'home' ? location.pathname : '#' + name); } catch (e) { /* old browser */ }
   }
   document.addEventListener('click', function (e) {
@@ -276,7 +289,7 @@
       }).join('') || '<div class="empty-card"><strong>No messages</strong>Messages from the store show here, and they come by SMS too.</div>';
       if (list.some(function (m) { return !m.read; })) {
         api('/api/agent/messages/read', 'POST').then(function () {
-          badge(0); $('homeMsg').hidden = true;
+          st.storeUnread = 0; badge(); latestNote();
           if (st.d) st.d.agent.unread = 0;
         }).catch(function () { /* stays unread */ });
       }
@@ -510,7 +523,8 @@
 
   $('openChat').addEventListener('click', function () { if (window.abrantsOpenChat) window.abrantsOpenChat(); });
 
-  window.AgDash = { render: render, setTab: setTab };
+  window.AgDash = { render: render, setTab: setTab, loadInbox: loadInbox,
+    chatBadge: function (n) { st.chatUnread = n; badge(); latestNote(); } };
   // Opening /agent.html#inbox (or #prices, ...) goes straight there.
   var first = location.hash.replace('#', '');
   if (TABS.indexOf(first) !== -1) setTab(first);

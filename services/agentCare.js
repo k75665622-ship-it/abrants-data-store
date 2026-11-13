@@ -246,6 +246,7 @@ async function scrub(a) {
       must_change_password = false, suspended_until = NULL WHERE id = $1`, [a.id]);
   await pool.query('DELETE FROM agent_logos WHERE agent_id = $1', [a.id]);
   await pool.query('DELETE FROM agent_messages WHERE agent_id = $1', [a.id]);
+  await lazy('chat').dropForAgent(a.id); // their chats with Abrants and with their customers
   const x = A().extraOf(a.id);
   x.unread = 0; x.strikes = 0;
   lazy('agentShop').forgetLogo(a.id);
