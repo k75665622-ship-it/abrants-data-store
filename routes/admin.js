@@ -81,6 +81,7 @@ router.post('/orders/mark-stuck-delivered', async (req, res) => {
 
 router.use('/services', require('./services').admin(audit));
 router.use('/links', require('./campaigns').admin(audit));
+router.use('/agents', require('./agents').admin(audit));
 
 router.post('/notices/dismiss', async (req, res) => {
   try {

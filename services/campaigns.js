@@ -32,7 +32,7 @@ function randomCode() {
 // A short link lives at the top of the site, so it must never take the place of a real page or folder.
 const RESERVED = new Set(['api', 'admin', 'account', 'services', 'status', 'order-status', 'index', 'login', 'logout',
   'bills', 'welcome', 'css', 'js', 'img', 'images', 'assets', 'static', 'public', 'favicon', 'robots', 'sitemap',
-  'manifest', 'health', 'healthz', 'webhook', 'static']);
+  'manifest', 'health', 'healthz', 'webhook', 'static', 's', 'agent']);
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 function isReserved(code) {
   if (RESERVED.has(code)) return true;
@@ -166,12 +166,12 @@ async function stats(range) {
   const r = await pool.query(`
     WITH paid AS (
       SELECT campaign, (campaign IS NOT NULL) AS tagged, phone, price_ghs::numeric AS revenue,
-             CASE WHEN provider_cost_ghs IS NULL THEN NULL ELSE price_ghs - provider_cost_ghs - COALESCE(payment_fee_ghs, 0) END AS profit,
+             CASE WHEN provider_cost_ghs IS NULL THEN NULL ELSE price_ghs - provider_cost_ghs - COALESCE(payment_fee_ghs, 0) - COALESCE(agent_earning_ghs, 0) END AS profit,
              created_at
         FROM orders WHERE source = 'store' AND status = ANY($1)
       UNION ALL
       SELECT campaign, (campaign IS NOT NULL), phone, price_ghs::numeric,
-             CASE WHEN cost_ghs IS NULL THEN NULL ELSE price_ghs - cost_ghs - COALESCE(payment_fee_ghs, 0) END,
+             CASE WHEN cost_ghs IS NULL THEN NULL ELSE price_ghs - cost_ghs - COALESCE(payment_fee_ghs, 0) - COALESCE(agent_earning_ghs, 0) END,
              created_at
         FROM service_orders WHERE status = ANY($2)
     ), ranked AS (

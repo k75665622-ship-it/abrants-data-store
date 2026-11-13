@@ -57,6 +57,11 @@ async function initServiceDb() {
     CREATE INDEX IF NOT EXISTS service_orders_status_idx ON service_orders (status, updated_at);
     -- The tracking link the buyer arrived through (see services/campaigns.js).
     ALTER TABLE service_orders ADD COLUMN IF NOT EXISTS campaign TEXT;
+    -- Sold through an agent's shop (services/agents.js), as on orders.
+    ALTER TABLE service_orders ADD COLUMN IF NOT EXISTS agent_id BIGINT;
+    ALTER TABLE service_orders ADD COLUMN IF NOT EXISTS agent_base_ghs NUMERIC(10,2);
+    ALTER TABLE service_orders ADD COLUMN IF NOT EXISTS agent_earning_ghs NUMERIC(10,2);
+    CREATE INDEX IF NOT EXISTS service_orders_agent_idx ON service_orders (agent_id, created_at DESC) WHERE agent_id IS NOT NULL;
   `);
   await tidyRemovedBills();
 }
@@ -93,10 +98,12 @@ function mapRow(r) {
     reference: r.reference, kind: r.kind, code: r.item_code, name: r.item_name, checkerTypeId: r.checker_type_id,
     quantity: r.quantity, priceGHS: num(r.price_ghs), customerFeeGHS: num(r.customer_fee_ghs), costGHS: num(r.cost_ghs),
     paymentFeeGHS: num(r.payment_fee_ghs), amountPaidGHS: num(r.amount_paid_ghs), phone: r.phone, email: r.email,
-    customerId: r.customer_id, campaign: r.campaign || null, status: r.status, providerReference: r.provider_reference, pins: r.pins || [],
+    customerId: r.customer_id, campaign: r.campaign || null,
+    agentId: r.agent_id == null ? null : Number(r.agent_id), agentBaseGHS: num(r.agent_base_ghs), agentEarningGHS: num(r.agent_earning_ghs),
+    status: r.status, providerReference: r.provider_reference, pins: r.pins || [],
     resultUrl: r.result_url, afa: r.afa || null, afaId: r.afa_id, note: r.note, attempts: r.attempts, refundId: r.refund_id,
     createdAt: r.created_at, updatedAt: r.updated_at, paidAt: r.paid_at,
-    profitGHS: r.cost_ghs == null ? null : round2(Number(r.price_ghs) - Number(r.cost_ghs) - Number(r.payment_fee_ghs || 0)),
+    profitGHS: r.cost_ghs == null ? null : round2(Number(r.price_ghs) - Number(r.cost_ghs) - Number(r.payment_fee_ghs || 0) - Number(r.agent_earning_ghs || 0)),
   };
 }
 
@@ -125,6 +132,11 @@ async function move(reference, from, changes = {}) {
     // Tell the background job there is something to follow up (see services/workHints.js).
     if (changes.status === 'paid' || changes.status === 'sending') work.mark('svc-send');
     if (changes.status === 'submitted') work.mark('svc-afa');
+    // Sold through an agent's shop: keep the agent's earnings in step (services/agents.js). Never blocks the order.
+    if (changes.status && r.rows[0].agent_id != null) {
+      try { await require('./agents').syncOrder('service', r.rows[0]); }
+      catch (err) { console.warn('Agent earnings not updated for', reference, err.message); }
+    }
   }
   return mapRow(r.rows[0]);
 }
@@ -195,11 +207,11 @@ async function createPending(o) {
   work.mark('svc-sweep');
   await pool.query(
     `INSERT INTO service_orders (reference, kind, item_code, item_name, checker_type_id, quantity, price_ghs, customer_fee_ghs,
-       cost_ghs, payment_fee_ghs, phone, email, customer_id, afa, campaign)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+       cost_ghs, payment_fee_ghs, phone, email, customer_id, afa, campaign, agent_id, agent_base_ghs, agent_earning_ghs)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
     [o.reference, o.kind, o.code, o.name, o.checkerTypeId || null, o.quantity || 1, o.priceGHS, o.customerFeeGHS || 0,
       o.costGHS ?? null, o.paymentFeeGHS ?? null, o.phone, o.email, o.customerId || null, o.afa ? JSON.stringify(o.afa) : null,
-      o.campaign || null]
+      o.campaign || null, o.agentId || null, o.agentId ? (o.agentBaseGHS ?? null) : null, o.agentId ? (o.agentEarningGHS ?? null) : null]
   );
   return getServiceOrder(o.reference);
 }
@@ -391,7 +403,7 @@ async function listServiceOrders({ status, search, limit = 50 } = {}) {
   const s = await pool.query(`SELECT
       COUNT(*) FILTER (WHERE status IN ('completed','submitted','approved'))::int AS sold,
       COALESCE(SUM(price_ghs) FILTER (WHERE status IN ('completed','submitted','approved','rejected')),0)::numeric AS revenue,
-      COALESCE(SUM(price_ghs - COALESCE(cost_ghs,0) - COALESCE(payment_fee_ghs,0)) FILTER (WHERE status IN ('completed','submitted','approved','rejected')),0)::numeric AS profit,
+      COALESCE(SUM(price_ghs - COALESCE(cost_ghs,0) - COALESCE(payment_fee_ghs,0) - COALESCE(agent_earning_ghs,0)) FILTER (WHERE status IN ('completed','submitted','approved','rejected')),0)::numeric AS profit,
       COUNT(*) FILTER (WHERE status IN ('review','failed','paid','sending'))::int AS attention
     FROM service_orders`);
   const t = s.rows[0];

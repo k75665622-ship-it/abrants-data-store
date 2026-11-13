@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0b1020" />
+<meta name="format-detection" content="telephone=no" />
+<meta name="description" content="Sell data bundles, result checkers and MTN AFA with your own shop link, at your own prices." />
+<title>Agents — Abrants Data Store</title>
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/svg+xml" href="/icon.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/style.css?v=12" />
+<link rel="stylesheet" href="/css/account.css?v=4" />
+<link rel="stylesheet" href="/css/agent.css?v=1" />
+</head>
+<body class="page-fill ag-page">
+
+<header class="site-header">
+  <div class="wrap nav">
+    <a class="brand" href="/" aria-label="Abrants Data Store home">
+      <img class="brand-logo" src="/icon.svg" alt="" width="38" height="38" />
+      <span><strong>ABRANTS</strong><small>AGENTS</small></span>
+    </a>
+    <div class="nav-actions">
+      <a href="/" class="track-link">Store</a>
+    </div>
+  </div>
+</header>
+
+<main class="wrap acct-main ag-main">
+
+  <div id="loadingView" class="acct-loading" aria-live="polite">
+    <div class="skeleton" style="min-height:120px"></div>
+    <div class="skeleton" style="min-height:220px;margin-top:12px"></div>
+  </div>
+
+  <!-- ===================== SIGN UP / LOG IN ===================== -->
+  <section id="authView" hidden>
+    <div class="ag-hero">
+      <h1>Sell data with your own shop link</h1>
+      <ul class="ag-points">
+        <li><b>Your prices</b><span>Set any price above your agent price. The difference is yours.</span></li>
+        <li><b>Everything we sell</b><span>Data for all networks, WASSCE &amp; BECE checkers, MTN AFA.</span></li>
+        <li><b>Paid to MoMo</b><span>Your earnings go to your MoMo once orders are delivered.</span></li>
+      </ul>
+    </div>
+
+    <div class="auth-card">
+      <div class="seg" role="tablist" aria-label="Join or log in">
+        <button type="button" role="tab" id="tabJoin" class="seg-btn active" aria-selected="true">Join</button>
+        <button type="button" role="tab" id="tabLogin" class="seg-btn" aria-selected="false">Log in</button>
+      </div>
+
+      <p class="ag-closed" id="joinClosed" hidden>Agent sign-up is closed right now.</p>
+
+      <form id="joinForm" class="auth-form" novalidate>
+        <label class="field"><span>Your full name</span>
+          <input name="name" type="text" autocomplete="name" maxlength="60" required />
+        </label>
+        <label class="field"><span>Shop name</span>
+          <input name="shopName" type="text" maxlength="40" placeholder="Kwame Data Hub" required />
+          <span class="field-hint ag-link-preview" id="linkPreview"></span>
+        </label>
+        <label class="field"><span>Phone number</span>
+          <input name="phone" type="tel" inputmode="numeric" maxlength="13" placeholder="0551234567" autocomplete="username" required />
+        </label>
+        <label class="field"><span>Password</span>
+          <span class="pw-wrap"><input name="password" type="password" autocomplete="new-password" maxlength="100" placeholder="At least 8 characters" required /><button type="button" class="pw-toggle" data-pw>Show</button></span>
+        </label>
+        <fieldset class="ag-momo">
+          <legend>Pay me on MoMo</legend>
+          <label class="field"><span>MoMo number</span>
+            <input name="momoNumber" type="tel" inputmode="numeric" maxlength="13" placeholder="Same as phone" />
+          </label>
+          <div class="ag-two">
+            <label class="field"><span>Network</span>
+              <select name="momoNetwork" required>
+                <option value="">Choose</option>
+                <option value="MTN">MTN MoMo</option>
+                <option value="Telecel">Telecel Cash</option>
+                <option value="AirtelTigo">AirtelTigo Money</option>
+              </select>
+            </label>
+            <label class="field"><span>Name on MoMo</span>
+              <input name="momoName" type="text" maxlength="60" autocomplete="name" required />
+            </label>
+          </div>
+        </fieldset>
+        <details class="ag-terms">
+          <summary>Agent terms</summary>
+          <ul>
+            <li>You choose your selling prices. You keep the difference between your price and your agent price.</li>
+            <li>Your earning on an order becomes yours once it is delivered, and is paid to your MoMo.</li>
+            <li>A failed or refunded order earns nothing. If you were already paid for it, it comes off your next payout.</li>
+            <li>Only promise customers what the store offers. No spam, no fake accounts.</li>
+            <li>The store can change agent prices, and pause or close an agent account.</li>
+          </ul>
+        </details>
+        <label class="ag-check"><input type="checkbox" name="agree" /> <span>I accept the agent terms</span></label>
+        <button class="pay-btn" type="submit" id="joinBtn">Create my shop</button>
+        <p class="ck-error" id="joinError" role="alert" hidden></p>
+      </form>
+
+      <form id="loginForm" class="auth-form" novalidate hidden>
+        <label class="field"><span>Phone number</span>
+          <input name="phone" type="tel" inputmode="numeric" maxlength="13" placeholder="0551234567" autocomplete="username" required />
+        </label>
+        <label class="field"><span>Password</span>
+          <span class="pw-wrap"><input name="password" type="password" autocomplete="current-password" maxlength="100" required /><button type="button" class="pw-toggle" data-pw>Show</button></span>
+        </label>
+        <button class="pay-btn" type="submit" id="loginBtn">Log in</button>
+        <p class="ck-error" id="loginError" role="alert" hidden></p>
+        <p class="auth-foot">Forgot your password? Message the store and they will reset it.</p>
+      </form>
+    </div>
+  </section>
+
+  <!-- =========================== DASHBOARD ============================= -->
+  <div id="dashView" hidden>
+    <section class="hello-card">
+      <div class="avatar" id="avatar" aria-hidden="true">A</div>
+      <div class="hello-text">
+        <h1 id="shopName">Shop</h1>
+        <p class="hello-phone"><span class="ag-status" id="agStatus"></span></p>
+      </div>
+      <button type="button" class="ghost-btn" id="logoutBtn">Log out</button>
+    </section>
+
+    <section class="alert-card" id="pwForce" hidden>
+      <strong>Choose your own password</strong>
+      <form id="forceForm" class="auth-form" novalidate>
+        <label class="field"><span>Temporary password</span><input name="current" type="password" autocomplete="current-password" maxlength="100" /></label>
+        <label class="field"><span>New password</span><input name="next" type="password" autocomplete="new-password" maxlength="100" placeholder="At least 8 characters" /></label>
+        <button class="pay-btn" type="submit">Save my password</button>
+        <p class="ck-error" role="alert" hidden></p>
+      </form>
+    </section>
+
+    <section class="ag-notice" id="agNotice" hidden></section>
+
+    <section class="ag-link-card" id="linkCard" hidden>
+      <div class="ag-link-url" id="shopUrl"></div>
+      <div class="ag-link-actions">
+        <button type="button" class="ag-btn ag-btn-dark" id="copyLink">Copy link</button>
+        <a class="ag-btn ag-btn-wa" id="shareWa" href="#" target="_blank" rel="noopener">Share on WhatsApp</a>
+        <a class="ag-btn" id="openShop" href="#" target="_blank" rel="noopener">Open my shop</a>
+      </div>
+    </section>
+
+    <section class="ag-money" aria-label="Your money">
+      <div class="ag-money-main">
+        <span>Ready to pay</span>
+        <strong id="mReady">GH₵0.00</strong>
+        <small id="mPayInfo"></small>
+      </div>
+      <div class="ag-money-grid">
+        <div><span>On hold</span><strong id="mHeld">GH₵0.00</strong></div>
+        <div><span>On the way</span><strong id="mWay">GH₵0.00</strong></div>
+        <div><span>Paid out</span><strong id="mPaid">GH₵0.00</strong></div>
+      </div>
+    </section>
+
+    <div class="seg ag-tabs" role="tablist" aria-label="Your shop">
+      <button type="button" role="tab" class="seg-btn active" data-tab="prices" aria-selected="true">Prices</button>
+      <button type="button" role="tab" class="seg-btn" data-tab="sales" aria-selected="false">Sales</button>
+      <button type="button" role="tab" class="seg-btn" data-tab="payouts" aria-selected="false">Payouts</button>
+      <button type="button" role="tab" class="seg-btn" data-tab="settings" aria-selected="false">Settings</button>
+    </div>
+
+    <section class="ag-pane" id="pane-prices">
+      <form id="pricesForm" novalidate>
+        <div id="priceList"></div>
+        <div class="ag-save-bar">
+          <button class="pay-btn" type="submit" id="savePrices">Save prices</button>
+          <p class="ck-error" id="pricesError" role="alert" hidden></p>
+        </div>
+      </form>
+    </section>
+
+    <section class="ag-pane" id="pane-sales" hidden>
+      <div id="salesList" class="orders-list"></div>
+      <button type="button" class="ag-more" id="moreSales" hidden>Show more</button>
+    </section>
+
+    <section class="ag-pane" id="pane-payouts" hidden>
+      <div id="payoutList" class="orders-list"></div>
+    </section>
+
+    <section class="ag-pane" id="pane-settings" hidden>
+      <details class="acct-section pw-box" open>
+        <summary>Shop</summary>
+        <form id="profileForm" class="auth-form" novalidate>
+          <label class="field"><span>Shop name</span><input name="shopName" maxlength="40" /></label>
+          <label class="field"><span>WhatsApp for your customers <em>(optional)</em></span><input name="whatsapp" type="tel" inputmode="numeric" maxlength="13" /></label>
+          <button class="pay-btn" type="submit">Save</button>
+          <p class="ck-error" role="alert" hidden></p>
+        </form>
+      </details>
+      <details class="acct-section pw-box">
+        <summary>MoMo for payouts</summary>
+        <form id="momoForm" class="auth-form" novalidate>
+          <label class="field"><span>MoMo number</span><input name="momoNumber" type="tel" inputmode="numeric" maxlength="13" /></label>
+          <label class="field"><span>Network</span>
+            <select name="momoNetwork">
+              <option value="MTN">MTN MoMo</option>
+              <option value="Telecel">Telecel Cash</option>
+              <option value="AirtelTigo">AirtelTigo Money</option>
+            </select>
+          </label>
+          <label class="field"><span>Name on MoMo</span><input name="momoName" maxlength="60" /></label>
+          <label class="field"><span>Your password</span><input name="password" type="password" autocomplete="current-password" maxlength="100" /></label>
+          <button class="pay-btn" type="submit">Save MoMo details</button>
+          <p class="ck-error" role="alert" hidden></p>
+        </form>
+      </details>
+      <details class="acct-section pw-box">
+        <summary>Change password</summary>
+        <form id="passwordForm" class="auth-form" novalidate>
+          <label class="field"><span>Current password</span><input name="current" type="password" autocomplete="current-password" maxlength="100" /></label>
+          <label class="field"><span>New password</span><input name="next" type="password" autocomplete="new-password" maxlength="100" placeholder="At least 8 characters" /></label>
+          <button class="pay-btn" type="submit">Save new password</button>
+          <p class="ck-error" role="alert" hidden></p>
+        </form>
+      </details>
+    </section>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap footer-bottom">
+    <span>© <span id="year">2026</span> Abrants Data Store</span>
+    <span>Payments by Paystack</span>
+  </div>
+</footer>
+
+<div class="toast-stack" id="toastStack" aria-live="polite"></div>
+<script src="/js/agent.js?v=1"></script>
+</body>
+</html>

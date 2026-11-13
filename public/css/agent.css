@@ -1,0 +1,84 @@
+/* Abrants Data Store — agent page (mobile-first). Builds on style.css and account.css. */
+
+.ag-main{max-width:760px}
+
+/* ---------------------------------------------------------------- Join */
+.ag-hero{margin:0 0 16px}
+.ag-hero h1{font:700 clamp(27px,7.4vw,38px)/1.08 var(--display);letter-spacing:-.04em;margin:4px 0 14px}
+.ag-points{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.ag-points li{display:grid;gap:2px;background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:12px 14px}
+.ag-points b{font:700 15px/1.3 var(--display)}
+.ag-points span{font-size:13.5px;color:var(--muted);line-height:1.5}
+.ag-closed{margin:0 0 4px;padding:14px;border-radius:var(--r);background:var(--line-2);color:#4d566b;font-weight:600;text-align:center}
+.ag-link-preview{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;overflow-wrap:anywhere}
+.ag-momo{border:1px solid var(--line);border-radius:var(--r);padding:12px 12px 0;margin:4px 0 14px;min-width:0}
+.ag-momo legend{font-weight:700;font-size:13.5px;padding:0 6px}
+.ag-two{display:grid;gap:0 10px}
+.ag-terms{margin:2px 0 10px;font-size:13.5px;color:#4d566b}
+.ag-terms summary{cursor:pointer;font-weight:700;color:var(--ink);min-height:40px;display:flex;align-items:center}
+.ag-terms ul{margin:4px 0 6px;padding-left:18px;line-height:1.6}
+.ag-check{display:flex;align-items:center;gap:10px;min-height:44px;margin:0 0 12px;font-weight:600;font-size:14px;cursor:pointer}
+.ag-check input{width:20px;height:20px;accent-color:var(--navy);flex:none}
+select{width:100%;min-height:50px;border:1px solid var(--line);border-radius:var(--r-sm);background:#fff;padding:0 12px;font-size:16px}
+
+/* ---------------------------------------------------------------- Dashboard */
+.ag-status{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:4px 9px;border-radius:999px;background:rgba(255,255,255,.12);color:#cfd6e4}
+.ag-status.active{background:rgba(18,183,106,.22);color:#7ff0b8}
+.ag-status.pending{background:rgba(255,210,28,.2);color:#ffe27a}
+.ag-status.suspended{background:rgba(229,72,77,.22);color:#ffb3b5}
+
+.ag-notice{background:#fff8e1;border:1px solid #f5d77a;color:#5b4a10;border-radius:var(--r-md);padding:14px 16px;margin:0 0 14px;font-size:14px;line-height:1.55;font-weight:600}
+
+.ag-link-card{background:#fff;border:1px solid var(--line);border-radius:var(--r-md);padding:14px;margin:0 0 14px}
+.ag-link-url{font:600 14px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--line-2);border-radius:var(--r-sm);padding:12px;overflow-wrap:anywhere;margin-bottom:10px}
+.ag-link-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ag-btn{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:0 14px;border-radius:var(--r);border:1px solid var(--line);background:#fff;font-weight:700;font-size:14px;text-align:center}
+.ag-btn-dark{background:var(--navy);border-color:var(--navy);color:#fff}
+.ag-btn-wa{background:#25d366;border-color:#25d366;color:#06301a}
+.ag-link-actions .ag-btn:last-child{grid-column:1/-1}
+
+.ag-money{background:var(--navy);color:#fff;border-radius:var(--r-lg);padding:18px;margin:0 0 16px}
+.ag-money-main span{display:block;font-size:13px;color:#9ca6b9;font-weight:600}
+.ag-money-main strong{display:block;font:700 clamp(32px,9vw,42px)/1.1 var(--display);letter-spacing:-.03em;margin:4px 0 6px;color:var(--yellow)}
+.ag-money-main small{display:block;font-size:12.5px;color:#9ca6b9;line-height:1.5}
+.ag-money-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.1)}
+.ag-money-grid span{display:block;font-size:11.5px;color:#9ca6b9;font-weight:600}
+.ag-money-grid strong{display:block;font:700 16px/1.3 var(--display);overflow-wrap:anywhere}
+
+.ag-tabs{grid-template-columns:repeat(4,minmax(0,1fr));position:sticky;top:calc(var(--header-h) + 6px);z-index:20;box-shadow:0 6px 16px rgba(245,246,250,.9)}
+.ag-tabs .seg-btn{font-size:13px;padding:0 4px}
+
+/* Prices */
+.ag-group{margin:0 0 16px}
+.ag-group h2{font:700 16px/1.2 var(--display);margin:0 0 8px;letter-spacing:-.01em}
+.ag-row{background:#fff;border:1px solid var(--line);border-radius:var(--r-md);padding:12px 14px;display:grid;grid-template-columns:minmax(0,1fr) 112px;gap:6px 12px;align-items:center;margin-bottom:8px}
+.ag-row.warn{border-color:rgba(229,72,77,.55);background:#fffafa}
+.ag-row-name{font-weight:700;font-size:14.5px;min-width:0;overflow-wrap:anywhere}
+.ag-row-meta{grid-column:1/2;font-size:12.5px;color:var(--muted)}
+.ag-row-meta b{color:var(--ink);font-weight:700}
+.ag-row-earn{font-size:12.5px;font-weight:700;color:#0a7a47}
+.ag-row-earn.zero{color:#98a0b2}
+.ag-row label{grid-column:2;grid-row:1/span 3;display:block}
+.ag-row label span{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px}
+.ag-row input{width:100%;min-height:46px;border:1px solid var(--line);border-radius:var(--r-sm);padding:0 10px;font-size:16px;font-weight:700;text-align:right;background:#fff}
+.ag-row input::placeholder{color:#b7bdca;font-weight:500}
+.ag-row input:focus{border-color:var(--navy);outline:none;box-shadow:0 0 0 3px rgba(11,16,32,.12)}
+.ag-save-bar{position:sticky;bottom:0;padding:12px 0 calc(12px + var(--safe-b));background:linear-gradient(180deg,rgba(245,246,250,0),var(--cream) 30%)}
+
+/* Sales and payouts reuse the account page's order cards. */
+.chip.delivered,.chip.paid{background:var(--green-soft);color:#0a7a47}
+.chip.on_the_way,.chip.sending,.chip.otp{background:#fff3c8;color:#7a5b00}
+.chip.failed,.chip.refunded{background:#fdecea;color:#b3261e}
+.o-earn{font-size:12px;font-weight:700;color:#0a7a47;text-align:right;white-space:nowrap}
+.o-earn.none{color:#98a0b2;text-decoration:line-through}
+.ag-more{display:block;width:100%;min-height:46px;margin-top:10px;border:1px solid var(--line);border-radius:var(--r);background:#fff;font-weight:700}
+
+@media (min-width:600px){
+  .ag-hero{margin-bottom:20px}
+  .ag-points{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .ag-two{grid-template-columns:1fr 1fr}
+  .ag-link-actions{grid-template-columns:repeat(3,auto);justify-content:start}
+  .ag-link-actions .ag-btn:last-child{grid-column:auto}
+  .ag-row{grid-template-columns:minmax(0,1fr) 140px}
+  .ag-money-main strong{font-size:44px}
+}

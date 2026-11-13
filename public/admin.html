@@ -10,7 +10,7 @@
 <link rel="icon" type="image/svg+xml" href="/icon.svg" />
 <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png" />
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-<link rel="stylesheet" href="admin.css?v=21" />
+<link rel="stylesheet" href="admin.css?v=22" />
 </head>
 <body>
 
@@ -63,6 +63,7 @@
         <button class="side-link" data-section="bundles"><span class="ico">₵</span> Bundles &amp; pricing</button>
         <button class="side-link" data-section="services"><span class="ico">✎</span> Checkers &amp; AFA</button>
         <button class="side-link" data-section="links"><span class="ico">⛓</span> Links</button>
+        <button class="side-link" data-section="agents"><span class="ico">⚇</span> Agents<span class="side-badge hidden" id="agBadge"></span></button>
         <button class="side-link" data-section="customers"><span class="ico">☺</span> Customers</button>
         <button class="side-link" data-section="numbers"><span class="ico">⊘</span> Blocked numbers</button>
         <button class="side-link" data-section="settings"><span class="ico">⚙</span> Settings</button>
@@ -262,6 +263,76 @@
         </section>
 
         <!-- ------------------------ CUSTOMERS ------------------------- -->
+        <!-- --------------------------- AGENTS --------------------------- -->
+        <section id="section-agents" class="admin-section hidden">
+          <div class="panel ag-head">
+            <div class="panel-body">
+              <label class="switch ag-main-switch"><input type="checkbox" id="agEnabled" /><span class="track"></span><span>Agent programme</span></label>
+              <label class="switch"><input type="checkbox" id="agAuto" /><span class="track"></span><span>Approve new agents automatically</span></label>
+              <div class="ag-join">
+                <span class="lk-url" id="agJoinUrl"></span>
+                <button class="btn btn-ghost btn-sm" type="button" id="agCopyJoin">Copy sign-up link</button>
+              </div>
+            </div>
+          </div>
+          <div class="stats-grid lk-stats" id="agStats" style="margin-top:14px"></div>
+
+          <div class="panel" style="margin-top:14px">
+            <div class="panel-head"><h3>Agents</h3></div>
+            <div class="panel-body">
+              <div class="chip-row" id="agFilter" style="margin-bottom:6px">
+                <button class="chip active" data-ag-filter="all">All</button>
+                <button class="chip" data-ag-filter="pending">Waiting</button>
+                <button class="chip" data-ag-filter="active">Active</button>
+                <button class="chip" data-ag-filter="suspended">Paused</button>
+              </div>
+              <div id="agList"></div>
+            </div>
+          </div>
+
+          <div class="panel" style="margin-top:14px">
+            <div class="panel-head"><h3>Payouts</h3></div>
+            <div class="panel-body">
+              <form id="agPayForm" autocomplete="off">
+                <div class="chip-row ag-method" id="agMethod">
+                  <button class="chip" type="button" data-ag-method="manual">I pay them by MoMo</button>
+                  <button class="chip" type="button" data-ag-method="paystack">Paystack sends it</button>
+                </div>
+                <div class="ag-pay-grid">
+                  <label class="field"><span>Minimum payout (GH₵)</span><input name="minPayout" inputmode="decimal" /></label>
+                  <label class="field"><span>Fee per payout (GH₵)</span><input name="payoutFee" inputmode="decimal" /></label>
+                  <label class="field"><span>Hold after delivery (hours)</span><input name="holdHours" inputmode="numeric" /></label>
+                </div>
+                <div class="ag-auto" id="agAutoRow">
+                  <label class="switch"><input type="checkbox" name="autoPayout" /><span class="track"></span><span>Pay automatically every</span></label>
+                  <select name="payoutDay" aria-label="Payout day">
+                    <option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option>
+                    <option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option><option value="0">Sunday</option>
+                  </select>
+                </div>
+                <div class="drawer-actions">
+                  <button class="btn btn-ghost btn-sm" type="submit" id="agPaySave">Save</button>
+                  <button class="btn btn-primary btn-sm" type="button" id="agPayAll">Pay everyone due</button>
+                  <button class="btn btn-ghost btn-sm" type="button" id="agBalance">Paystack balance</button>
+                </div>
+              </form>
+              <div id="agPayouts"></div>
+            </div>
+          </div>
+
+          <div class="panel" style="margin-top:14px">
+            <div class="panel-head"><h3>Agent prices</h3></div>
+            <div class="panel-body">
+              <div class="ag-fill">
+                <input id="agFillPct" inputmode="decimal" placeholder="5" aria-label="Percent below store price" />
+                <button class="btn btn-ghost btn-sm" type="button" id="agFill">% below store price for all</button>
+              </div>
+              <div id="agPrices"></div>
+              <div class="drawer-actions"><button class="btn btn-primary btn-sm" type="button" id="agPricesSave">Save agent prices</button></div>
+            </div>
+          </div>
+        </section>
+
         <section id="section-customers" class="admin-section hidden">
           <div class="stats-grid" id="custStats">
             <article class="stat-card"><span>Customers</span><strong id="cs-total">0</strong><small>with an account</small></article>
@@ -491,6 +562,7 @@
       <button data-section="bundles"><span class="ico">₵</span>Bundles</button>
       <button data-section="services"><span class="ico">✎</span>Checkers</button>
       <button data-section="links"><span class="ico">⛓</span>Links</button>
+      <button data-section="agents"><span class="ico">⚇</span>Agents</button>
       <button data-section="customers"><span class="ico">☺</span>Customers</button>
       <button data-section="numbers"><span class="ico">⊘</span>Blocked</button>
       <button data-section="settings"><span class="ico">⚙</span>Settings</button>
@@ -505,6 +577,14 @@
   <aside class="drawer" role="dialog" aria-modal="true" aria-label="Order details">
     <button id="closeDrawer" class="close" aria-label="Close">×</button>
     <div id="drawerContent"></div>
+  </aside>
+</div>
+
+<!-- =========================== AGENT DRAWER =========================== -->
+<div id="agDrawer" class="drawer-backdrop hidden">
+  <aside class="drawer" role="dialog" aria-modal="true" aria-label="Agent">
+    <button id="agDrawerClose" class="close" aria-label="Close">×</button>
+    <div id="agDrawerContent"></div>
   </aside>
 </div>
 
@@ -611,9 +691,10 @@
 
 <div class="toast-stack" id="toastStack" aria-live="polite"></div>
 
-<script src="admin.js?v=20"></script>
+<script src="admin.js?v=21"></script>
 <script src="admin-customers.js"></script>
 <script src="admin-services.js?v=5"></script>
 <script src="admin-links.js?v=4"></script>
+<script src="admin-agents.js?v=1"></script>
 </body>
 </html>
