@@ -5,8 +5,7 @@ const {
   getPlans, getPlan, createPlan, updatePlan, updatePlanPrice, updatePlanProviderCost, deletePlan,
   getBlockedNumbers, blockNumber, unblockNumber,
   getSettings, saveSettings, logAdminAction, getAuditLog,
-  updateOrder, normalizePhone, PHONE_RE, ORDER_STATUSES, countOldOrders, deleteOldOrders,
-} = require('../services/orderStore');
+  updateOrder, normalizePhone, PHONE_RE, ORDER_STATUSES, countOldOrders, deleteOldOrders, changesOf } = require('../services/orderStore');
 const { getWalletBalance, getWebhookStatus, setWebhookActive } = require('../services/datahustle');
 const providers = require('../services/providers');
 const fastdeals = require('../services/fastdeals');
@@ -82,6 +81,7 @@ router.post('/orders/mark-stuck-delivered', async (req, res) => {
 router.use('/services', require('./services').admin(audit));
 router.use('/links', require('./campaigns').admin(audit));
 router.use('/agents', require('./agents').admin(audit));
+router.use('/chat', require('./chat').admin(audit));
 
 /* ---------------------------------------------------------------- text messages (SMS) */
 router.get('/sms', async (req, res) => {
@@ -100,7 +100,7 @@ router.put('/sms', async (req, res) => {
     const next = { customers: req.body?.customers !== undefined ? req.body.customers === true : cur.customers !== false,
       agents: req.body?.agents !== undefined ? req.body.agents === true : cur.agents !== false };
     await saveSettings({ sms: next });
-    await audit(req, 'sms.settings', next);
+    await audit(req, 'sms.settings', { changes: changesOf({ customers: cur.customers !== false, agents: cur.agents !== false }, next) });
     res.json(next);
   } catch (err) { console.error(err); res.status(500).json({ error: 'Could not save.' }); }
 });
@@ -601,9 +601,10 @@ router.put('/settings', async (req, res) => {
       const t = Number(body.lowWalletThreshold);
       patch.lowWalletThreshold = Number.isFinite(t) && t >= 0 && t <= 100000 ? t : 0;
     }
-    const before = (await getSettings()).providers || {};
+    const prev = await getSettings({ fresh: true });
+    const before = prev.providers || {};
     const settings = await saveSettings(patch);
-    await audit(req, 'settings.update', patch);
+    await audit(req, 'settings.update', { changes: changesOf(prev, patch) });
     // When the admin switches a network to another provider, send that network's orders that were
     // refused for being out of stock to the new provider (they were never bought, so this is safe).
     if (patch.providers) {
@@ -671,7 +672,15 @@ router.get('/wallet', async (req, res) => {
 });
 
 router.get('/audit', async (req, res) => {
-  try { res.json(await getAuditLog(req.query.limit)); }
+  try {
+    // Older entries name an agent only by number: add the shop name (from memory) so the log reads well.
+    const agents = require('../services/agents');
+    res.json((await getAuditLog(req.query.limit)).map((r) => {
+      const d = r.details || {};
+      if (/^agents\./.test(r.action) && d.id && !d.shop) { const a = agents.getAgent(d.id); if (a) r.details = { ...d, shop: a.shopName }; }
+      return r;
+    }));
+  }
   catch (err) { console.error(err); res.status(500).json({ error: 'Could not load the activity log.' }); }
 });
 

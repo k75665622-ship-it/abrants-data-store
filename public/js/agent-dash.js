@@ -31,14 +31,18 @@
     av.style.color = onDark(a.theme) ? '#fff' : '#221a00';
     $('shopName').textContent = a.shopName;
     var label = { active: 'Open', pending: 'Waiting for approval', suspended: 'Paused' }[a.status] || a.status;
-    $('agStatus').textContent = p.open ? label : 'Programme paused';
+    $('agStatus').textContent = p.open ? label : 'Shops closed';
     $('agStatus').className = 'ag-status ' + (p.open ? a.status : 'suspended');
     $('agStrikes').hidden = !a.strikes;
     $('agStrikes').textContent = a.strikes + ' strike' + (a.strikes > 1 ? 's' : '');
     $('pwForce').hidden = !a.mustChangePassword;
 
     var notice = '';
-    if (!p.open) notice = 'The agent programme is paused. Your shop link is closed until it reopens. Your earnings are safe.';
+    if (!p.open) {
+      var off = p.off || {};
+      notice = 'All shops are closed for now.' + (off.reason ? ' Reason: ' + off.reason : '') + ' ' + backLine(off);
+      offPopup(off);
+    }
     else if (a.status === 'pending') notice = 'Your shop opens as soon as the store approves you. You can set your prices and make the shop yours now.';
     else if (a.status === 'suspended') {
       notice = 'Your shop is paused' + (a.suspendedUntil ? ' until ' + when(a.suspendedUntil) + '. It opens again by itself' : '') + '.' +
@@ -75,6 +79,29 @@
     var m = $('momoForm'); m.momoNumber.value = a.momoNumber; m.momoNetwork.value = a.momoNetwork; m.momoName.value = a.momoName; m.password.value = '';
     st.inboxLoaded = false;
     if (st.tab === 'inbox') loadInbox();
+  }
+
+  /* ------------------------------------------------------------ every shop switched off */
+  function backLine(off) {
+    if (off.back === 'never') return 'The agent programme is ending. The money you earned will still be paid to your MoMo.';
+    if (off.back === 'date' && off.backOn) return 'Shops open again by themselves on ' + when(off.backOn + 'T12:00:00Z') + '.';
+    return 'Shops will be back soon, and we will tell you when.';
+  }
+  // Shown once each time the store switches the shops off (and the notice stays on Home).
+  function offPopup(off) {
+    var key = 'abrants_off_seen', seen = null;
+    try { seen = localStorage.getItem(key); } catch (e) { /* private mode */ }
+    if (seen && seen === String(off.since)) return;
+    $('offReason').textContent = off.reason || 'The store has closed agent shops for a while.';
+    $('offBack').textContent = backLine(off);
+    $('offModal').hidden = false;
+    document.body.style.overflow = 'hidden';
+    $('offOk').onclick = function () {
+      try { localStorage.setItem(key, String(off.since)); } catch (e) { /* private mode */ }
+      $('offModal').hidden = true;
+      document.body.style.overflow = '';
+    };
+    setTimeout(function () { $('offOk').focus(); }, 50);
   }
 
   function renderStats(s) {
@@ -480,6 +507,8 @@
       Ag.show('goneView');
     }).catch(function (err) { formError(f, err); busy(btn, false); });
   });
+
+  $('openChat').addEventListener('click', function () { if (window.abrantsOpenChat) window.abrantsOpenChat(); });
 
   window.AgDash = { render: render, setTab: setTab };
   // Opening /agent.html#inbox (or #prices, ...) goes straight there.

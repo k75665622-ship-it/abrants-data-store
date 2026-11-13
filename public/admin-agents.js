@@ -53,6 +53,12 @@
     $('#agAuto').checked = !!d.settings.autoApprove;
     $('#agJoinUrl').textContent = d.siteUrl + '/agent';
     $('#section-agents').classList.toggle('ag-off', !d.settings.enabled);
+    var s = d.settings, off = $('#agOffState');
+    off.classList.toggle('hidden', s.enabled || !s.offAt);
+    if (!s.enabled && s.offAt) {
+      off.innerHTML = '<span class="ico">!</span><div>Every shop is off since ' + esc(when(s.offAt)) + '. Agents were told: "' + esc(s.offReason) + '". ' +
+        (s.offReturn === 'never' ? 'You said the programme is ending.' : s.offReturn === 'date' && s.offUntil ? 'Shops open again by themselves on ' + esc(day(s.offUntil + 'T12:00:00Z')) + '.' : 'You said they will be back soon.') + '</div>';
+    }
     var badge = $('#agBadge');
     if (badge) { badge.textContent = d.counts.pending; badge.classList.toggle('hidden', !d.counts.pending); }
     $('#agStats').innerHTML =
@@ -319,10 +325,30 @@
     return api('/api/admin/agents/settings', 'PUT', body).then(function () { if (okText) toast(okText, 'success'); return load(); })
       .catch(function (err) { toast(err.message, 'error'); return load(); });
   }
+  // Switching every shop off: first say why and whether they come back; every agent is told (inbox, and SMS).
   $('#agEnabled').addEventListener('change', function () {
     var on = this.checked;
-    if (!on && !confirm('Switch the agent programme off?\n\nShop links will show your normal store, and nobody can sign up. Agents keep what they have earned.')) { this.checked = true; return; }
-    saveSettings({ enabled: on }, on ? 'Agent programme is on.' : 'Agent programme is off.');
+    if (!on) {
+      this.checked = true;
+      var f = $('#agOffForm');
+      f.classList.remove('hidden');
+      f.offReason.focus();
+      return;
+    }
+    if (st.data && st.data.agents.some(function (a) { return a.status !== 'deleted'; }) &&
+      !confirm('Switch the agent programme back on?\n\nEvery agent gets a message that their shop is open again.')) { this.checked = false; return; }
+    saveSettings({ enabled: true }, 'Agent programme is on. Agents have been told.');
+  });
+  $('#agOffForm').offReturn.addEventListener('change', function () { $('#agOffDate').classList.toggle('hidden', this.value !== 'date'); });
+  $('#agOffCancel').addEventListener('click', function () { $('#agOffForm').classList.add('hidden'); });
+  $('#agOffForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var f = e.target, btn = f.querySelector('button[type="submit"]');
+    if (f.offReason.value.trim().length < 3) { toast('Tell the agents why.', 'error'); f.offReason.focus(); return; }
+    busy(btn, true, 'Switching off…');
+    api('/api/admin/agents/settings', 'PUT', { enabled: false, offReason: f.offReason.value, offReturn: f.offReturn.value, offUntil: f.offUntil.value, sms: f.sms.checked })
+      .then(function () { toast('Every shop is off. Agents have been told.', 'success'); f.reset(); f.classList.add('hidden'); $('#agOffDate').classList.add('hidden'); return load(); })
+      .catch(function (err) { toast(err.message, 'error'); }).then(function () { busy(btn, false); });
   });
   $('#agAuto').addEventListener('change', function () { saveSettings({ autoApprove: this.checked }, 'Saved.'); });
   $('#agCopyJoin').addEventListener('click', function () {
@@ -490,5 +516,5 @@
     if ((t = e.target.closest('[data-ag-open]')) && !e.target.closest('button')) openAgent(t.getAttribute('data-ag-open'));
   });
 
-  window.AbrantsAgents = { load: load };
+  window.AbrantsAgents = { load: load, open: function (id) { load().then(function () { openAgent(id); }); } };
 })();

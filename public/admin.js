@@ -24,6 +24,7 @@
 
   var SECTION_META = {
     overview: ['Store dashboard', 'Everything important, in one place.'],
+    inbox: ['Inbox', 'Chats from the website. Reply here.'],
     orders: ['Orders', 'Search payments, retry deliveries and issue refunds.'],
     bundles: ['Bundles & pricing', 'Control what you sell and what it costs.'],
     services: ['Checkers & AFA', 'Set prices, follow orders and retry stuck ones.'],
@@ -105,6 +106,7 @@
     $('#appView').classList.remove('hidden');
     loadWallet();
     switchSection(state.section);
+    if (window.AbrantsInbox) window.AbrantsInbox.start(); // the unread count in the menu
   }
 
   /* --------------------------------------------------------------- auth */
@@ -168,6 +170,7 @@
     if (name === 'numbers') loadBlocked();
     if (name === 'settings') { loadSettings(); loadProviders(); if (window.AbrantsSms) window.AbrantsSms.load(); }
     if (name === 'activity') loadAudit();
+    if (window.AbrantsInbox) window.AbrantsInbox.visible(name === 'inbox');
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -980,19 +983,7 @@
 
   /* --------------------------------------------------------- audit log */
 
-  function loadAudit() {
-    var list = $('#auditList');
-    list.innerHTML = '<div class="skeleton-row"></div><div class="skeleton-row" style="width:70%"></div>';
-    api('/api/admin/audit?limit=120').then(function (rows) {
-      list.innerHTML = rows.length
-        ? rows.map(function (r) {
-          return '<div class="list-row"><div class="lr-main"><strong>' + esc(String(r.action).replace(/\./g, ' › ')) + '</strong>' +
-            '<small>' + date(r.createdAt) + (r.ip ? ' · ' + esc(r.ip) : '') + '</small></div>' +
-            '<div class="lr-value"><small class="ref">' + esc(JSON.stringify(r.details || {}).slice(0, 60)) + '</small></div></div>';
-        }).join('')
-        : '<div class="empty"><div>⌁</div><strong>Nothing logged yet</strong><p>Admin actions will show up here.</p></div>';
-    }).catch(function (err) { list.innerHTML = '<p class="notice bad">' + esc(err.message) + '</p>'; });
-  }
+  function loadAudit() { if (window.AbrantsActivity) window.AbrantsActivity.load(); } // admin-activity.js
 
   /* ---------------------------------------------------------------- init */
 

@@ -28,6 +28,8 @@ const DEFAULTS = {
   enabled: false, autoApprove: false, prices: {},
   holdHours: 24, minPayout: 20, payoutFee: 1,
   payoutMethod: 'manual', autoPayout: false, payoutDay: 1, lastAutoPayout: null,
+  // When the whole programme is switched off: why, and whether shops come back ('soon', 'date' + offUntil, 'never').
+  offReason: '', offReturn: 'soon', offUntil: null, offAt: null, offSms: true,
 };
 
 // What counts as a finished sale, and what means "no sale", for each kind of order.
@@ -623,12 +625,34 @@ async function saveProgramme(input) {
     }
     if (b.autoPayout !== undefined) next.autoPayout = b.autoPayout === true;
     if (b.payoutDay !== undefined) next.payoutDay = Math.round(num(b.payoutDay, 0, 6, 'Payout day'));
+    if (cur.enabled && b.enabled === false) {
+      // Switching every shop off: what the agents are told.
+      next.offReason = lazy('agentCare').cleanBody(b.offReason, 300) || 'The agent programme is closed for now.';
+      next.offReturn = ['soon', 'date', 'never'].includes(b.offReturn) ? b.offReturn : 'soon';
+      next.offUntil = null;
+      if (next.offReturn === 'date') {
+        const d = String(b.offUntil || '');
+        const today = new Date().toISOString().slice(0, 10);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || d <= today) throw Object.assign(new Error('Choose a date after today.'), { user: true });
+        next.offUntil = d;
+      }
+      next.offAt = new Date().toISOString();
+      next.offSms = b.sms !== false;
+    }
+    if (!cur.enabled && b.enabled === true) Object.assign(next, { offReason: '', offReturn: 'soon', offUntil: null, offAt: null });
   } catch (err) { if (err.user) return { error: err.message }; throw err; }
   if (next.payoutMethod !== 'paystack') next.autoPayout = false;
   if (next.minPayout <= next.payoutFee) return { error: 'The minimum payout must be more than the payout fee.' };
   const all = (await getSettings()).agents || {};
   await saveSettings({ agents: { ...DEFAULTS, ...all, ...next } });
+  // Every agent hears about it: inbox, and SMS unless the admin said not to.
+  if (cur.enabled !== next.enabled) await lazy('agentCare').programmeChanged(next.enabled, { ...next, sms: next.enabled ? cur.offSms !== false && b.sms !== false : next.offSms });
   return { settings: await settingsNow() };
+}
+
+/** What agents are told while the programme is off (dashboard, shop page, home page). */
+function offInfo(s) {
+  return s.enabled ? null : { reason: s.offReason || '', back: s.offReturn || 'soon', backOn: s.offUntil || null, since: s.offAt || null };
 }
 
 /* ------------------------------------------------------------------ earnings */
@@ -1077,7 +1101,7 @@ async function dashboard(a) {
   const b = (await balances([a.id])).get(a.id) || { readyGHS: 0, heldGHS: 0, onTheWayGHS: 0, sendingGHS: 0, paidGHS: 0, earnedGHS: 0, sales: 0 };
   return {
     agent: publicAgent(a),
-    programme: { open: s.enabled, minPayoutGHS: s.minPayout, payoutFeeGHS: s.payoutFee, holdHours: s.holdHours, termsVersion: TERMS_VERSION,
+    programme: { open: s.enabled, off: offInfo(s), minPayoutGHS: s.minPayout, payoutFeeGHS: s.payoutFee, holdHours: s.holdHours, termsVersion: TERMS_VERSION,
       payoutDay: s.autoPayout && s.payoutMethod === 'paystack' ? s.payoutDay : null,
       // What share of the amount added on top of the agent price reaches the agent (Paystack's cut when the store pays it).
       marginFactor: (await getSettings()).customerPaysFee !== false ? 1 : 1 - feeRate() },
@@ -1091,7 +1115,7 @@ async function dashboard(a) {
 }
 
 module.exports = {
-  byId, bySlug, extraOf, reload, cleanText, sells, MAX_POPULAR,
+  byId, bySlug, extraOf, reload, cleanText, sells, MAX_POPULAR, offInfo,
   initAgentDb, loadAgents, getAgent, shopAgent, startSignup, register, login, TERMS_VERSION, acceptTerms, updateProfile, updateMomo, changePassword, resetPassword,
   setStatus, setNote, setSession, clearSession, agentFromRequest, products, agentProducts, setAgentPrices, setBasePrices,
   saveProgramme, settingsNow, quoteData, quoteChecker, quoteAfa, earning, syncOrder, reconcile, balances, sales, payouts,
