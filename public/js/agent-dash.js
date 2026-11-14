@@ -323,19 +323,32 @@
     $('logoRemove').hidden = !a.logo;
     if (st.shopDirty) return;
     f.shopName.value = a.shopName; f.bio.value = a.bio || ''; f.announcement.value = a.announcement || ''; f.whatsapp.value = a.whatsapp || '';
+    f.about.value = a.about || '';
+    SOCIAL_KEYS.forEach(function (k) { f['social_' + k].value = (a.socials || {})[k] || ''; });
+    socialsCount();
     var r = f.querySelector('input[name="theme"][value="' + (a.theme || 'gold') + '"]');
     if (r) r.checked = true;
     preview();
   }
-  $('shopForm').addEventListener('input', function () { st.shopDirty = true; preview(); });
+  // Social media links (checked on the server: each must be on that platform's own site; "@name" becomes the link).
+  var SOCIAL_KEYS = ['channel', 'telegram', 'tiktok', 'facebook', 'instagram', 'x', 'youtube', 'snapchat'];
+  function socialsCount() {
+    var f = $('shopForm');
+    var n = SOCIAL_KEYS.filter(function (k) { return f['social_' + k].value.trim(); }).length;
+    $('socialsCount').textContent = n ? n + ' added' : '';
+    $('aboutCount').textContent = f.about.value.length > 450 ? (600 - f.about.value.length) + ' left' : '';
+  }
+  $('shopForm').addEventListener('input', function () { st.shopDirty = true; preview(); socialsCount(); });
   $('shopForm').addEventListener('submit', function (e) {
     e.preventDefault();
     var f = e.target, btn = $('saveShop');
     formError(f, null); busy(btn, true, 'Saving…');
+    var socials = {};
+    SOCIAL_KEYS.forEach(function (k) { socials[k] = f['social_' + k].value; });
     api('/api/agent/shop', 'PUT', { shopName: f.shopName.value, bio: f.bio.value, announcement: f.announcement.value, whatsapp: f.whatsapp.value,
-      theme: (f.querySelector('input[name="theme"]:checked') || {}).value })
+      about: f.about.value, socials: socials, theme: (f.querySelector('input[name="theme"]:checked') || {}).value })
       .then(function () { st.shopDirty = false; toast('Saved. Your shop shows it now.', 'success'); return Ag.load(); })
-      .catch(function (err) { formError(f, err); }).then(function () { busy(btn, false); });
+      .catch(function (err) { if (/^social_/.test(err.field || '')) $('socialsBox').open = true; formError(f, err); }).then(function () { busy(btn, false); });
   });
 
   // A picture is cut to a square and shrunk to 320 × 320 here, so the upload stays small.

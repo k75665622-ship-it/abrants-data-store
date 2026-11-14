@@ -21,7 +21,39 @@ const LOGO_TYPES = { 'image/jpeg': [0xff, 0xd8, 0xff], 'image/png': [0x89, 0x50,
 
 /* ------------------------------------------------------------------ the agent's settings */
 
-/** Shop name, WhatsApp, about line, announcement and colour (agent page → My shop). */
+/*
+ * The shop's social media. Each link must be on that platform's own site (so a shop cannot send customers anywhere
+ * else); "@name" is turned into the link. Order = the order on the shop page.
+ */
+const SOCIALS = {
+  channel: { name: 'WhatsApp channel', from: 'WhatsApp', hosts: ['whatsapp.com', 'chat.whatsapp.com'] },
+  telegram: { name: 'Telegram', hosts: ['t.me', 'telegram.me'], at: (h) => `https://t.me/${h}` },
+  tiktok: { name: 'TikTok', hosts: ['tiktok.com', 'vm.tiktok.com', 'vt.tiktok.com'], at: (h) => `https://www.tiktok.com/@${h}` },
+  facebook: { name: 'Facebook', hosts: ['facebook.com', 'fb.com', 'm.facebook.com', 'web.facebook.com'], at: (h) => `https://www.facebook.com/${h}` },
+  instagram: { name: 'Instagram', hosts: ['instagram.com'], at: (h) => `https://www.instagram.com/${h}` },
+  x: { name: 'X', hosts: ['x.com', 'twitter.com', 'mobile.twitter.com'], at: (h) => `https://x.com/${h}` },
+  youtube: { name: 'YouTube', hosts: ['youtube.com', 'm.youtube.com', 'youtu.be'], at: (h) => `https://www.youtube.com/@${h}` },
+  snapchat: { name: 'Snapchat', hosts: ['snapchat.com'], at: (h) => `https://www.snapchat.com/add/${h}` },
+};
+function cleanSocial(key, raw) {
+  const s = SOCIALS[key];
+  const v = String(raw == null ? '' : raw).trim();
+  if (!v) return { value: null };
+  if (s.at && /^@?[A-Za-z0-9._-]{2,60}$/.test(v) && !/\.(com|me|be)$/i.test(v)) return { value: s.at(v.replace(/^@/, '')) };
+  let u;
+  try { u = new URL(/^https?:\/\//i.test(v) ? v : 'https://' + v); } catch { u = null; }
+  const host = u ? u.hostname.toLowerCase().replace(/^www\./, '') : '';
+  if (!u || !s.hosts.includes(host) || u.username || u.password) {
+    return { error: `That is not ${/^[AEIOU]/.test(s.name) ? 'an' : 'a'} ${s.name} link. Paste the link from ${s.from || s.name}${s.at ? ', or your @name' : ''}.`, field: 'social_' + key };
+  }
+  u.protocol = 'https:';
+  return { value: u.toString().slice(0, 200) };
+}
+// "About me": a few short paragraphs, plain text (line breaks kept).
+const cleanAbout = (v) => String(v == null ? '' : v).replace(/<\s*\/?\s*(br|p|div)\b[^>]*>/gi, '\n').replace(/<[^>]*>/g, '').replace(/\r\n?/g, '\n')
+  .replace(/[\u0000-\u0009\u000b-\u001f<>]/g, ' ').replace(/[ \t]+/g, ' ').replace(/ *\n */g, '\n').replace(/\n{3,}/g, '\n\n').trim().slice(0, 600);
+
+/** Shop name, WhatsApp, about line, About me, social links, announcement and colour (agent page → My shop). */
 async function updateShop(id, b) {
   const agents = A();
   const a = agents.getAgent(id);
@@ -39,8 +71,18 @@ async function updateShop(id, b) {
   const announcement = b.announcement === undefined ? a.announcement : agents.cleanText(b.announcement, 120);
   const theme = b.theme === undefined ? a.theme : String(b.theme || '');
   if (!THEMES.includes(theme)) return { error: 'Choose one of the colours.', field: 'theme' };
-  await pool.query('UPDATE agents SET shop_name = $2, whatsapp = $3, bio = $4, announcement = $5, theme = $6 WHERE id = $1',
-    [id, shopName, whatsapp, bio || null, announcement || null, theme]);
+  const about = b.about === undefined ? a.about : cleanAbout(b.about);
+  const socials = { ...(a.socials || {}) };
+  if (b.socials && typeof b.socials === 'object') {
+    for (const key of Object.keys(SOCIALS)) {
+      if (b.socials[key] === undefined) continue;
+      const r = cleanSocial(key, b.socials[key]);
+      if (r.error) return r;
+      if (r.value) socials[key] = r.value; else delete socials[key];
+    }
+  }
+  await pool.query('UPDATE agents SET shop_name = $2, whatsapp = $3, bio = $4, announcement = $5, theme = $6, about = $7, socials = $8 WHERE id = $1',
+    [id, shopName, whatsapp, bio || null, announcement || null, theme, about || null, JSON.stringify(socials)]);
   return { agent: await agents.reload(id) };
 }
 
@@ -122,9 +164,16 @@ function view(a, { open, owner = false, off = null } = {}) {
   const x = A().extraOf(a.id);
   return {
     open: true, slug: a.slug, name: a.shopName, bio: a.bio, announcement: a.announcement, theme: a.theme, logo: logoUrl(a),
+    about: a.about || '', socials: socialList(a),
     whatsapp: a.whatsapp || '', delivered: x.delivered >= 10 ? x.delivered : null,
     since: a.approvedAt ? new Date(a.approvedAt).toISOString().slice(0, 7) : null, owner,
   };
+}
+
+// The shop's links in page order: [{ key, name, url }] (only links that pass the check today).
+function socialList(a) {
+  return Object.keys(SOCIALS).filter((k) => a.socials && a.socials[k] && !cleanSocial(k, a.socials[k]).error)
+    .map((k) => ({ key: k, name: SOCIALS[k].name, url: a.socials[k] }));
 }
 
 async function shopFor(req, slug) {
@@ -170,4 +219,4 @@ async function render(req, slug) {
   };
 }
 
-module.exports = { THEMES, updateShop, setLogo, removeLogo, getLogo, logoUrl, forgetLogo, qrSvg, view, shopFor, render, origin };
+module.exports = { THEMES, SOCIALS, cleanSocial, cleanAbout, socialList, updateShop, setLogo, removeLogo, getLogo, logoUrl, forgetLogo, qrSvg, view, shopFor, render, origin };

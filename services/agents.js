@@ -122,6 +122,9 @@ async function initAgentDb() {
     ALTER TABLE agents ADD COLUMN IF NOT EXISTS hidden JSONB NOT NULL DEFAULT '[]'::jsonb;
     ALTER TABLE agents ADD COLUMN IF NOT EXISTS featured JSONB NOT NULL DEFAULT '[]'::jsonb;
     ALTER TABLE agents ADD COLUMN IF NOT EXISTS logo_v INT NOT NULL DEFAULT 0;
+    -- "About me" (a few lines, optional) and the shop's social media links (services/agentShop.js).
+    ALTER TABLE agents ADD COLUMN IF NOT EXISTS about TEXT;
+    ALTER TABLE agents ADD COLUMN IF NOT EXISTS socials JSONB NOT NULL DEFAULT '{}'::jsonb;
     -- Kept apart so loading every agent into memory stays small.
     CREATE TABLE IF NOT EXISTS agent_logos (
       agent_id BIGINT PRIMARY KEY REFERENCES agents(id) ON DELETE CASCADE,
@@ -168,6 +171,7 @@ function mapAgent(r) {
     lastLoginAt: r.last_login_at, momoChangedAt: r.momo_changed_at,
     termsVersion: r.terms_version || null, termsAcceptedAt: r.terms_accepted_at || null,
     bio: r.bio || '', announcement: r.announcement || '', theme: r.theme || 'gold',
+    about: r.about || '', socials: r.socials && typeof r.socials === 'object' && !Array.isArray(r.socials) ? r.socials : {},
     hidden: Array.isArray(r.hidden) ? r.hidden : [], featured: Array.isArray(r.featured) ? r.featured : [], logoV: Number(r.logo_v) || 0,
     suspendedUntil: r.suspended_until || null, statusReason: r.status_reason || '',
     deleteRequestedAt: r.delete_requested_at || null, forfeitedAt: r.forfeited_at || null, deletedAt: r.deleted_at || null,
@@ -1064,6 +1068,7 @@ function publicAgent(a) {
     momoNumber: a.momoNumber, momoNetwork: a.momoNetwork, momoName: a.momoName, createdAt: a.createdAt, approvedAt: a.approvedAt,
     mustChangePassword: a.mustChangePassword, termsVersion: a.termsVersion, termsAcceptedAt: a.termsAcceptedAt,
     bio: a.bio, announcement: a.announcement, theme: a.theme, logo: lazy('agentShop').logoUrl(a), hidden: a.hidden, featured: a.featured,
+    about: a.about || '', socials: a.socials || {},
     suspendedUntil: a.suspendedUntil, statusReason: a.statusReason, deleteRequestedAt: a.deleteRequestedAt,
     unread: x.unread, strikes: x.strikes, delivered: x.delivered };
 }

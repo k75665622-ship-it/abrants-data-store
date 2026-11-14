@@ -359,3 +359,12 @@ html.ac-reading .cw-launch{display:none}
 .ac-reply textarea{flex:1;min-height:44px;max-height:130px;resize:none;border:1px solid var(--line);border-radius:22px;padding:11px 16px;font:15.5px/1.35 var(--body);background:#f8f9fc}
 .ac-reply textarea:focus{outline:none;border-color:var(--navy);background:#fff}
 .ac-send{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:var(--yellow);color:var(--navy);flex:none}
+
+/* My shop: social media links, folded away until opened */
+.ag-socials{margin:2px 0 14px;border:1px solid var(--line);border-radius:16px;background:#fff}
+.ag-socials summary{cursor:pointer;list-style:none;padding:14px 16px;font-weight:700;font-size:15px;display:flex;justify-content:space-between;align-items:center}
+.ag-socials summary::-webkit-details-marker{display:none}
+.ag-socials summary::after{content:"+";font-size:20px;color:#8d95a8;transition:transform .2s ease}
+.ag-socials[open] summary::after{transform:rotate(45deg)}
+.ag-socials summary em{margin-left:auto;margin-right:12px;font-style:normal;font-size:12.5px;color:#0a7a47}
+.ag-socials .field{margin:0 16px 12px}

@@ -116,6 +116,18 @@ app.get(/^\/s\/([A-Za-z0-9-]{1,40})\/qr\.svg$/, (req, res) => {
   res.setHeader('Cache-Control', 'public, max-age=86400');
   res.type('image/svg+xml').send(agentShop.qrSvg(`${agentShop.origin(req)}/s/${a.slug}`));
 });
+// Each network's own page (abrantsdata.com/data/mtn): the home page marked "net-view", which js/app.js turns into
+// that network's bundles. Marked here, so the page never flashes the home page first.
+const NET_PAGES = { mtn: 'MTN', 'mtn-up2u': 'MTN UP2U', telecel: 'Telecel', airteltigo: 'AirtelTigo' };
+let homeHtml = null;
+app.get(/^\/data\/(mtn|mtn-up2u|telecel|airteltigo)\/?$/, (req, res) => {
+  if (!homeHtml || process.env.NODE_ENV !== 'production') homeHtml = require('fs').readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8');
+  const slug = req.params[0];
+  res.setHeader('Cache-Control', 'no-cache');
+  res.type('html').send(homeHtml
+    .replace('<html lang="en">', `<html lang="en" class="net-view" data-net="${slug}">`)
+    .replace(/<title>[^<]*<\/title>/, `<title>${NET_PAGES[slug]} data bundles · Abrants Data Store</title>`));
+});
 app.get('/agent', (req, res) => res.redirect(302, '/agent.html'));
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -142,6 +154,8 @@ initDb()
   .then(() => require('./services/agents').initAgentDb())
   .then(() => require('./services/chat').initChatDb())
   .then(() => campaigns.loadKnown().catch((e) => console.warn('Could not load tracking links yet:', e.message)))
+  // The home page's live sections (delivery speed, popular, latest deliveries): one look at the last week, then memory.
+  .then(() => require('./services/pulse').load().catch((e) => console.warn('Could not load the store pulse yet:', e.message)))
   .then(() => {
     app.listen(PORT, () => {
       console.log(`Abrants Data Store running on http://localhost:${PORT}`);

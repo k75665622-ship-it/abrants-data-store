@@ -381,8 +381,18 @@ When nobody is shopping and nothing is waiting, the database is not touched and 
 - **What do you need today?** (`#services`): Buy data, Result checkers (live names and lowest price), MTN AFA registration
   (yellow, full width, opens the AFA explanation), and Need help? (WhatsApp, or a call link if only a phone number is set
   in admin; hidden when neither is set).
-- "What is MTN AFA?" (`#afa`), "How buying works", the members promo (guests only), then the store: "Pick your network"
-  (`#bundles`), why Abrants, FAQ (`#faq`).
+- "What is MTN AFA?" (`#afa`), the members promo (guests only), then "Pick your network" (`#bundles`): one card per
+  network, each a link to that network's own page. Then the store's pulse, why Abrants, FAQ (`#faq`). ("How buying
+  works" was replaced by the pulse, at the client's request.)
+- **Network pages** (`/data/mtn`, `/data/mtn-up2u`, `/data/telecel`, `/data/airteltigo`): the home page served with
+  `class="net-view"` (server.js), which `js/app.js` turns into that network's page: a banner in its colour ("All networks"
+  back to the home page, its bundles and lowest price), a small switcher to the other networks (no reload), offers, the
+  bundles and the checkout. `/data/mtn?plan=<id>` opens that bundle's checkout straight away ("Popular this week").
+- **The pulse** (`services/pulse.js`, `GET /api/pulse`): "Delivery speed now" (typical minutes from payment to
+  delivery over each network's last 20 deliveries this week, needs 3), "Popular this week" (best sellers, needs 3) and
+  "Live purchases" (the 10 latest deliveries in 2 days, numbers shown as `059•••••42`, needs 3). Kept in memory: one
+  query when the server starts, then each delivery is added as it happens, so visits never read the database. Each part
+  stays hidden until there is enough to show.
 - **Look**: a phone's signal meter is the store's mark: its four bars are the four networks (MTN yellow, MTN UP2U violet,
   Telecel red, AirtelTigo blue), in the hero and on the network cards. Each network is a card (2 across on a phone, 4 on a
   computer) with its lowest price and how many bundles it has; MTN UP2U is the dark violet one. Picking a card fills its
@@ -588,6 +598,12 @@ Prices (their price, shown or hidden in the shop, "Popular", 6 at most), My shop
 announcement, WhatsApp, with a live picture of the signboard), Money (sales and payouts), Inbox, and Settings (MoMo,
 password, log out, **Delete my shop**). A QR poster (shop colour, name, QR code and link) can be downloaded for WhatsApp
 status or printing. Logos are cut square and shrunk to 320 × 320 in the browser before upload (150 KB at most).
+
+**About me and social media** (My shop): an optional "About me" (600 characters, line breaks kept, no HTML) shown as
+"About <shop>" on the shop page, and links to the agent's WhatsApp channel or group, Telegram, TikTok, Facebook,
+Instagram, X, YouTube and Snapchat, shown as pills under the shop's buttons. Each link must be on that platform's own
+site (an @name becomes the link), so a shop cannot send customers anywhere else. Admin → Agents → the agent shows them,
+with **Remove About me and links**.
 
 **Home page**: someone logged in as an agent sees their shop instead of "Become an agent", and a shop button in the bar at
 the bottom (`js/myshop.js`, only for browsers where an agent has logged in).

@@ -18,7 +18,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="/css/style.css?v=15" />
+<link rel="stylesheet" href="/css/style.css?v=16" />
 <link rel="stylesheet" href="/css/chat.css?v=2" />
 </head>
 <body class="has-mobilebar">
@@ -135,15 +135,6 @@
     </div>
   </section>
 
-  <section class="wrap home-section" aria-labelledby="stepsTitle">
-    <h2 id="stepsTitle">How buying works</h2>
-    <ol class="buy-steps">
-      <li><b>Pick</b><span>A data bundle, a result checker or AFA registration.</span></li>
-      <li><b>Pay</b><span>Mobile Money or card, through Paystack.</span></li>
-      <li><b>Receive</b><span>Data on your number, PINs on screen, your AFA ID once approved.</span></li>
-    </ol>
-  </section>
-
   <section class="member-promo wrap" id="memberPromo" hidden>
     <div class="mp-card">
       <div class="mp-glow" aria-hidden="true"></div>
@@ -163,6 +154,7 @@
   </section>
 
   <section class="shop wrap" id="bundles">
+    <div class="net-hero" id="netHero" hidden></div>
     <div class="section-heading">
       <div><h2>Pick your network</h2></div>
     </div>
@@ -181,9 +173,26 @@
     </div>
   </section>
 
+  <!-- The store's pulse, from real deliveries (js/app.js, services/pulse.js). Each part appears once there is enough. -->
+  <section class="wrap home-section pulse" id="pulse" hidden>
+    <div class="pulse-speed" id="pulseSpeed" hidden>
+      <div class="pulse-head"><h2>Delivery speed now</h2><span class="live-dot">Live</span></div>
+      <ul class="speed-list" id="speedList"></ul>
+      <p class="pulse-note">From the latest deliveries on each network.</p>
+    </div>
+    <div class="pulse-popular" id="pulsePopular" hidden>
+      <div class="pulse-head"><h2>Popular this week</h2><a href="#bundles">All networks</a></div>
+      <div class="pop-row" id="popRow"></div>
+    </div>
+    <div class="pulse-live" id="pulseLive" hidden>
+      <div class="pulse-head"><h2>Live purchases</h2><span class="live-dot">Live</span></div>
+      <ul class="live-list" id="liveList"></ul>
+    </div>
+  </section>
+
   <section class="why-section">
     <div class="wrap">
-      <div class="section-heading centered"><div><p class="section-kicker">WHY ABRANTS</p><h2>Data without the stress.</h2></div></div>
+      <div class="section-heading centered"><div><h2>Data without the stress.</h2></div></div>
       <div class="benefits">
         <article><div class="benefit-icon" aria-hidden="true">⚡</div><h3>Instant delivery</h3><p>Your bundle is sent directly to the number you give us, usually within seconds.</p></article>
         <article><div class="benefit-icon" aria-hidden="true">🔒</div><h3>Secure payments</h3><p>Pay confidently with Mobile Money or your bank card through Paystack.</p></article>
@@ -194,7 +203,7 @@
   </section>
 
   <section class="faq-section wrap" id="faq">
-    <div class="section-heading centered"><div><p class="section-kicker">QUESTIONS</p><h2>Good to know</h2></div></div>
+    <div class="section-heading centered"><div><h2>Good to know</h2></div></div>
     <div class="faq-list">
       <details class="faq-item"><summary>How long does delivery take?</summary><p>Most bundles arrive within a few seconds. During very busy periods it can take a few minutes. You can watch the progress on the order status page.</p></details>
       <details class="faq-item"><summary>Can I buy for someone else?</summary><p>Yes. Enter the phone number that should receive the data — it does not have to be your own number. Just make sure the network matches the bundle you picked.</p></details>
@@ -321,7 +330,7 @@
 
 <script src="/js/track.js?v=2"></script>
 <script src="/js/shop.js?v=3"></script>
-<script src="/js/app.js?v=16"></script>
+<script src="/js/app.js?v=17"></script>
 <script src="/js/myshop.js?v=3"></script>
 <script src="/js/chat.js?v=2"></script>
 </body>

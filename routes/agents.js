@@ -321,6 +321,14 @@ function admin(audit) {
     return { ok: true };
   }, 'Could not remove the picture.');
 
+  careRoute('/:id/clear-about', async (req) => {
+    if (!agents.getAgent(req.params.id)) return { error: 'Agent not found.', status: 404 };
+    await require('../services/orderStore').pool.query("UPDATE agents SET about = NULL, socials = '{}'::jsonb WHERE id = $1", [Number(req.params.id)]);
+    await agents.reload(Number(req.params.id));
+    await audit(req, 'agents.clear_about', { id: Number(req.params.id) });
+    return { ok: true };
+  }, 'Could not remove the About me and links.');
+
   r.post('/:id/note', wrap(async (req, res) => {
     const a = await agents.setNote(req.params.id, req.body?.note);
     if (!a) return res.status(404).json({ error: 'Agent not found.' });

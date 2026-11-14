@@ -15,6 +15,15 @@
   // Parts of the home page that an agent's shop page (shop.html) does not have.
   var some = function (id, fn) { var el = $(id); if (el) fn(el); };
   var SHOP_PAGE = document.body.classList.contains('shop-page');
+  // The home page lists the networks; each network has its own page, /data/mtn and so on (server.js marks it
+  // "net-view"), with that network's bundles. An agent's shop shows networks and bundles together.
+  var NET_VIEW = document.documentElement.classList.contains('net-view');
+  var HOME = !SHOP_PAGE && !NET_VIEW;
+  var SLUG_NET = { mtn: 'MTN', 'mtn-up2u': 'MTN UP2U', telecel: 'Telecel', airteltigo: 'AirtelTigo' };
+  function pageSlug(network) { for (var k in SLUG_NET) { if (SLUG_NET[k] === network) return k; } return null; }
+  if (NET_VIEW) ACTIVE_NETWORK = SLUG_NET[document.documentElement.getAttribute('data-net')] || 'MTN';
+  if (HOME && plansGrid) plansGrid.hidden = true; // no bundle list on the home page: no placeholders either
+  var validityText = function (v) { v = v || '30 days'; return /^no\b/i.test(v) ? v : 'Valid ' + v; };
   var plansGrid = $('plansGrid');
   var tabsEl = $('networkTabs');
   var sheet = $('checkoutSheet');
@@ -101,7 +110,7 @@
           $('announceText').textContent = data.announcement;
           $('announceBar').hidden = false;
         }
-        if (data.storeName && !SHOP_PAGE) {
+        if (data.storeName && HOME) {
           document.title = data.storeName + ' — Fast, affordable data bundles';
         }
         var contact = data.supportWhatsapp || data.supportPhone;
@@ -192,7 +201,9 @@
         });
         if (networks.indexOf(ACTIVE_NETWORK) === -1) ACTIVE_NETWORK = networks[0];
         renderTabs(networks);
+        if (HOME) { plansGrid.hidden = true; PULSE.plans(); return; }
         renderPlans();
+        if (NET_VIEW) { renderNetHero(); openAsked(); }
       })
       .catch(function () {
         plansGrid.innerHTML = '<div class="empty-state"><strong>We could not load bundles</strong>Please refresh the page and try again.</div>';
@@ -211,14 +222,43 @@
       var from = Math.min.apply(null, plans.map(function (p) { return Number(p.priceGHS); }));
       var on = network === ACTIVE_NETWORK;
       var paused = PAUSED.indexOf(network) !== -1;
-      return '<button type="button" class="tab net-card net-' + netSlug(network) + (on ? ' active' : '') + (paused ? ' paused' : '') + '" role="tab" aria-selected="' + on +
-        '" data-network="' + esc(network) + '">' +
+      var open = HOME && pageSlug(network)
+        ? '<a class="tab net-card net-' + netSlug(network) + (paused ? ' paused' : '') + '" href="/data/' + pageSlug(network) + '" data-network="' + esc(network) + '">'
+        : '<button type="button" class="tab net-card net-' + netSlug(network) + (on ? ' active' : '') + (paused ? ' paused' : '') + '" role="tab" aria-selected="' + on + '" data-network="' + esc(network) + '">';
+      return open +
         '<span class="net-bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span>' +
         '<span class="net-name">' + esc(network === 'Telecel' ? 'Telecel' : network) + '</span>' +
         '<span class="net-from">' + (paused ? 'Paused for now' : 'From ' + money(from)) + '</span>' +
         '<span class="count">' + (paused ? 'Paused' : network === 'MTN UP2U' ? 'No expiry' : plans.length + ' bundle' + (plans.length === 1 ? '' : 's')) + '</span>' +
-        '</button>';
+        (open.charAt(1) === 'a' ? '</a>' : '</button>');
     }).join('');
+    if (HOME) tabsEl.removeAttribute('role'); // links to the network pages, not tabs
+  }
+
+  /* A network's own page: a banner in its colour (back to all networks, its name, lowest price), then its bundles. */
+  function renderNetHero() {
+    var el = $('netHero');
+    if (!el) return;
+    var plans = ALL_PLANS.filter(function (p) { return p.network === ACTIVE_NETWORK; });
+    var from = plans.length ? Math.min.apply(null, plans.map(function (p) { return Number(p.priceGHS); })) : null;
+    el.className = 'net-hero net-' + netSlug(ACTIVE_NETWORK);
+    el.innerHTML = '<a class="net-back" href="/#bundles"><span aria-hidden="true">‹</span> All networks</a>' +
+      '<h1>' + esc(ACTIVE_NETWORK) + '</h1>' +
+      '<p>' + (plans.length ? plans.length + ' bundle' + (plans.length === 1 ? '' : 's') + ' · from ' + money(from) : 'No bundles right now') +
+      (ACTIVE_NETWORK === 'MTN UP2U' ? ' · no expiry' : '') + '</p>' +
+      '<span class="net-hero-bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span>';
+    el.hidden = false;
+    document.documentElement.setAttribute('data-net', pageSlug(ACTIVE_NETWORK) || '');
+    document.title = ACTIVE_NETWORK + ' data bundles · Abrants Data Store';
+  }
+  // From "Popular this week": /data/mtn?plan=mtn-5gb opens that bundle's checkout straight away.
+  function openAsked() {
+    var want = null;
+    try { want = new URLSearchParams(location.search).get('plan'); } catch (e) { want = null; }
+    if (!want) return;
+    var plan = ALL_PLANS.filter(function (p) { return p.id === want && p.network === ACTIVE_NETWORK; })[0];
+    try { history.replaceState(null, '', location.pathname + location.hash); } catch (e) { /* old browser */ }
+    if (plan) openSheet(plan);
   }
 
   function renderPlans() {
@@ -252,7 +292,7 @@
       return '<button type="button" class="plan-card' + (plan.special ? ' special-plan' : (plan.popular ? ' popular-plan' : (isBest ? ' featured-plan' : ''))) + '" data-plan="' + esc(plan.id) + '">' +
         tag +
         '<span class="plan-size">' + esc(plan.label) + '</span>' +
-        '<span class="plan-validity">' + esc(/^no\b/i.test(validity) ? validity : 'Valid ' + validity) + '</span>' +
+        '<span class="plan-validity">' + esc(validityText(validity)) + '</span>' +
         '<span class="plan-price">' +
           (plan.special && plan.listPriceGHS ? '<s class="plan-was">' + money(plan.listPriceGHS) + '</s>' : '') +
           money(plan.priceGHS) + '</span>' +
@@ -263,8 +303,12 @@
 
   tabsEl.addEventListener('click', function (event) {
     var btn = event.target.closest('.tab');
-    if (!btn) return;
+    if (!btn || HOME) return; // on the home page the cards are links to the network pages
     ACTIVE_NETWORK = btn.dataset.network;
+    if (NET_VIEW) {
+      try { history.replaceState(null, '', '/data/' + pageSlug(ACTIVE_NETWORK)); } catch (e) { /* old browser */ }
+      renderNetHero();
+    }
     Array.prototype.forEach.call(tabsEl.querySelectorAll('.tab'), function (tab) {
       var on = tab === btn;
       tab.classList.toggle('active', on);
@@ -292,7 +336,7 @@
     $('ckPrice').textContent = money(total);
     var feeEl = $('ckFee');
     if (fee > 0) { feeEl.textContent = 'Bundle ' + money(plan.priceGHS) + ' + payment fee ' + money(fee) + ' (charged by Paystack)'; feeEl.hidden = false; } else { feeEl.hidden = true; }
-    $('ckValidity').textContent = 'Valid ' + (plan.validity || '30 days');
+    $('ckValidity').textContent = validityText(plan.validity);
     var sp = $('ckSpecial');
     if (plan.special && plan.listPriceGHS) {
       $('ckSpecialText').textContent = '🎁 ' + (plan.offerTitle || 'Special price for you') + ' — normally ' + money(plan.listPriceGHS);
@@ -460,6 +504,61 @@
       })
       .catch(function () { if ($('memberPromo')) $('memberPromo').hidden = false; });
   }
+
+  /* ----------------------------------------------------- the store's pulse (home page) */
+  // Delivery speed per network, what sold most this week, the latest deliveries: /api/pulse, answered from the
+  // server's memory (never the database). Each part shows only once there is enough to show.
+  var PULSE = (function () {
+    var data = null, plansReady = false;
+    var bars = '<span class="net-bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span>';
+    function ago(ms) {
+      var m = Math.round(ms / 60000);
+      return m < 1 ? 'just now' : m < 60 ? m + 'm' : m < 1440 ? Math.round(m / 60) + 'h' : Math.round(m / 1440) + 'd';
+    }
+    function render() {
+      if (!data || !plansReady || !$('pulse')) return;
+      var shown = 0;
+      $('pulseSpeed').hidden = !data.speed.length;
+      if (data.speed.length) {
+        shown++;
+        $('speedList').innerHTML = data.speed.map(function (x) {
+          return '<li class="net-' + netSlug(x.network) + '">' + bars + '<b>' + esc(x.network) + '</b><span>' + esc(x.label) + '</span>' +
+            '<i class="sp-track"><i data-fill="' + Number(x.fill) + '"></i></i></li>';
+        }).join('');
+        Array.prototype.forEach.call($('speedList').querySelectorAll('[data-fill]'), function (el) { el.style.width = Math.round(Number(el.getAttribute('data-fill')) * 100) + '%'; });
+      }
+      var pop = data.popular.map(function (x) { return ALL_PLANS.filter(function (p) { return p.id === x.planId; })[0]; })
+        .filter(function (p) { return p && pageSlug(p.network); }).slice(0, 6);
+      $('pulsePopular').hidden = pop.length < 3;
+      if (pop.length >= 3) {
+        shown++;
+        $('popRow').innerHTML = pop.map(function (p, i) {
+          return '<a class="pop-card net-' + netSlug(p.network) + '" href="/data/' + pageSlug(p.network) + '?plan=' + encodeURIComponent(p.id) + '">' +
+            '<span class="pop-rank">' + (i === 0 ? 'Top pick' : '#' + (i + 1)) + '</span>' + bars +
+            '<b class="pop-size">' + esc(p.label) + '</b><span class="pop-net">' + esc(p.network) + '</span>' +
+            '<span class="pop-price">' + money(p.priceGHS) + '</span><span class="pop-buy">Buy</span></a>';
+        }).join('');
+      }
+      $('pulseLive').hidden = !data.live.length;
+      if (data.live.length) {
+        shown++;
+        $('liveList').innerHTML = data.live.map(function (x) {
+          return '<li class="net-' + netSlug(x.network) + '"><span class="lv-tile">' + esc(x.who.slice(0, 3)) + '</span>' +
+            '<span class="lv-txt"><b>' + esc(x.who) + '</b><span>got ' + esc(x.network + ' ' + x.label) + '</span></span><time>' + ago(x.agoMs) + '</time></li>';
+        }).join('');
+      }
+      $('pulse').hidden = !shown;
+    }
+    function load() {
+      fetch('/api/pulse').then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) { if (d) { data = d; render(); } }).catch(function () { /* the page works without it */ });
+    }
+    if (HOME && $('pulse')) {
+      load();
+      setInterval(function () { if (!document.hidden) load(); }, 60000);
+    }
+    return { plans: function () { plansReady = true; render(); } };
+  })();
 
   loadSettings();
   loadPlans();

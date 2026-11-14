@@ -218,6 +218,9 @@
         (a.termsAcceptedAt ? '<div class="detail-box" style="grid-column:1/-1"><span>Terms</span><strong>Accepted ' + esc(when(a.termsAcceptedAt)) + ' (version ' + esc(a.termsVersion) + ')</strong></div>' : '') +
         '<div class="detail-box" style="grid-column:1/-1"><span>MoMo</span><strong>' + esc(NET[a.momoNetwork] || a.momoNetwork) + ' ' + esc(a.momoNumber) + ' · ' + esc(a.momoName) +
           (recentMomo ? ' <em class="neg">changed ' + esc(when(a.momoChangedAt)) + '</em>' : '') + '</strong></div>' +
+        (a.about ? '<div class="detail-box" style="grid-column:1/-1"><span>About me</span><strong style="white-space:pre-line;font-weight:500">' + esc(a.about) + '</strong></div>' : '') +
+        (a.socials && Object.keys(a.socials).length ? '<div class="detail-box" style="grid-column:1/-1"><span>Links</span><strong>' +
+          Object.keys(a.socials).map(function (k) { return '<a href="' + esc(a.socials[k]) + '" target="_blank" rel="noopener noreferrer">' + esc(a.socials[k].replace(/^https:\/\/(www\.)?/, '')) + '</a>'; }).join('<br>') + '</strong></div>' : '') +
         '</div>' +
         '<div class="drawer-actions">' +
         (canPay && st.method === 'paystack' ? '<button class="btn btn-primary btn-sm" type="button" data-pay="paystack" data-id="' + a.id + '">Send ' + money(a.readyGHS - st.data.settings.payoutFee) + ' by Paystack</button>' : '') +
@@ -225,6 +228,7 @@
         statusBtns +
         (leaving ? '' : '<button class="btn btn-ghost btn-sm" type="button" data-reset="' + a.id + '">New password</button>') +
         (a.logo ? '<button class="btn btn-ghost btn-sm" type="button" data-remove-logo="' + a.id + '">Remove logo</button>' : '') +
+        (a.about || (a.socials && Object.keys(a.socials).length) ? '<button class="btn btn-ghost btn-sm" type="button" data-clear-about="' + a.id + '">Remove About me and links</button>' : '') +
         '</div>' +
         (leaving ? '' :
           '<h3 class="ag-sub">Messages and strikes</h3>' +
@@ -504,6 +508,12 @@
       if (!confirm('Remove this shop\'s logo? Their shop shows their initials instead.')) return;
       api('/api/admin/agents/' + t.getAttribute('data-remove-logo') + '/remove-logo', 'POST')
         .then(function () { toast('Logo removed.', 'success'); return refresh(); }).catch(function (err) { toast(err.message, 'error'); });
+      return;
+    }
+    if ((t = e.target.closest('[data-clear-about]'))) {
+      if (!confirm('Remove this shop\'s About me and social media links?')) return;
+      api('/api/admin/agents/' + t.getAttribute('data-clear-about') + '/clear-about', 'POST')
+        .then(function () { toast('About me and links removed.', 'success'); return refresh(); }).catch(function (err) { toast(err.message, 'error'); });
       return;
     }
     if ((t = e.target.closest('[data-note]'))) {
