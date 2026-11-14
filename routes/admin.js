@@ -89,7 +89,7 @@ router.get('/sms', async (req, res) => {
     const sms = require('../services/sms');
     const s = (await getSettings()).sms || {};
     res.json({
-      configured: sms.configured(), provider: sms.providerName(), sender: sms.sender(), customers: s.customers !== false, agents: s.agents !== false,
+      configured: sms.configured(), provider: sms.providerName(), sender: sms.sender(), codeSender: sms.codeSender(), customers: s.customers !== false, agents: s.agents !== false,
       balance: await sms.balance(), low: sms.low(), lowAt: sms.LOW_CREDIT(), counts: sms.counts, recent: sms.recent.slice(0, 15),
     });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Could not load the SMS settings.' }); }

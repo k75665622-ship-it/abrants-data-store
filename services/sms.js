@@ -30,10 +30,12 @@ function configured() { return Boolean(provider()); }
 const providerName = () => (provider() ? PROVIDERS[provider()].name : null);
 
 // The name people see as the sender. It must be approved by the SMS company first (letters and digits, 11 at most).
-function sender() {
-  const s = String(process.env.SMS_SENDER || 'ABRANTS').replace(/[^A-Za-z0-9 ]/g, '').trim().slice(0, 11);
-  return s || 'ABRANTS';
-}
+const cleanSender = (v) => String(v || '').replace(/[^A-Za-z0-9 ]/g, '').trim().slice(0, 11);
+function sender() { return cleanSender(process.env.SMS_SENDER) || 'ABRANTS'; }
+// One-time codes (agent sign-up, MoMo numbers) can need a sender name approved for codes ("OTP sender ID" at
+// mNotify), e.g. SMS_CODE_SENDER=ABRANTSCODE. Without it, codes go from the usual sender.
+function codeSender() { return cleanSender(process.env.SMS_CODE_SENDER) || sender(); }
+const CODE_KINDS = new Set(['agent.code']);
 
 /** 0241234567 / 233241234567 / +233 24 123 4567 -> 233241234567, or null. */
 function intl(phone) {
@@ -90,7 +92,8 @@ const rejected = (message, fallback) => { const e = new Error(String(message || 
 const num = (v) => (v == null || v === '' || !Number.isFinite(Number(String(v).replace(/[^\d.-]/g, ''))) ? null : Number(String(v).replace(/[^\d.-]/g, '')));
 
 // One request to the SMS company. -> { ok: true, id, parts } ; throws on failure.
-async function deliver(phone, text) {
+async function deliver(phone, text, kind) {
+  const from = CODE_KINDS.has(kind) ? codeSender() : sender();
   const which = provider();
   if (!which) { const e = new Error('SMS is not set up (MNOTIFY_API_KEY).'); e.code = 'not_configured'; throw e; }
   const to = intl(phone);
@@ -101,7 +104,7 @@ async function deliver(phone, text) {
   const key = process.env[keyVar];
 
   if (which === 'mnotify') {
-    const res = await http.post('/api/sms/quick', { recipient: [to], sender: sender(), message, is_schedule: false, schedule_date: '' },
+    const res = await http.post('/api/sms/quick', { recipient: [to], sender: from, message, is_schedule: false, schedule_date: '' },
       { params: { key }, headers: { 'Content-Type': 'application/json', Accept: 'application/json' } });
     const d = res.data || {};
     const sum = d.summary || {};
@@ -115,7 +118,7 @@ async function deliver(phone, text) {
     return { ok: true, id: sum._id || sum.message_id ? String(sum._id || sum.message_id) : null, parts: parts(message) };
   }
 
-  const res = await http.post('/api/v2/sms/send', { sender: sender(), message, recipients: [to] }, {
+  const res = await http.post('/api/v2/sms/send', { sender: from, message, recipients: [to] }, {
     headers: { 'api-key': key, 'Content-Type': 'application/json' },
   });
   const d = res.data || {};
@@ -133,7 +136,7 @@ const reason = (err) => String(err.response?.data?.message || err.message || 'fa
 /** Sends now and waits for the SMS company's answer (the admin test, the sign-up codes). Throws on failure. */
 async function sendNow(phone, text, kind = 'message') {
   try {
-    const r = await deliver(phone, text);
+    const r = await deliver(phone, text, kind);
     counts.sent += 1; note({ ...logged(phone, text, kind), ok: true, parts: r.parts });
     return r;
   } catch (err) {
@@ -148,7 +151,7 @@ async function sendNow(phone, text, kind = 'message') {
  */
 function send(phone, text, kind = 'message') {
   if (!configured() || !intl(phone)) return false;
-  const attempt = (n) => deliver(phone, text)
+  const attempt = (n) => deliver(phone, text, kind)
     .then((r) => { counts.sent += 1; note({ ...logged(phone, text, kind), ok: true, parts: r.parts }); })
     .catch((err) => {
       const network = !err.response && !['not_configured', 'bad_number', 'empty', 'rejected'].includes(err.code);
@@ -189,4 +192,4 @@ async function balance() {
 const fromSends = () => (credit.left == null ? null : { sms: credit.left, main: null, at: credit.at });
 const low = () => credit.left != null && credit.left < LOW_CREDIT();
 
-module.exports = { configured, provider, providerName, sender, intl, plain, parts, send, sendNow, balance, low, LOW_CREDIT, recent, counts };
+module.exports = { configured, provider, providerName, sender, codeSender, intl, plain, parts, send, sendNow, balance, low, LOW_CREDIT, recent, counts };
