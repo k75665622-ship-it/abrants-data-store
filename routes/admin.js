@@ -89,8 +89,8 @@ router.get('/sms', async (req, res) => {
     const sms = require('../services/sms');
     const s = (await getSettings()).sms || {};
     res.json({
-      configured: sms.configured(), sender: sms.sender(), customers: s.customers !== false, agents: s.agents !== false,
-      balance: await sms.balance(), counts: sms.counts, recent: sms.recent.slice(0, 15),
+      configured: sms.configured(), provider: sms.providerName(), sender: sms.sender(), customers: s.customers !== false, agents: s.agents !== false,
+      balance: await sms.balance(), low: sms.low(), lowAt: sms.LOW_CREDIT(), counts: sms.counts, recent: sms.recent.slice(0, 15),
     });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Could not load the SMS settings.' }); }
 });
@@ -106,7 +106,7 @@ router.put('/sms', async (req, res) => {
 });
 router.post('/sms/test', async (req, res) => {
   const sms = require('../services/sms');
-  if (!sms.configured()) return res.status(400).json({ error: 'SMS is not set up. Add ARKESEL_API_KEY in Render.' });
+  if (!sms.configured()) return res.status(400).json({ error: 'SMS is not set up. Add MNOTIFY_API_KEY in Render.' });
   try {
     await sms.sendNow(req.body?.phone, 'Abrants Data: This is a test message from your store. SMS is working.', 'test');
     await audit(req, 'sms.test', { phone: String(req.body?.phone || '').slice(0, 13) });

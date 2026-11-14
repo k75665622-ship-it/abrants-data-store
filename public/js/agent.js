@@ -93,28 +93,33 @@
   $('joinForm').shopName.addEventListener('input', function () { $('linkPreview').textContent = slugPreview(this.value); });
   $('joinForm').phone.addEventListener('input', function () { $('joinForm').momoNumber.placeholder = this.value || 'Same as phone'; });
 
-  /* Sign-up: the details, then (when SMS is set up) a 6-digit code sent to the phone. */
+  /* Sign-up: the details, then (when SMS is set up) a 6-digit code sent to the phone (and one to a different MoMo number). */
   function joinBody(f) {
     return { name: f.name.value, shopName: f.shopName.value, phone: f.phone.value, password: f.password.value,
       momoNumber: f.momoNumber.value || f.phone.value, momoNetwork: f.momoNetwork.value, momoName: f.momoName.value, agree: f.agree.checked };
   }
-  function codeMode(on, sentTo) {
+  /* d: what /register/code answered. A MoMo number other than the phone gets its own code (payouts go there). */
+  function codeMode(on, d) {
     var f = $('joinForm');
     f.classList.toggle('coding', on);
     $('codeStep').hidden = !on;
     if (on) {
-      $('codeLabel').textContent = 'Enter the code we sent to ' + sentTo;
-      f.code.value = '';
+      st.codeToken = d.codeToken; st.momoCodeToken = d.momoCodeToken || null;
+      $('codeLabel').textContent = d.momoSentTo ? 'Code sent to your phone ' + d.sentTo : 'Enter the code we sent to ' + d.sentTo;
+      $('momoCodeField').hidden = !d.momoSentTo;
+      if (d.momoSentTo) $('momoCodeLabel').textContent = 'Code sent to your MoMo number ' + d.momoSentTo;
+      f.code.value = ''; f.momoCode.value = '';
       f.code.focus();
-    } else { st.codeToken = null; }
+    } else { st.codeToken = null; st.momoCodeToken = null; }
   }
+  var codesReady = function (f) { return /^\d{6}$/.test(f.code.value.trim()) && (!st.momoCodeToken || /^\d{6}$/.test(f.momoCode.value.trim())); };
   function createShop(f, body) {
     busy($('joinBtn'), true, 'Creating your shop…');
     return api('/api/agent/register', 'POST', body).then(function () { return load(); });
   }
   function joinFailed(f, err) {
     // A problem with a detail typed earlier: show the details again so it can be fixed.
-    if (err.field && err.field !== 'code' && f.classList.contains('coding')) codeMode(false);
+    if (err.field && err.field !== 'code' && err.field !== 'momoCode' && f.classList.contains('coding')) codeMode(false);
     if (err.field === 'agree') { openTerms(); return; }
     formError(f, err);
   }
@@ -124,7 +129,9 @@
     var body = joinBody(f);
     if (st.codeToken) {
       if (!/^\d{6}$/.test(f.code.value.trim())) { formError(f, { message: 'Enter the 6-digit code from the SMS.', field: 'code' }); return; }
+      if (st.momoCodeToken && !/^\d{6}$/.test(f.momoCode.value.trim())) { formError(f, { message: 'Enter the 6-digit code sent to your MoMo number.', field: 'momoCode' }); return; }
       body.code = f.code.value.trim(); body.codeToken = st.codeToken;
+      if (st.momoCodeToken) { body.momoCode = f.momoCode.value.trim(); body.momoCodeToken = st.momoCodeToken; }
       createShop(f, body).catch(function (err) { joinFailed(f, err); }).then(function () { busy($('joinBtn'), false); });
       return;
     }
@@ -132,22 +139,24 @@
     busy($('joinBtn'), true, 'Checking your details…');
     api('/api/agent/register/code', 'POST', body).then(function (d) {
       if (!d.codeNeeded) return createShop(f, body);
-      st.codeToken = d.codeToken;
-      codeMode(true, d.sentTo);
+      codeMode(true, d);
     }).catch(function (err) { joinFailed(f, err); }).then(function () { busy($('joinBtn'), false); });
   });
-  $('joinForm').code.addEventListener('input', function () {
-    this.value = this.value.replace(/\D/g, '').slice(0, 6);
-    if (this.value.length === 6 && !$('joinBtn').disabled) $('joinForm').requestSubmit ? $('joinForm').requestSubmit($('joinBtn')) : $('joinBtn').click();
+  ['code', 'momoCode'].forEach(function (name) {
+    $('joinForm')[name].addEventListener('input', function () {
+      var f = $('joinForm');
+      this.value = this.value.replace(/\D/g, '').slice(0, 6);
+      if (this.value.length === 6 && name === 'code' && st.momoCodeToken && !f.momoCode.value) { f.momoCode.focus(); return; }
+      if (codesReady(f) && !$('joinBtn').disabled) f.requestSubmit ? f.requestSubmit($('joinBtn')) : $('joinBtn').click();
+    });
   });
   $('resendCode').addEventListener('click', function () {
     var f = $('joinForm'), btn = this; formError(f, null);
     btn.disabled = true;
     api('/api/agent/register/code', 'POST', joinBody(f)).then(function (d) {
       if (!d.codeNeeded) { codeMode(false); return; }
-      st.codeToken = d.codeToken;
-      codeMode(true, d.sentTo);
-      toast('New code sent.', 'success');
+      codeMode(true, d);
+      toast(d.momoSentTo ? 'New codes sent.' : 'New code sent.', 'success');
     }).catch(function (err) { joinFailed(f, err); }).then(function () { btn.disabled = false; });
   });
   $('editDetails').addEventListener('click', function () { formError($('joinForm'), null); codeMode(false); $('joinForm').name.focus(); });
