@@ -17,7 +17,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="/css/style.css?v=14" />
 <link rel="stylesheet" href="/css/account.css?v=4" />
-<link rel="stylesheet" href="/css/agent.css?v=6" />
+<link rel="stylesheet" href="/css/agent.css?v=7" />
 <link rel="stylesheet" href="/css/chat.css?v=2" />
 </head>
 <body class="page-fill ag-page">
@@ -223,6 +223,18 @@
         <label class="field"><span>About your shop <em id="bioCount"></em></span><textarea name="bio" maxlength="140" rows="2" placeholder="Cheap MTN bundles in Kumasi. Fast delivery, day and night."></textarea></label>
         <label class="field"><span>Announcement <em id="noteCount"></em></span><input name="announcement" maxlength="120" placeholder="This week: 10GB MTN for GH₵44" /></label>
         <label class="field"><span>WhatsApp for your customers</span><input name="whatsapp" type="tel" inputmode="numeric" maxlength="13" /></label>
+        <label class="field"><span>About me <em id="aboutCount"></em></span><textarea name="about" maxlength="600" rows="4" placeholder="Who you are, where you sell, when customers can reach you."></textarea></label>
+        <details class="ag-socials" id="socialsBox">
+          <summary>Social media <em id="socialsCount"></em></summary>
+          <label class="field"><span>WhatsApp channel or group</span><input name="social_channel" inputmode="url" autocomplete="off" placeholder="whatsapp.com/channel/…" /></label>
+          <label class="field"><span>Telegram</span><input name="social_telegram" inputmode="url" autocomplete="off" placeholder="@yourname or t.me/…" /></label>
+          <label class="field"><span>TikTok</span><input name="social_tiktok" inputmode="url" autocomplete="off" placeholder="@yourname" /></label>
+          <label class="field"><span>Facebook</span><input name="social_facebook" inputmode="url" autocomplete="off" placeholder="facebook.com/…" /></label>
+          <label class="field"><span>Instagram</span><input name="social_instagram" inputmode="url" autocomplete="off" placeholder="@yourname" /></label>
+          <label class="field"><span>X (Twitter)</span><input name="social_x" inputmode="url" autocomplete="off" placeholder="@yourname" /></label>
+          <label class="field"><span>YouTube</span><input name="social_youtube" inputmode="url" autocomplete="off" placeholder="@yourchannel" /></label>
+          <label class="field"><span>Snapchat</span><input name="social_snapchat" inputmode="url" autocomplete="off" placeholder="@yourname" /></label>
+        </details>
         <button class="pay-btn" type="submit" id="saveShop">Save my shop</button>
         <p class="ck-error" role="alert" hidden></p>
       </form>
@@ -395,7 +407,7 @@
 <div class="toast-stack" id="toastStack" aria-live="polite"></div>
 <script src="/js/agent.js?v=4"></script>
 <script src="/js/agent-chats.js?v=1"></script>
-<script src="/js/agent-dash.js?v=7"></script>
+<script src="/js/agent-dash.js?v=8"></script>
 <script src="/js/chat.js?v=2"></script>
 </body>
 </html>

@@ -107,6 +107,12 @@ function paymentMatchesOrder(tx, order) {
 // Only bundles that are switched on in the admin dashboard are shown to customers.
 // A logged-in customer also sees their own special prices (decided here, on the server).
 // In an agent's shop (?shop=kwame-data) the agent's prices are shown instead.
+// The home page's live sections, from memory (services/pulse.js): never touches the database.
+router.get('/pulse', (req, res) => {
+  res.setHeader('Cache-Control', 'public, max-age=30');
+  res.json(require('../services/pulse').summary());
+});
+
 router.get('/plans', optionalCustomer(), async (req, res) => {
   try {
     const plans = await getPlans();

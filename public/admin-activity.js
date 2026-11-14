@@ -125,6 +125,7 @@
       case 'agents.pause': return { kind: 'agents', title: 'Paused ' + shop(d) + ' ' + (d.days ? 'for ' + (PAUSE[d.days] || d.days + ' days') : 'until reopened') };
       case 'agents.delete': return { kind: 'agents', title: 'Deleted ' + shop(d), lines: [d.pay === false ? 'Without paying what they had not been paid' : '', d.block ? 'Their number cannot open a shop again' : ''] };
       case 'agents.remove_logo': return { kind: 'agents', title: 'Removed the logo of ' + shop(d) };
+      case 'agents.clear_about': return { kind: 'agents', title: 'Removed the About me and links of ' + shop(d) };
       case 'agents.note': return { kind: 'agents', title: 'Wrote a note on ' + shop(d) };
       case 'agents.reset_password': return { kind: 'agents', title: 'Gave ' + shop(d) + ' a new password' };
       case 'chat.delete': return { kind: 'chat', title: 'Deleted the chat with ' + (d.who || 'someone') };

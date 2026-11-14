@@ -341,9 +341,11 @@ async function updateOrder(reference, changes, eventType = 'order.updated') {
   return mapOrder(result.rows[0]);
 }
 
-// Text the customer about their order (services/notify.js). Runs in the background and never throws.
+// Text the customer about their order (services/notify.js), and add a delivery to the home page's live sections
+// (services/pulse.js). Runs in the background and never throws.
 function notifyHook(row, oldStatus) {
   try { require('./notify').dataStatus(row, oldStatus); } catch (err) { console.warn('SMS skipped for', row.reference, err.message); }
+  try { require('./pulse').record(row, oldStatus); } catch (err) { /* the home page's live sections are a nicety */ }
 }
 
 // An order sold through an agent's shop: keep the agent's earnings in step with the order (services/agents.js).

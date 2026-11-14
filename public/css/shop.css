@@ -184,3 +184,25 @@ html[data-theme="pink"]{--acc:#be185d;--acc-ink:#fff;--acc-deep:#760e3a;--acc-so
   .sp-awning{animation:none}
   .sp-row-skel{animation:none}
 }
+
+/* the agent's social media, under the shop's buttons: one pill each, with the platform's colour as a dot */
+.sp-socials{list-style:none;display:flex;flex-wrap:wrap;gap:7px;margin:14px 0 0;padding:0}
+.sp-socials[hidden]{display:none}
+.sp-social{
+  --dot:#25d366;display:inline-flex;align-items:center;gap:7px;min-height:36px;padding:0 13px 0 11px;border-radius:999px;
+  font-weight:700;font-size:13.5px;color:var(--acc-ink);background:color-mix(in srgb,var(--acc-ink) 12%,transparent);border:1px solid var(--acc-line);
+}
+.sp-social::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--dot)}
+.sp-social-telegram{--dot:#2aabee}
+.sp-social-tiktok{--dot:#fe2c55}
+.sp-social-facebook{--dot:#1877f2}
+.sp-social-instagram{--dot:#e1306c}
+.sp-social-x{--dot:#111}
+.sp-social-youtube{--dot:#ff0000}
+.sp-social-snapchat{--dot:#f5d400}
+.sp-social:active{transform:scale(.97)}
+/* About me */
+.sp-about{margin:18px 0 0;padding:18px;border-radius:20px;background:#fff;border:1px solid var(--line);box-shadow:inset 4px 0 0 var(--acc)}
+.sp-about[hidden]{display:none}
+.sp-about h2{font:700 19px/1.2 var(--display);letter-spacing:-.02em;margin:0 0 8px}
+.sp-about p{margin:0;white-space:pre-line;color:#3f475a;font-size:15px;line-height:1.6;overflow-wrap:anywhere}

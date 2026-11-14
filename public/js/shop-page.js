@@ -73,6 +73,18 @@
     name.classList.toggle('longer', d.name.length > 26);
     if (d.bio) { $('spBio').textContent = d.bio; $('spBio').hidden = false; }
     if (d.announcement) { $('spNote').textContent = d.announcement; $('spNote').hidden = false; }
+    // The agent's social media (checked by the server to be on each platform's own site) and "About me".
+    if (d.socials && d.socials.length) {
+      $('spSocials').innerHTML = d.socials.map(function (x) {
+        return '<li><a class="sp-social sp-social-' + esc(x.key) + '" href="' + esc(x.url) + '" target="_blank" rel="noopener noreferrer nofollow">' + esc(x.name) + '</a></li>';
+      }).join('');
+      $('spSocials').hidden = false;
+    }
+    if (d.about) {
+      $('spAboutTitle').textContent = 'About ' + d.name;
+      $('spAboutText').textContent = d.about;
+      $('spAbout').hidden = false;
+    }
 
     var facts = [];
     if (d.delivered) facts.push('<li><b>' + d.delivered.toLocaleString('en-GH') + '</b> orders delivered</li>');
