@@ -340,6 +340,20 @@ router.get('/plans', async (req, res) => {
   catch (err) { console.error(err); res.status(500).json({ error: 'Could not load bundle settings.' }); }
 });
 
+// MTN UP2U: adds FastDealsGH's new packages (hidden until priced), updates costs, hides what they dropped.
+router.post('/plans/up2u/sync', async (req, res) => {
+  const fdv2 = require('../services/fdv2');
+  if (!fdv2.available()) return res.status(400).json({ error: 'FastDealsGH is not connected. Add FASTDEALS_API_KEY in Render first.' });
+  try {
+    const out = await require('../services/up2u').syncPackages();
+    await audit(req, 'plan.up2u_sync', out);
+    res.json(out);
+  } catch (err) {
+    console.error('UP2U sync error:', err.code || err.message);
+    res.status(502).json({ error: 'Could not get the MTN UP2U packages from FastDealsGH' + (err.message ? ': ' + String(err.message).slice(0, 120) : '.') });
+  }
+});
+
 router.post('/plans', async (req, res) => {
   try {
     const result = await createPlan(req.body || {});
@@ -633,7 +647,7 @@ router.get('/fastdeals', async (req, res) => {
   try {
     const [balance, ours] = await Promise.all([fastdeals.getWalletBalance(), getPlans()]);
     const rows = [];
-    for (const p of ours) {
+    for (const p of ours.filter((x) => !require('../services/up2u').isUp2u(x))) { // MTN UP2U has its own list (Bundles)
       let match = null, problem = null;
       try { match = await fastdeals.findPlan(p.network, p.capacityGB, { fresh: true }); } catch (e) { problem = e.response?.status ? 'HTTP ' + e.response.status : e.message; }
       rows.push({

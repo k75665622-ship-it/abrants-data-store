@@ -198,6 +198,7 @@
             </div>
             <div class="panel-actions" style="margin-top:12px">
               <button id="addPlanBtn" class="btn btn-primary">+ Add bundle</button>
+              <button id="up2uSyncBtn" class="btn btn-ghost" type="button">Load MTN UP2U</button>
             </div>
           </div>
           <div id="plansGridAdmin" class="settings-grid"></div>
@@ -674,6 +675,7 @@
             <option value="MTN">MTN</option>
             <option value="Telecel">Telecel</option>
             <option value="AirtelTigo">AirtelTigo</option>
+            <option value="MTN UP2U" hidden>MTN UP2U</option>
           </select>
         </label>
         <label class="field"><span>Bundle label</span><input id="planLabel" placeholder="e.g. 3GB" maxlength="20" required /></label>
@@ -763,13 +765,13 @@
 
 <div class="toast-stack" id="toastStack" aria-live="polite"></div>
 
-<script src="admin.js?v=23"></script>
+<script src="admin.js?v=24"></script>
 <script src="admin-customers.js"></script>
 <script src="admin-services.js?v=5"></script>
 <script src="admin-links.js?v=4"></script>
 <script src="admin-agents.js?v=5"></script>
 <script src="admin-sms.js?v=2"></script>
-<script src="admin-activity.js?v=2"></script>
+<script src="admin-activity.js?v=3"></script>
 <script src="admin-inbox.js?v=2"></script>
 </body>
 </html>
