@@ -76,7 +76,8 @@
     renderPayouts(d.payouts);
     renderPrices(d.products, p.marginFactor);
     fillShop(a);
-    var m = $('momoForm'); m.momoNumber.value = a.momoNumber; m.momoNetwork.value = a.momoNetwork; m.momoName.value = a.momoName; m.password.value = '';
+    var m = $('momoForm');
+    if (!momoCode) { m.momoNumber.value = a.momoNumber; m.momoNetwork.value = a.momoNetwork; m.momoName.value = a.momoName; m.password.value = ''; }
     st.inboxLoaded = false;
     if (st.tab === 'inbox') loadInbox();
   }
@@ -485,8 +486,34 @@
       api(url, 'PUT', body(f)).then(function (d) { done(f, d); }).catch(function (err) { formError(f, err); }).then(function () { busy(btn, false); });
     });
   }
-  settingsForm('momoForm', '/api/agent/momo', function (f) { return { momoNumber: f.momoNumber.value, momoNetwork: f.momoNetwork.value, momoName: f.momoName.value, password: f.password.value }; },
-    function () { toast('MoMo details saved.', 'success'); Ag.load(); });
+  /* MoMo for payouts. A new number (other than their phone) gets a code first; the details are saved with that code. */
+  var momoCode = null;
+  function momoCodeMode(d) {
+    var f = $('momoForm');
+    momoCode = d ? d.codeToken : null;
+    $('momoCodeStep').hidden = !d;
+    $('momoSave').textContent = $('momoSave').dataset.label = d ? 'Confirm new MoMo number' : 'Save MoMo details';
+    if (d) { $('momoChangeLabel').textContent = 'Enter the code we sent to ' + d.sentTo; f.code.value = ''; f.code.focus(); }
+  }
+  $('momoForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var f = e.target, btn = $('momoSave');
+    var body = { momoNumber: f.momoNumber.value, momoNetwork: f.momoNetwork.value, momoName: f.momoName.value, password: f.password.value };
+    if (momoCode) {
+      if (!/^\d{6}$/.test(f.code.value.trim())) { formError(f, { message: 'Enter the 6-digit code from the SMS.', field: 'code' }); return; }
+      body.code = f.code.value.trim(); body.codeToken = momoCode;
+    }
+    formError(f, null); busy(btn, true, momoCode ? 'Confirming…' : 'Saving…');
+    api('/api/agent/momo', 'PUT', body).then(function (d) {
+      if (d.codeNeeded) { momoCodeMode(d); return; }
+      momoCodeMode(null); toast('MoMo details saved.', 'success'); Ag.load();
+    }).catch(function (err) { formError(f, err); }).then(function () { busy(btn, false); });
+  });
+  $('momoForm').momoNumber.addEventListener('input', function () { if (momoCode) momoCodeMode(null); });
+  $('momoForm').code.addEventListener('input', function () {
+    this.value = this.value.replace(/\D/g, '').slice(0, 6);
+    if (this.value.length === 6 && !$('momoSave').disabled) $('momoForm').requestSubmit ? $('momoForm').requestSubmit($('momoSave')) : $('momoSave').click();
+  });
   settingsForm('passwordForm', '/api/agent/password', function (f) { return { current: f.current.value, next: f.next.value }; },
     function (f) { f.reset(); toast('Password changed.', 'success'); });
   settingsForm('forceForm', '/api/agent/password', function (f) { return { current: f.current.value, next: f.next.value }; },

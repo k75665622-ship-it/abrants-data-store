@@ -24,10 +24,13 @@
   function render(d) {
     var state;
     if (!d.configured) {
-      state = '<div class="alert-strip warn"><span class="ico">!</span><div>Not set up. Add <b>ARKESEL_API_KEY</b> (and <b>SMS_SENDER</b>, your approved sender name) in Render.</div></div>';
+      state = '<div class="alert-strip warn"><span class="ico">!</span><div>Not set up. Add <b>MNOTIFY_API_KEY</b> in Render' +
+        (d.sender !== 'ABRANTS' ? '' : ' (and <b>SMS_SENDER</b> if your approved sender name is not ABRANTS)') + '.</div></div>';
     } else {
       var bal = d.balance ? (d.balance.sms != null ? d.balance.sms + ' SMS left' : '') + (d.balance.main != null ? (d.balance.sms != null ? ' · ' : '') + 'GHS ' + Number(d.balance.main).toFixed(2) : '') : 'Balance not available';
-      state = '<div class="alert-strip info"><span class="ico">✓</span><div>Sending as <b>' + esc(d.sender) + '</b> · ' + esc(bal) +
+      state = (d.low ? '<div class="alert-strip warn"><span class="ico">!</span><div><b>Text credit is running low.</b> Top up in ' + esc(d.provider) +
+        ': without credit, customers get no texts and nobody can sign up as an agent.</div></div>' : '') +
+        '<div class="alert-strip info"><span class="ico">✓</span><div>Sending as <b>' + esc(d.sender) + '</b> through ' + esc(d.provider) + ' · ' + esc(bal) +
         ' · ' + d.counts.sent + ' sent' + (d.counts.failed ? ', ' + d.counts.failed + ' failed' : '') + ' since ' + esc(when(d.counts.since)) + '</div></div>';
     }
     $('#smsState').innerHTML = state;

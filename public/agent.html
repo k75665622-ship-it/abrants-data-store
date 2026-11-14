@@ -100,6 +100,9 @@
           <label class="field"><span id="codeLabel">Code</span>
             <input name="code" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" placeholder="6-digit code" />
           </label>
+          <label class="field" id="momoCodeField" hidden><span id="momoCodeLabel">Code</span>
+            <input name="momoCode" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" placeholder="6-digit code" />
+          </label>
           <div class="ag-code-actions">
             <button type="button" class="ag-linkbtn" id="resendCode">Send a new code</button>
             <button type="button" class="ag-linkbtn" id="editDetails">Change my details</button>
@@ -274,7 +277,10 @@
           </label>
           <label class="field"><span>Name on MoMo</span><input name="momoName" maxlength="60" /></label>
           <label class="field"><span>Your password</span><input name="password" type="password" autocomplete="current-password" maxlength="100" /></label>
-          <button class="pay-btn" type="submit">Save MoMo details</button>
+          <label class="field ag-code" id="momoCodeStep" hidden><span id="momoChangeLabel">Code</span>
+            <input name="code" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" placeholder="6-digit code" />
+          </label>
+          <button class="pay-btn" type="submit" id="momoSave">Save MoMo details</button>
           <p class="ck-error" role="alert" hidden></p>
         </form>
       </details>
@@ -387,9 +393,9 @@
 </div>
 
 <div class="toast-stack" id="toastStack" aria-live="polite"></div>
-<script src="/js/agent.js?v=3"></script>
+<script src="/js/agent.js?v=4"></script>
 <script src="/js/agent-chats.js?v=1"></script>
-<script src="/js/agent-dash.js?v=6"></script>
+<script src="/js/agent-dash.js?v=7"></script>
 <script src="/js/chat.js?v=2"></script>
 </body>
 </html>

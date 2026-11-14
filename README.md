@@ -525,15 +525,25 @@ the agent's phone. One MoMo number belongs to one agent.
 **Approving**: the store pays only into the MoMo number on the account, so before approving, start a MoMo transfer to that
 number and check that the name shown matches the agent's name, then cancel it. Admin reminds you when you press Approve.
 
-## 26. Text messages (SMS, Arkesel)
+## 26. Text messages (SMS, mNotify)
 
-The store texts customers and agents from its own name. Off until `ARKESEL_API_KEY` is set; nothing else changes without it.
+The store texts customers and agents from its own name. Off until `MNOTIFY_API_KEY` is set; nothing else changes without it.
 
-**Set up** (once): open an account at arkesel.com, buy SMS credit (about GH₵0.02–0.03 per SMS) and ask for a **sender ID**
-(the name people see, at most 11 letters, e.g. `ABRANTS`; approval takes a day or two). Then in Render → Environment add
-`ARKESEL_API_KEY` (from Arkesel → API Keys) and `SMS_SENDER` (the approved sender ID). Never paste the key anywhere else.
-Admin → Settings → Text messages shows the balance and the last messages, sends a test SMS and switches customer or agent
-messages off.
+**Set up** (once), in the mNotify app (app.bms.africa):
+1. Wallet → Load Wallet, then Purchase Bundle to turn the money into texts. "Non-expiry" texts never run out; "Expiry"
+   ones are cheaper but end with the month.
+2. Sender IDs → Add Sender ID: `ABRANTS` (at most 11 letters), with what it is for. Approval takes 15–50 minutes.
+3. Your account (top right) → Developer → V2.0 → Create API key, then switch the key on under Actions.
+4. Render → Environment: `MNOTIFY_API_KEY` = that key (and `SMS_SENDER` if the approved name is not `ABRANTS`). Never
+   paste the key anywhere else.
+
+Admin → Settings → Text messages shows which company sends, the texts left and the last messages, sends a test SMS and
+switches customer or agent messages off. **Low credit**: mNotify says how many texts are left with every message; under
+50 (`SMS_LOW_CREDIT`) a notice appears on the Admin dashboard, and another when texts stop. Without credit customers get
+no texts and nobody can sign up as an agent (the sign-up code is a text), so top up before it runs out.
+
+Arkesel still works: with `ARKESEL_API_KEY` set and no `MNOTIFY_API_KEY` (or `SMS_PROVIDER=arkesel`), texts go through
+Arkesel as before (`services/sms.js`).
 
 **What is sent**
 - Data: when the order is placed with the network, when it is delivered (with the link to buy again) and when it
@@ -541,6 +551,10 @@ messages off.
 - Result checkers: the Serial and PIN of every checker. AFA: received, approved (with the AFA ID), rejected or refunded.
 - Agents: the sign-up code, approved (with their shop link), paused (with the reason and until when), reopened, closed or
   deleted, strikes, messages from the store (section 27), and every payout.
+- MoMo numbers: at sign-up, a MoMo number that is not the agent's phone gets its own code (two code boxes), so payouts
+  only go to a real number the agent can use. Changing the MoMo number later (Settings) sends a code to the new number
+  first (unless it is their own phone), then tells their phone that it changed. Payouts to a new number still wait a day.
+  Codes work once, for the number they were sent to, at most 3 per number in 30 minutes, and never show in Admin.
 - Orders from an agent's shop are sent in the agent's shop name.
 
 Messages use plain characters only (`GHS`, not `GH₵`) so each fits in one SMS (160 characters). Sending happens in the

@@ -52,7 +52,7 @@ const DEFAULT_SETTINGS = {
   maintenanceMessage: "We are doing a quick upgrade. Please check back in a few minutes.",
   lowWalletThreshold: 100,
   // Agent programme (services/agents.js). Off until the owner switches it on in Admin → Agents.
-  // Text messages (services/sms.js, services/notify.js): who gets them, once ARKESEL_API_KEY is set.
+  // Text messages (services/sms.js, services/notify.js): who gets them, once MNOTIFY_API_KEY (or ARKESEL_API_KEY) is set.
   sms: { customers: true, agents: true },
   chat: { enabled: true, keepDays: 30 }, // "Chat with us" (services/chat.js)
   agents: {

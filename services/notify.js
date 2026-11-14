@@ -7,7 +7,8 @@
  *   AFA      submitted / approved with the AFA ID / not approved / refund
  * Agents ("Agents"): shop approved, paused (with the reason and until when), closed, reopened, deleted; strikes;
  *   messages from the store; money sent to their MoMo.
- * The agent sign-up code is always sent when SMS is set up (it protects the sign-up).
+ * Always sent when SMS is set up (they protect the account): the agent sign-up code, the code to a MoMo number that is not
+ * the agent's phone (at sign-up and when it changes), and the notice that the payout number changed.
  *
  * An order bought in an agent's shop is texted under the agent's shop name, with the agent's link to buy again.
  * Every function here returns at once and never throws: a text message must never stop an order.
@@ -168,4 +169,16 @@ async function agentCode(phone, code) {
   return sms.sendNow(phone, `Your Abrants agent code is ${code}. It expires in 10 minutes. Do not share it with anyone.`, 'agent.code');
 }
 
-module.exports = { dataStatus, serviceStatus, agentStatus, agentPaid, agentCode, agentMessage, agentStrike, agentPaused, agentDeleted, programme, fit };
+// The MoMo number an agent will be paid on: a code to that number proves it is real and theirs to use.
+async function agentMomoCode(phone, code) {
+  return sms.sendNow(phone, `Your Abrants MoMo code is ${code}. It confirms this number for agent payouts. It expires in 10 minutes. Do not share it.`, 'agent.code');
+}
+
+/** Their payout number changed: told on their own phone, so a change they did not make is noticed (payouts wait a day). */
+function agentMomoChanged(a, number) {
+  if (!a || !sms.configured()) return;
+  const masked = String(number).slice(0, 3) + '****' + String(number).slice(-3);
+  sms.send(a.phone, `Abrants: The MoMo number for payouts on your shop ${shopShort(a)} is now ${masked}. If you did not do this, contact Abrants now.`, 'agent.momo');
+}
+
+module.exports = { dataStatus, serviceStatus, agentStatus, agentPaid, agentCode, agentMomoCode, agentMomoChanged, agentMessage, agentStrike, agentPaused, agentDeleted, programme, fit };

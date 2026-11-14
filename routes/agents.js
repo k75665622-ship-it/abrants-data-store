@@ -51,7 +51,7 @@ pub.get('/programme', async (req, res) => {
   res.json({ open: s.enabled, autoApprove: s.autoApprove, networks: agents.NETWORKS, termsVersion: agents.TERMS_VERSION });
 });
 
-// Step 1: check the form and text a code to the phone (when SMS is set up).
+// Step 1: check the form and text a code to the phone, and to the MoMo number if it is another number (when SMS is set up).
 pub.post('/register/code', limit('agent-code', 60 * 60 * 1000, 20), async (req, res) => {
   try {
     const out = await agents.startSignup(req.body);
@@ -181,6 +181,7 @@ pub.put('/momo', requireAgent, limit('agent-momo', 15 * 60 * 1000, 10), async (r
   try {
     const out = await agents.updateMomo(req.agent.id, req.body || {});
     if (out.error) return fail(res, out);
+    if (out.codeNeeded) return res.json(out); // a code went to the new number; the page sends it back with the details
     res.json({ agent: agents.publicAgent(out.agent) });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Could not save your MoMo details.' }); }
 });

@@ -281,51 +281,67 @@ function codeKey() {
   const secret = process.env.CUSTOMER_SECRET || process.env.ADMIN_SECRET;
   return secret ? crypto.createHmac('sha256', secret).update('abrants-agent-code-v1').digest() : null;
 }
-const codeHash = (phone, code, exp) => crypto.createHmac('sha256', codeKey()).update(`${phone}|${code}|${exp}`).digest('hex');
-function codeNote(phone, code) {
+// `use` keeps a code to one job: '' = the phone at sign-up, 'momo' = a MoMo number for payouts.
+const codeHash = (phone, code, exp, use = '') => crypto.createHmac('sha256', codeKey()).update(`${use ? use + '|' : ''}${phone}|${code}|${exp}`).digest('hex');
+function codeNote(phone, code, use = '') {
   const exp = Date.now() + CODE_MINUTES * 60 * 1000;
-  const body = Buffer.from(JSON.stringify({ p: phone, e: exp, h: codeHash(phone, code, exp) })).toString('base64url');
+  const body = Buffer.from(JSON.stringify({ p: phone, e: exp, h: codeHash(phone, code, exp, use), ...(use ? { u: use } : {}) })).toString('base64url');
   return `${body}.${crypto.createHmac('sha256', codeKey()).update(body).digest('hex')}`;
 }
-function codeOk(note, phone, code) {
+/** null when the code is right (and used up, unless keep), or what is wrong. */
+function codeOk(note, phone, code, use = '', keep = false) {
   const [body, sig] = String(note || '').split('.');
   if (!body || !/^[a-f0-9]{64}$/.test(sig || '') || !codeKey()) return 'Ask for a new code.';
   const expected = crypto.createHmac('sha256', codeKey()).update(body).digest('hex');
   if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return 'Ask for a new code.';
   let n; try { n = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')); } catch { return 'Ask for a new code.'; }
-  if (n.p !== phone) return 'The code was sent to a different number. Ask for a new code.';
+  if (n.p !== phone || (n.u || '') !== use) return 'The code was sent to a different number. Ask for a new code.';
   if (!(Date.now() < n.e)) return 'That code has expired. Ask for a new one.';
   const tries = codeTries.get(body) || 0;
   if (tries >= 5) return 'Too many wrong codes. Ask for a new one.';
-  if (!/^\d{6}$/.test(String(code || '').trim()) || codeHash(phone, String(code).trim(), n.e) !== n.h) {
+  if (!/^\d{6}$/.test(String(code || '').trim()) || codeHash(phone, String(code).trim(), n.e, use) !== n.h) {
     codeTries.set(body, tries + 1);
     if (codeTries.size > 5000) codeTries.clear();
     return 'That code is not right. Check the SMS and try again.';
   }
-  codeTries.set(body, 99); // a code works once
+  if (!keep) codeTries.set(body, 99); // a code works once
   return null;
 }
+const useCode = (note) => codeTries.set(String(note).split('.')[0], 99);
 
-/** Step 1 of sign-up: checks the form and texts a code. -> { codeNeeded: false } when SMS is not set up. */
+const masked = (p) => p.slice(0, 3) + '••••' + p.slice(7);
+const codesOn = () => lazy('sms').configured() && Boolean(codeKey());
+
+/** Texts a new 6-digit code to `number`. -> { codeToken, sentTo } or { error } (3 codes per number per 30 minutes). */
+async function sendCode(number, use, field) {
+  const now = Date.now();
+  let c = codeSends.get(number);
+  if (!c || now >= c.reset) c = { n: 0, reset: now + 30 * 60 * 1000 };
+  if (c.n >= 3) return { error: `We have sent 3 codes to ${masked(number)} already. Wait 30 minutes and try again.`, status: 429, field };
+  c.n += 1; codeSends.set(number, c);
+  if (codeSends.size > 5000) for (const [k, x] of codeSends) if (x.reset <= now) codeSends.delete(k);
+  const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+  try { await (use === 'momo' ? lazy('notify').agentMomoCode(number, code) : lazy('notify').agentCode(number, code)); }
+  catch (err) {
+    console.warn('Agent code SMS failed:', err.message);
+    return { error: `We could not send the code to ${use === 'momo' ? 'that MoMo number' : 'that number'}. Check it and try again.`, status: 502, field };
+  }
+  return { codeToken: codeNote(number, code, use), sentTo: masked(number) };
+}
+
+/**
+ * Step 1 of sign-up: checks the form and texts a code to the phone, and another to the MoMo number when it is a
+ * different number (payouts go there). -> { codeNeeded: false } when SMS is not set up.
+ */
 async function startSignup(input) {
   const v = await checkSignup(input || {});
   if (v.error) return v;
-  const sms = lazy('sms');
-  if (!sms.configured() || !codeKey()) return { codeNeeded: false };
-  const phone = v.value.phone;
-  const now = Date.now();
-  let c = codeSends.get(phone);
-  if (!c || now >= c.reset) c = { n: 0, reset: now + 30 * 60 * 1000 };
-  if (c.n >= 3) return { error: 'We have sent you 3 codes already. Wait 30 minutes and try again.', status: 429 };
-  c.n += 1; codeSends.set(phone, c);
-  if (codeSends.size > 5000) for (const [k, x] of codeSends) if (x.reset <= now) codeSends.delete(k);
-  const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
-  try { await lazy('notify').agentCode(phone, code); }
-  catch (err) {
-    console.warn('Agent code SMS failed:', err.message);
-    return { error: 'We could not send the code to that number. Check it and try again.', status: 502, field: 'phone' };
-  }
-  return { codeNeeded: true, codeToken: codeNote(phone, code), sentTo: phone.slice(0, 3) + '••••' + phone.slice(7) };
+  if (!codesOn()) return { codeNeeded: false };
+  const { phone, momoNumber } = v.value;
+  const [p, m] = await Promise.all([sendCode(phone, '', 'phone'), momoNumber !== phone ? sendCode(momoNumber, 'momo', 'momoNumber') : null]);
+  if (p.error) return p;
+  if (m && m.error) return m;
+  return { codeNeeded: true, codeToken: p.codeToken, sentTo: p.sentTo, ...(m ? { momoCodeToken: m.codeToken, momoSentTo: m.sentTo } : {}) };
 }
 
 /** Step 2 (or the only step when SMS is not set up): creates the account. */
@@ -334,9 +350,16 @@ async function register(input) {
   const v = await checkSignup(b);
   if (v.error) return v;
   const { name, shopName, phone, momoNumber, momoNetwork, momoName } = v.value;
-  if (lazy('sms').configured() && codeKey()) {
-    const problem = codeOk(b.codeToken, phone, b.code);
+  if (codesOn()) {
+    // Both checked before either is used up, so a wrong MoMo code does not spend the phone's code.
+    const problem = codeOk(b.codeToken, phone, b.code, '', true);
     if (problem) return { error: problem, field: 'code' };
+    if (momoNumber !== phone) {
+      const wrong = codeOk(b.momoCodeToken, momoNumber, b.momoCode, 'momo', true);
+      if (wrong) return { error: wrong.replace('Check the SMS', 'Check the SMS on your MoMo phone'), field: 'momoCode' };
+      useCode(b.momoCodeToken);
+    }
+    useCode(b.codeToken);
   }
 
   const hash = await hashPassword(b.password);
@@ -398,10 +421,22 @@ async function updateMomo(id, b) {
   const same = m.value.momoNumber === a.momoNumber && m.value.momoNetwork === a.momoNetwork && m.value.momoName === a.momoName;
   if (same) return { agent: a };
   if (momoTaken(m.value.momoNumber, a.id)) return { error: 'This MoMo number is already used by another agent.', field: 'momoNumber', status: 409 };
-  // A new MoMo number waits a day before automatic payouts use it: if someone else got into the account,
-  // the store has time to notice before money goes to them.
+  if (lazy('agentCare').banned(m.value.momoNumber)) return { error: 'This number cannot be used for payouts. Contact the store if you think this is a mistake.', field: 'momoNumber', status: 403 };
+  const newNumber = m.value.momoNumber !== a.momoNumber;
+  // A new number other than their own phone: first a code to it (proves it is real), then saved with that code.
+  if (newNumber && m.value.momoNumber !== a.phone && codesOn()) {
+    if (!b.codeToken) {
+      const sent = await sendCode(m.value.momoNumber, 'momo', 'momoNumber');
+      return sent.error ? sent : { codeNeeded: true, ...sent };
+    }
+    const wrong = codeOk(b.codeToken, m.value.momoNumber, b.code, 'momo');
+    if (wrong) return { error: wrong, field: 'code' };
+  }
+  // A new MoMo number waits a day before automatic payouts use it, and the agent's phone is told: if someone else
+  // got into the account, there is time to notice before money goes to them.
   await pool.query(`UPDATE agents SET momo_number = $2, momo_network = $3, momo_name = $4, recipient_code = NULL, recipient_for = NULL,
     momo_changed_at = NOW() WHERE id = $1`, [id, m.value.momoNumber, m.value.momoNetwork, m.value.momoName]);
+  if (newNumber) lazy('notify').agentMomoChanged(a, m.value.momoNumber);
   return { agent: await reload(id) };
 }
 
