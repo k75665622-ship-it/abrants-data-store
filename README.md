@@ -533,9 +533,12 @@ The store texts customers and agents from its own name. Off until `MNOTIFY_API_K
 1. Wallet → Load Wallet, then Purchase Bundle to turn the money into texts. "Non-expiry" texts never run out; "Expiry"
    ones are cheaper but end with the month.
 2. Sender IDs → Add Sender ID: `ABRANTS` (at most 11 letters), with what it is for. Approval takes 15–50 minutes.
+   Then a second one only for one-time codes: `ABRANTSCODE`, ticking "This is an OTP sender ID", with the link
+   `abrantsdata.com/agent` (mNotify lets only OTP sender IDs send codes, and the link cannot be changed later).
 3. Your account (top right) → Developer → V2.0 → Create API key, then switch the key on under Actions.
-4. Render → Environment: `MNOTIFY_API_KEY` = that key (and `SMS_SENDER` if the approved name is not `ABRANTS`). Never
-   paste the key anywhere else.
+4. Render → Environment: `MNOTIFY_API_KEY` = that key, and `SMS_CODE_SENDER` = `ABRANTSCODE` (and `SMS_SENDER` if the
+   approved name is not `ABRANTS`). Never paste the key anywhere else. Codes (agent sign-up, MoMo numbers) go from
+   `SMS_CODE_SENDER`, everything else from `SMS_SENDER`.
 
 Admin → Settings → Text messages shows which company sends, the texts left and the last messages, sends a test SMS and
 switches customer or agent messages off. **Low credit**: mNotify says how many texts are left with every message; under
