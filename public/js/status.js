@@ -131,7 +131,7 @@
     historyList.innerHTML = rows.map(function (o) {
       return '<div class="history-order"><div>' +
         '<strong>' + esc(o.label) + ' · ' + esc(o.network) + '</strong>' +
-        '<div class="history-meta">' + esc(o.reference) + '<br>' + date(o.createdAt) + '</div>' +
+        '<div class="history-meta">' + (o.reference ? esc(o.reference) + '<br>' : '') + date(o.createdAt) + '</div>' +
         '<span class="status-pill ' + esc(o.status) + '">' + esc(String(o.status).replace(/_/g, ' ')) + '</span>' +
         '</div><div class="history-price">' + money(o.priceGHS) + '</div></div>';
     }).join('');

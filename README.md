@@ -429,6 +429,38 @@ server-to-server before anything is delivered; Paystack and DataHustle webhooks 
 value shown on a page goes through `esc()` first, including the customer-supplied AFA details shown in the admin
 dashboard.
 
+### The November 2026 review (before marketing)
+
+- **No single request can stop the store** (`services/safety.js`). Express 4 does not catch errors in `async` routes, so
+  one error (for example an order link with a hidden `\0` character, which the database refuses) used to stop the whole
+  server. Errors in routes now go to one error handler that answers `{"error":"Something went wrong..."}` (never the
+  details), requests with a `\0` in the address or the JSON body are turned away with a 400, and an error nobody caught
+  in background work is logged instead of stopping the server. Order references are checked before any lookup.
+- **Track order with a phone number alone** lists the number's recent orders **without their references** (and with
+  times to the minute only, since a reference is the time it was made plus a random part). A reference is what a
+  customer quotes to support as proof that an order is theirs. With the reference (from their SMS or receipt), the
+  order shows in full, as before.
+- **Admin sign-in** (`services/adminAuth.js`): the password is compared in constant time; 8 wrong tries from one
+  address lock it for 15 minutes; 40 wrong passwords in 15 minutes from anywhere pause Admin sign-in for everyone for
+  15 minutes (people already signed in carry on); after 20 wrong passwords in an hour the dashboard says so. Every
+  sign-in is in the Activity log.
+- **Two-step sign-in** (Admin → Settings → Sign-in security): after the password, a 6-digit code from Google
+  Authenticator or Microsoft Authenticator (standard TOTP, `services/totp.js`). Each code works once. Switching it on
+  signs out every other device. Three wrong codes after the right password put a red message on the dashboard telling
+  the owner to change `ADMIN_PASSWORD`. The key is kept in its own `store_settings` row (`admin_security`), never in the
+  store settings Admin pages read, and is loaded once at start. **Lost the phone?** Use the setup key you wrote down to
+  add it to a new phone; or add `ADMIN_TWO_STEP=off` in Render, sign in with the password, switch two-step off in
+  Settings (password only while that setting is there), remove `ADMIN_TWO_STEP`, and set it up again.
+- **Sign out other devices** (same panel) ends every Admin session but the one you are using.
+- The panel also checks the Render settings that matter: `ADMIN_PASSWORD` at least 16 characters, `ADMIN_SECRET` at
+  least 32 and different from the password, `TRUST_PROXY=true`, `NODE_ENV=production`.
+- **Codes texted to new agents** are capped at 150 a day for the whole store (`SMS_CODE_DAILY_MAX` in Render changes
+  it), so nobody can use up the SMS credit by asking for codes from many numbers and connections. When the cap is
+  reached the dashboard says so.
+- The Paystack return link uses `SITE_URL` when it is set, never the address the request came in on.
+- Packages updated (`npm audit` reports 0): Express 4.22.3 (with `qs`, `body-parser`, `proxy-addr`) and
+  `follow-redirects` (used by axios).
+
 ## 22. Tracking links for influencers (Admin → Links)
 
 In **Admin → Links** the owner types a name (say "Kwame") and gets a short link like `https://abrantsdata.com/k7m2x`.

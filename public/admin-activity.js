@@ -100,6 +100,10 @@
       case 'settings.update': return settingsEntry('Changed the store settings', d);
       case 'sms.settings': return settingsEntry('Changed text message settings', d);
       case 'sms.test': return { kind: 'settings', title: 'Sent a test SMS to ' + d.phone };
+      case 'admin.login': return { kind: 'settings', title: 'Signed in to Admin' + (d.twoStep ? ' with a two-step code' : '') };
+      case 'admin.two_step_on': return { kind: 'settings', title: 'Switched on two-step sign-in', lines: ['Other devices were signed out'] };
+      case 'admin.two_step_off': return { kind: 'settings', title: 'Switched off two-step sign-in' };
+      case 'admin.sign_out_others': return { kind: 'settings', title: 'Signed out every other device' };
       case 'datahustle.webhook_enable': return { kind: 'settings', title: 'Switched on delivery updates from DataHustle' };
       case 'agents.settings': {
         var c = d.changes || {};

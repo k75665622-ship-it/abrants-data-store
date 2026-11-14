@@ -116,8 +116,24 @@
     var btn = $('#loginBtn');
     $('#loginError').textContent = '';
     setBusy(btn, true, 'Signing in…');
-    api('/api/admin/login', { method: 'POST', body: JSON.stringify({ password: $('#password').value }) })
-      .then(function () { $('#password').value = ''; showApp(); toast('Welcome back.', 'success'); })
+    var codeRow = $('#codeRow'), code = $('#loginCode');
+    var body = { password: $('#password').value };
+    if (!codeRow.hidden) body.code = code.value.replace(/\s/g, '');
+    // With two-step sign-in on, a right password asks for the app's code next (services/adminAuth.js).
+    fetch('/api/admin/login', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      .then(function (res) { return res.json().catch(function () { return {}; }).then(function (d) { return { ok: res.ok, d: d }; }); })
+      .then(function (r) {
+        if (r.d.codeNeeded) {
+          codeRow.hidden = false;
+          code.value = '';
+          code.focus();
+          if (!r.ok) $('#loginError').textContent = r.d.error || 'That code is not right.';
+          return;
+        }
+        if (!r.ok) throw new Error(r.d.error || 'Could not sign in.');
+        $('#password').value = ''; code.value = ''; codeRow.hidden = true;
+        showApp(); toast('Welcome back.', 'success');
+      })
       .catch(function (err) { $('#loginError').textContent = err.message; })
       .finally(function () { setBusy(btn, false); });
   });
@@ -168,7 +184,7 @@
     if (name === 'links' && window.AbrantsLinks) window.AbrantsLinks.load();
     if (name === 'agents' && window.AbrantsAgents) window.AbrantsAgents.load();
     if (name === 'numbers') loadBlocked();
-    if (name === 'settings') { loadSettings(); loadProviders(); if (window.AbrantsSms) window.AbrantsSms.load(); }
+    if (name === 'settings') { loadSettings(); loadProviders(); if (window.AbrantsSms) window.AbrantsSms.load(); if (window.AbrantsSecurity) window.AbrantsSecurity.load(); }
     if (name === 'activity') loadAudit();
     if (window.AbrantsInbox) window.AbrantsInbox.visible(name === 'inbox');
 
