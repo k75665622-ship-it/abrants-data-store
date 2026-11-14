@@ -381,8 +381,12 @@ When nobody is shopping and nothing is waiting, the database is not touched and 
 - **What do you need today?** (`#services`): Buy data, Result checkers (live names and lowest price), MTN AFA registration
   (yellow, full width, opens the AFA explanation), and Need help? (WhatsApp, or a call link if only a phone number is set
   in admin; hidden when neither is set).
-- "What is MTN AFA?" (`#afa`), "How buying works", the members promo (guests only), then the store: "Pick a bundle"
+- "What is MTN AFA?" (`#afa`), "How buying works", the members promo (guests only), then the store: "Pick your network"
   (`#bundles`), why Abrants, FAQ (`#faq`).
+- **Look**: a phone's signal meter is the store's mark: its four bars are the four networks (MTN yellow, MTN UP2U violet,
+  Telecel red, AirtelTigo blue), in the hero and on the network cards. Each network is a card (2 across on a phone, 4 on a
+  computer) with its lowest price and how many bundles it has; MTN UP2U is the dark violet one. Picking a card fills its
+  bars and the bundles below take that network's colour. Agent shops use the same cards. No network logos are copied.
 
 Notes:
 - The AFA bundle details are what MTN's AFA menu showed in October 2026 (monthly, no data: GH₵10 for 258 MTN minutes,
@@ -651,11 +655,14 @@ Every admin action in plain words, grouped by day ("Refunded order DB-… (GH₵
 MTN UP2U packages (data, and data + minutes, with no expiry) from FastDealsGH's API v2, sold in the store and in every
 agent shop under their own "MTN UP2U" tab, right after MTN (`services/up2u.js`, `services/fdv2.js`).
 
-**Setting up** (Admin → Bundles & pricing → **Load MTN UP2U**): FastDealsGH's packages are added as bundles, **hidden**,
-with their cost and a suggested price (cost + 10%, rounded up to 50 pesewas). Check each price, then switch the bundle on.
-Pressing the button again later adds new packages, updates costs (your prices and names are kept) and hides packages
-FastDealsGH no longer offers. It needs `FASTDEALS_API_KEY` (the same key as checkers and AFA). Each bundle card shows its
-FastDealsGH package number.
+**Setting up** (Admin → Bundles & pricing → **Load MTN UP2U**): FastDealsGH's packages go on sale straight away, with
+their cost and a suggested price (cost + 10%, rounded up to 50 pesewas); change any price on its card. Pressing the button
+again later adds new packages, updates costs (your prices and names are kept) and hides packages FastDealsGH no longer
+offers. It needs `FASTDEALS_API_KEY` (the same key as checkers and AFA). Each bundle card shows its FastDealsGH package
+number.
+
+**Admin → Bundles & pricing** has one tab per network (MTN, MTN UP2U, Telecel, AirtelTigo), with "Switch all on" / "Hide
+all" for the open tab. Saving a price or switching a bundle on or off changes only that card, so the page keeps its place.
 
 **Buying**: only MTN numbers (024, 025, 053, 054, 055, 059), checked before payment, because FastDealsGH refuses others.
 After payment the order goes to `POST /mtnup2u/purchase` with our order reference as the Idempotency-Key, so a retry

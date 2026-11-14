@@ -80,7 +80,8 @@
         lines: d.changes ? changeLines(d.changes, function (k) { return k === 'AFA' ? 'AFA registration' : k + ' checker'; }) : [] };
       case 'plan.create': return { kind: 'prices', title: 'Added the bundle ' + (d.label || d.planId) + (d.price != null ? ' at ' + money(d.price) : '') };
       case 'plan.up2u_sync': return { kind: 'prices', title: 'Loaded MTN UP2U packages from FastDealsGH',
-        lines: [d.offered + ' offered', d.added + ' new (hidden until priced)', d.costChanged + ' new costs', d.hidden + ' hidden'].filter(function (x) { return !/^0 /.test(x) || /offered/.test(x); }) };
+        lines: [d.offered + ' offered', d.added + ' new', d.costChanged + ' new costs', d.hidden + ' hidden'].filter(function (x) { return !/^0 /.test(x) || /offered/.test(x); }) };
+      case 'plan.bulk_active': return { kind: 'prices', title: (d.active ? 'Switched on ' : 'Hid ') + d.changed + ' ' + (d.network || '') + ' bundle' + (d.changed === 1 ? '' : 's') };
       case 'plan.update': return { kind: 'prices', title: 'Changed the bundle ' + d.planId, lines: planLines(d.changes) };
       case 'plan.cost': return { kind: 'prices', title: 'Updated what bundle ' + d.planId + ' costs us', lines: [money(d.providerCostGHS)] };
       case 'plan.delete': return { kind: 'prices', title: 'Deleted the bundle ' + d.planId };

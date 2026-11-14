@@ -875,3 +875,7 @@ body.has-selbar .toast-stack{bottom:calc(var(--nav-h) + var(--safe-b) + 150px)}
   .ib-thread,.ib.reading .ib-thread{display:flex;border-left:1px solid var(--line)}
   .ib-back{display:none}
 }
+
+/* Bundles: network tabs and the "switch all" button */
+.plan-bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin:0 0 14px}
+.plan-bar .chip-row{margin:0;flex:1 1 auto;min-width:0}

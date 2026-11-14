@@ -340,7 +340,19 @@ router.get('/plans', async (req, res) => {
   catch (err) { console.error(err); res.status(500).json({ error: 'Could not load bundle settings.' }); }
 });
 
-// MTN UP2U: adds FastDealsGH's new packages (hidden until priced), updates costs, hides what they dropped.
+// Every bundle of one network on or off at once (Admin → Bundles, "Switch all on" / "Hide all").
+router.put('/plans/active', async (req, res) => {
+  try {
+    const network = String(req.body?.network || '');
+    const active = req.body?.active === true;
+    const targets = (await getPlans({ includeInactive: true })).filter((p) => p.network === network && p.active !== active);
+    for (const p of targets) await updatePlan(p.id, { active });
+    await audit(req, 'plan.bulk_active', { network, active, changed: targets.length });
+    res.json({ changed: targets.length });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Could not update the bundles.' }); }
+});
+
+// MTN UP2U: adds FastDealsGH's new packages (live, at a suggested price), updates costs, hides what they dropped.
 router.post('/plans/up2u/sync', async (req, res) => {
   const fdv2 = require('../services/fdv2');
   if (!fdv2.available()) return res.status(400).json({ error: 'FastDealsGH is not connected. Add FASTDEALS_API_KEY in Render first.' });
