@@ -1,6 +1,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const { checkNumber } = require('../services/numberCheck');
+const up2u = require('../services/up2u');
 const { initializeTransaction, verifyTransaction } = require('../services/paystack');
 const { deliverOrder, attemptCustomerRefund, addAlert } = require('../services/fulfillment');
 const { optionalCustomer, listOffers, resolvePrice } = require('../services/customers');
@@ -180,6 +181,8 @@ router.post('/checkout', checkoutLimit, optionalCustomer(), async (req, res) => 
     if (!PHONE_RE.test(phone)) return res.status(400).json({ error: 'Enter a valid 10-digit phone number, e.g. 0551234567.' });
     if (!/^\S+@\S+\.\S+$/.test(email)) return res.status(400).json({ error: 'Enter a valid email address.' });
     if (await isNumberBlocked(phone)) return res.status(403).json({ error: 'This phone number is currently blocked from making purchases. Please contact support.' });
+    // FastDealsGH accepts only MTN numbers for MTN UP2U: checked before payment, so nobody pays for a refused order.
+    if (up2u.isUp2u(plan) && !up2u.isMtnNumber(phone)) return res.status(400).json({ error: 'MTN UP2U works only on MTN numbers (024, 025, 053, 054, 055 or 059).', field: 'phone' });
     // An MTN number that is not verified may wait days for data. Ask the customer to confirm before paying.
     // Numbers that already received a bundle here are fine. Otherwise FastDealsGH tells us if it is verified.
     if (settings.firstTimeNoticeEnabled !== false && plan.network === 'MTN' && req.body?.confirmFirstTime !== true && !(await hasDeliveredOrder(phone))) {

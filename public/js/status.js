@@ -74,11 +74,13 @@
     });
   }
 
-  function renderStatus(status, ref) {
+  function renderStatus(status, ref, network) {
     var msg = MESSAGES[status] || MESSAGES.pending;
     statusCard.hidden = false;
     titleEl.textContent = msg[0];
-    bodyEl.textContent = msg[1];
+    // MTN UP2U is delivered by hand (FastDealsGH's team), so "Sending" can last a while.
+    bodyEl.textContent = status === 'processing' && network === 'MTN UP2U'
+      ? 'MTN UP2U is sent by hand, so it can take longer than other bundles. It still arrives if you close this page.' : msg[1];
     if (ref) {
       statusRef.hidden = false;
       statusRefValue.textContent = ref;
@@ -113,7 +115,7 @@
       })
       .then(function (order) {
         if (!order) return;
-        renderStatus(order.status, reference);
+        renderStatus(order.status, reference, order.network);
         if (['pending', 'paid', 'processing'].indexOf(order.status) !== -1) schedule(3000);
       })
       .catch(function () { schedule(4000); });

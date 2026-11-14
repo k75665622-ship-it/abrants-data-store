@@ -14,7 +14,7 @@ const pool = new Pool({
 pool.on('error', (err) => console.warn('Database connection dropped:', err.message));
 
 const NETWORK_CODES = { MTN: 'YELLO', Telecel: 'TELECEL', AirtelTigo: 'AT_PREMIUM' };
-const NETWORK_RANK = { MTN: 1, Telecel: 2, AirtelTigo: 3 };
+const NETWORK_RANK = { MTN: 1, Telecel: 2, AirtelTigo: 3, 'MTN UP2U': 4 };
 
 const DEFAULT_PLANS = [
   { id: 'mtn-1gb', network: 'MTN', networkCode: 'YELLO', capacityGB: 1, label: '1GB', priceGHS: 5.0, providerCostGHS: 4.2, validity: '30 days' },

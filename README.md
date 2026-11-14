@@ -645,3 +645,25 @@ agent shop (`js/chat.js`, `css/chat.css`, `services/chat.js`, `routes/chat.js`).
 Every admin action in plain words, grouped by day ("Refunded order DB-… (GH₵5.00)", "Paused Kwame Data Hub for
 1 month", "Changed the store settings: Maintenance mode: switched on"), with a filter by kind and a search
 (`admin-activity.js`). Settings changes record only what actually changed.
+
+## 30. MTN UP2U (FastDealsGH)
+
+MTN UP2U packages (data, and data + minutes, with no expiry) from FastDealsGH's API v2, sold in the store and in every
+agent shop under their own "MTN UP2U" tab, right after MTN (`services/up2u.js`, `services/fdv2.js`).
+
+**Setting up** (Admin → Bundles & pricing → **Load MTN UP2U**): FastDealsGH's packages are added as bundles, **hidden**,
+with their cost and a suggested price (cost + 10%, rounded up to 50 pesewas). Check each price, then switch the bundle on.
+Pressing the button again later adds new packages, updates costs (your prices and names are kept) and hides packages
+FastDealsGH no longer offers. It needs `FASTDEALS_API_KEY` (the same key as checkers and AFA). Each bundle card shows its
+FastDealsGH package number.
+
+**Buying**: only MTN numbers (024, 025, 053, 054, 055, 059), checked before payment, because FastDealsGH refuses others.
+After payment the order goes to `POST /mtnup2u/purchase` with our order reference as the Idempotency-Key, so a retry
+can never charge the wallet twice. FastDealsGH's team delivers by hand, so the order stays on "Processing" (the order page
+says it can take longer) and the store asks `GET /orders/{reference}` after a minute, then less and less often, for up
+to 3 days: "successful" marks it delivered; "failed" or "refunded" refunds the customer through Paystack. A package
+FastDealsGH no longer has is refunded at once, hidden, and the admin told. No answer, or an empty FastDealsGH wallet,
+leaves the order under review for the admin (top up, then Retry); it is never refunded on a guess. MTN UP2U is never
+paused automatically for stock.
+
+**Agents** see MTN UP2U as its own group in Prices and set their own prices like any other bundle.

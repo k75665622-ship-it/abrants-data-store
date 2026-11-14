@@ -434,9 +434,11 @@ async function redeemFreeBundle(customer, offerId, rawPhone, planLookup) {
     if (!plan || !plan.active) { await client.query('ROLLBACK'); return { error: 'That bundle is not available right now. Please contact support.', status: 409 }; }
 
     const detected = networkFromPhone(phone);
-    if (detected && detected !== plan.network) {
+    const up2u = require('./up2u');
+    if (up2u.isUp2u(plan) ? !up2u.isMtnNumber(phone) : (detected && detected !== plan.network)) {
       await client.query('ROLLBACK');
-      return { error: `This free bundle is for ${plan.network}, but that looks like a ${detected} number.`, status: 400 };
+      return { error: up2u.isUp2u(plan) ? 'MTN UP2U works only on MTN numbers (024, 025, 053, 054, 055 or 059).'
+        : `This free bundle is for ${plan.network}, but that looks like a ${detected} number.`, status: 400 };
     }
     const blocked = await client.query('SELECT 1 FROM blocked_numbers WHERE phone = $1', [phone]);
     if (blocked.rowCount > 0) { await client.query('ROLLBACK'); return { error: 'This phone number is blocked. Please contact support.', status: 403 }; }

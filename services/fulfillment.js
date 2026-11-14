@@ -41,7 +41,8 @@ async function deliverOrder(order) {
     }
   } catch (err) {
     console.error('Provider purchase error:', err.response?.data || err.message);
-    if (isOutOfStock(err)) {
+    // MTN UP2U is never paused automatically (only FastDealsGH sells it): an "out of stock" order waits for the admin.
+    if (isOutOfStock(err) && provider !== 'fastdeals-up2u') {
       // "Out of stock" is a definite no from the provider (nothing was bought). The order waits under
       // review; the admin decides whether to switch provider. Timeouts are never treated this way.
       await transitionOrder(reference, 'paid', { status: 'delivery_review' }, 'delivery.out_of_stock');
@@ -61,7 +62,7 @@ async function deliverOrder(order) {
 /* ---------------------------------------------------------------- */
 const HOUR = 60 * 60 * 1000;
 const netLabel = (n) => (n === 'Telecel' ? 'Telecel (Vodafone)' : n);
-const provLabel = (p) => (p === 'fastdeals' ? 'FastDealsGH' : 'DataHustle');
+const provLabel = (p) => providers.providerLabel(p);
 
 function isOutOfStock(err) {
   const text = String(err?.response?.data?.message || err?.response?.data?.error || err?.message || '');
@@ -195,11 +196,14 @@ async function attemptCustomerRefund(reference) {
 const POLL = {
   fastdeals: { minAgeSeconds: 45, maxAgeHours: 24 },
   datahustle: { minAgeSeconds: 120, maxAgeHours: 72 },
+  // MTN UP2U is delivered by FastDealsGH's team, so it can take a while: asked about for 3 days.
+  'fastdeals-up2u': { minAgeSeconds: 60, maxAgeHours: 72 },
 };
 // Per provider: the last "an order went out" mark seen, the mark at which nothing was waiting, and when to look next.
 const pollState = {
   fastdeals: { seq: -1, emptySeq: -1, nextAt: 0 },
   datahustle: { seq: -1, emptySeq: -1, nextAt: 0 },
+  'fastdeals-up2u': { seq: -1, emptySeq: -1, nextAt: 0 },
 };
 const MIN = 60 * 1000;
 const waitedMs = (order) => Date.now() - new Date(order.updatedAt).getTime();
@@ -214,6 +218,7 @@ function nextLookMs(newestWaitedMs) {
 
 function pollReady(name) {
   if (name === 'fastdeals') return fastdeals.configured();
+  if (name === 'fastdeals-up2u') return require('./fdv2').available();
   return Boolean(process.env.DATAHUSTLE_API_KEY) && process.env.DATAHUSTLE_MOCK_MODE !== 'true';
 }
 
@@ -239,6 +244,23 @@ async function checkFastdealsOrders(orders) {
       finished.add(order.reference);
     } catch (err) {
       console.warn('FastDeals status check skipped', order.reference, err.response?.status || err.message);
+    }
+  }
+  return finished;
+}
+
+async function checkUp2uOrders(orders) {
+  const up2u = require('./up2u');
+  const finished = new Set();
+  for (const order of orders) {
+    if (waitedMs(order) < POLL['fastdeals-up2u'].minAgeSeconds * 1000) continue;
+    try {
+      const state = await up2u.check(order.providerReference);
+      if (state === 'waiting') continue;
+      await settle(order, state, {}, 'FastDealsGH status check');
+      finished.add(order.reference);
+    } catch (err) {
+      console.warn('FastDeals UP2U status check skipped', order.reference, err.status || err.code || err.message);
     }
   }
   return finished;
@@ -311,8 +333,9 @@ async function pollProviderOrders() {
 
     const all = await getProcessingOrdersByProvider(name, 0, 200, POLL[name].maxAgeHours);
     // Only orders the provider can actually be asked about (test orders from mock mode cannot).
-    const orders = all.filter((o) => (name === 'fastdeals' ? o.providerReference : !String(o.providerReference || o.purchaseId || '').startsWith('MOCK-')));
-    const finished = orders.length ? await (name === 'fastdeals' ? checkFastdealsOrders(orders) : checkDatahustleOrders(orders)) : new Set();
+    const orders = all.filter((o) => (name.startsWith('fastdeals') ? o.providerReference : !String(o.providerReference || o.purchaseId || '').startsWith('MOCK-')));
+    const check = name === 'fastdeals' ? checkFastdealsOrders : name === 'fastdeals-up2u' ? checkUp2uOrders : checkDatahustleOrders;
+    const finished = orders.length ? await check(orders) : new Set();
     const left = orders.filter((o) => !finished.has(o.reference));
     if (!left.length) {
       // An order marked a moment ago may not be saved yet, so "nothing waiting" only counts once the mark has settled.
