@@ -1,5 +1,6 @@
 const express = require('express');
-const { requireAdmin, login, logout, session } = require('../services/adminAuth');
+const adminAuth = require('../services/adminAuth');
+const { requireAdmin, login, logout, session } = adminAuth;
 const {
   getAllOrders, getOrdersPage, getOrderStats, getOrderEvents, getOrder,
   getPlans, getPlan, createPlan, updatePlan, updatePlanPrice, updatePlanProviderCost, deletePlan,
@@ -29,6 +30,27 @@ router.post('/logout', logout);
 router.get('/session', session);
 
 router.use(requireAdmin);
+
+/* Settings → Sign-in security (services/adminAuth.js) */
+router.get('/security', (req, res) => { res.setHeader('Cache-Control', 'no-store'); res.json(adminAuth.securityInfo()); });
+router.post('/security/two-step/start', (req, res) => { res.setHeader('Cache-Control', 'no-store'); res.json(adminAuth.startTwoStep(req)); });
+router.post('/security/two-step/confirm', async (req, res) => {
+  const r = await adminAuth.confirmTwoStep(res, req.body && req.body.code);
+  if (r.error) return res.status(r.status || 400).json(r);
+  await audit(req, 'admin.two_step_on');
+  res.json({ ok: true, ...adminAuth.securityInfo() });
+});
+router.post('/security/two-step/off', async (req, res) => {
+  const r = await adminAuth.stopTwoStep(req.body && req.body.password, req.body && req.body.code);
+  if (r.error) return res.status(r.status || 400).json(r);
+  await audit(req, 'admin.two_step_off');
+  res.json({ ok: true, ...adminAuth.securityInfo() });
+});
+router.post('/security/sign-out-others', async (req, res) => {
+  await adminAuth.signOutOthers(res);
+  await audit(req, 'admin.sign_out_others');
+  res.json({ ok: true, ...adminAuth.securityInfo() });
+});
 
 /* ---------------------------------------------------------------- */
 /* Dashboard                                                         */

@@ -10,6 +10,11 @@ const { initCustomerDb } = require('./services/customers');
 const { pollProviderOrders, autoRecoveryTick, addAlert, pauseForStock } = require('./services/fulfillment');
 const { stockWatchTick } = require('./services/stockWatch');
 
+// One bad request must never stop the store (services/safety.js).
+const safety = require('./services/safety');
+safety.asyncErrors();
+safety.keepRunning();
+
 const app = express();
 app.disable('x-powered-by');
 app.set('trust proxy', process.env.TRUST_PROXY === 'true' ? 1 : false);
@@ -74,6 +79,7 @@ app.use((req, res, next) => {
   if (req.path === '/api/webhook/paystack' || req.path === '/api/webhook/datahustle' || req.path === '/api/agent/logo') return next();
   express.json({ limit: '32kb' })(req, res, next);
 });
+app.use(safety.noNullBytes());
 
 app.use('/api/admin', adminRoutes);
 app.use('/api/services', require('./routes/services').pub);
@@ -147,8 +153,12 @@ app.get('/:code', async (req, res, next) => {
   res.redirect(302, '/');
 });
 
+// The last stop for any error: a short answer, never the details.
+app.use(safety.errorHandler());
+
 const PORT = process.env.PORT || 3000;
 initDb()
+  .then(() => require('./services/adminAuth').initAdminSecurity()) // two-step sign-in, kept in memory
   .then(() => initCustomerDb())
   .then(() => require('./services/serviceOrders').initServiceDb())
   .then(() => require('./services/agents').initAgentDb())

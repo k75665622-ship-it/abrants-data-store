@@ -316,12 +316,23 @@ const useCode = (note) => codeTries.set(String(note).split('.')[0], 99);
 const masked = (p) => p.slice(0, 3) + '••••' + p.slice(7);
 const codesOn = () => lazy('sms').configured() && Boolean(codeKey());
 
-/** Texts a new 6-digit code to `number`. -> { codeToken, sentTo } or { error } (3 codes per number per 30 minutes). */
+// All code texts together, per day (Accra time is UTC): a cap so nobody can use up the SMS credit by asking for codes
+// from many numbers and connections. SMS_CODE_DAILY_MAX in Render changes it.
+const codeDay = { day: '', n: 0 };
+const codeDailyMax = () => Math.max(1, Number(process.env.SMS_CODE_DAILY_MAX) || 150);
+/** Texts a new 6-digit code to `number`. -> { codeToken, sentTo } or { error } (3 codes per number per 30 minutes, 150 a day in all). */
 async function sendCode(number, use, field) {
   const now = Date.now();
   let c = codeSends.get(number);
   if (!c || now >= c.reset) c = { n: 0, reset: now + 30 * 60 * 1000 };
   if (c.n >= 3) return { error: `We have sent 3 codes to ${masked(number)} already. Wait 30 minutes and try again.`, status: 429, field };
+  const today = new Date(now).toISOString().slice(0, 10);
+  if (codeDay.day !== today) { codeDay.day = today; codeDay.n = 0; }
+  if (codeDay.n >= codeDailyMax()) {
+    lazy('fulfillment').addAlert('warn', `The store has sent ${codeDailyMax()} sign-up codes by SMS today, its daily limit, so no more go out until tomorrow. If these were not real sign-ups, someone may be trying to use up your SMS credit. To allow more, set SMS_CODE_DAILY_MAX in Render.`).catch(() => {});
+    return { error: 'We cannot send more codes today. Please try again tomorrow, or chat with us.', status: 429, field };
+  }
+  codeDay.n += 1;
   c.n += 1; codeSends.set(number, c);
   if (codeSends.size > 5000) for (const [k, x] of codeSends) if (x.reset <= now) codeSends.delete(k);
   const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');

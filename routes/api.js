@@ -232,7 +232,7 @@ router.post('/checkout', checkoutLimit, optionalCustomer(), async (req, res) => 
       ...(shop ? { agentId: shop.id, agentBaseGHS: agentQuote.agentBaseGHS, agentEarningGHS: agentQuote.agentEarningGHS } : {}),
     };
 
-    const origin = `${req.protocol}://${req.get('host')}`;
+    const origin = require('../services/siteUrl').siteOrigin() || `${req.protocol}://${req.get('host')}`; // SITE_URL when set
     const tx = await initializeTransaction({
       email, amountGHS: chargeGHS, reference,
       metadata: { phone, network: plan.network, label: plan.label, planId: plan.id, abrants: (() => { const d = JSON.stringify(orderFields); return { d, sig: signOrderText(reference, d) }; })() },
@@ -246,11 +246,14 @@ router.post('/checkout', checkoutLimit, optionalCustomer(), async (req, res) => 
   }
 });
 
-// Requires both phone and order reference. This prevents anyone who merely knows a
-// phone number from enumerating that customer's purchase history.
-// Customer order history.
-// Phone number alone shows recent orders.
-// If an order reference is provided, only that order is returned.
+// Track order (order-status.html).
+// Phone and order reference: that one order, with its reference.
+// Phone alone: the number's recent orders, without their references or exact times. A reference is what a customer
+// quotes to support as proof that an order is theirs, so knowing someone's number must not reveal it.
+const publicHistory = (o) => ({
+  network: o.network, label: o.label, priceGHS: o.priceGHS, status: o.status,
+  createdAt: o.createdAt ? new Date(Math.floor(new Date(o.createdAt).getTime() / 60000) * 60000).toISOString() : null,
+});
 router.get('/history', historyLimit, async (req, res) => {
   const phone = normalizePhone(req.query.phone);
   const reference = String(req.query.reference || '').trim();
@@ -268,9 +271,8 @@ router.get('/history', historyLimit, async (req, res) => {
   }
 
   try {
-    let rows = reference
-      ? await getOrderHistoryByPhone(phone, reference)
-      : await getRecentOrdersByPhone(phone, 20);
+    if (!reference) return res.json((await getRecentOrdersByPhone(phone, 20)).map(publicHistory));
+    let rows = await getOrderHistoryByPhone(phone, reference);
 
     // A paid order may not be saved yet (it is created when Paystack confirms the payment).
     if (reference && !rows.length && /^DB-[A-Za-z0-9-]+$/.test(reference)) {
@@ -388,7 +390,10 @@ router.post('/webhook/datahustle', async (req, res) => {
   res.json({ status: 'success' });
 });
 
+// An order reference: letters, digits and - _ . only (ours look like DB-1712345678901-ab12cd34).
+const REF_RE = /^[A-Za-z0-9][A-Za-z0-9_.-]{5,119}$/;
 router.get('/order/:reference', orderLimit, async (req, res) => {
+  if (!REF_RE.test(String(req.params.reference || ''))) return res.status(404).json({ error: 'Order not found.' });
   let order = await getOrder(req.params.reference);
   if (!order) {
     // No order yet: it only exists once Paystack confirms the payment. Ask Paystack now.
@@ -418,6 +423,7 @@ router.get('/order/:reference', orderLimit, async (req, res) => {
     }
   }
   const fresh = await getOrder(req.params.reference);
+  if (!fresh) return res.status(404).json({ error: 'Order not found.' });
   res.json({
     reference: fresh.reference, status: fresh.status, label: fresh.label, network: fresh.network,
     capacityGB: fresh.capacityGB, priceGHS: fresh.priceGHS, phone: fresh.phone,
