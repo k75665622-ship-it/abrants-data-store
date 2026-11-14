@@ -93,16 +93,11 @@ html[data-theme="pink"]{--acc:#be185d;--acc-ink:#fff;--acc-deep:#760e3a;--acc-so
 .sp-switch-btn.active{background:var(--ink);color:#fff}
 .sp-switch[hidden]{display:none}
 
-/* networks, in their own colours */
-.shop-page .sp-nets{position:static;background:none;padding:0 0 12px;margin:0}
-.shop-page .airtel{background:#0b4fb3}
-.shop-page .telecel{background:#e3051b}
-.shop-page .tab.active[data-network="MTN"]{background:#ffcc00;border-color:#ffcc00;color:#1f1800}
-.shop-page .tab.active[data-network="MTN"] .count{background:rgba(31,24,0,.12);color:#1f1800}
-.shop-page .tab.active[data-network="MTN"] .network-dot{background:#1f1800}
-.shop-page .tab.active[data-network="Telecel"]{background:#e3051b;border-color:#e3051b}
-.shop-page .tab.active[data-network="AirtelTigo"]{background:#0b4fb3;border-color:#0b4fb3}
-.shop-page .tab.active .network-dot{box-shadow:0 0 0 2px #fff}
+/* networks: the store's network cards (css/style.css), a little tighter on the shop's board */
+.shop-page .sp-nets{margin:0 0 12px}
+.shop-page .net-card{min-height:112px;border-radius:18px}
+.shop-page .plans-grid[data-net] .plan-card{box-shadow:none}
+.shop-page .sp-board-list[data-net]{box-shadow:inset 0 3px 0 var(--net)}
 
 /* the price board: one line per bundle, size ...... price */
 .sp-board-list{display:block;background:#fff;border:1px solid var(--line);border-radius:20px;overflow:hidden}

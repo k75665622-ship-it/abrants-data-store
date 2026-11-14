@@ -586,52 +586,106 @@
     return Number(plan.priceGHS) - Number(plan.providerCostGHS || 0) - fee;
   }
 
+  /*
+   * Bundles, one tab per network (MTN, MTN UP2U, Telecel, AirtelTigo). Saving a price or switching a bundle on/off
+   * changes only that card, so the page never jumps back to the top.
+   */
+  var NET_ORDER = { MTN: 1, 'MTN UP2U': 2, Telecel: 3, AirtelTigo: 4 };
+  function planCard(p) {
+    var profit = planProfit(p);
+    var margin = Number(p.priceGHS) ? (profit / Number(p.priceGHS)) * 100 : 0;
+    var unit = Number(p.capacityGB) >= 0.1 && !/min/i.test(p.label) ? Number(p.priceGHS) / Number(p.capacityGB) : null;
+    return '<article class="setting-card' + (p.active ? '' : ' inactive') + '" data-card="' + esc(p.id) + '">' +
+      '<div class="setting-top">' +
+        '<div>' +
+          '<h3>' + esc(p.label) + '</h3>' +
+          '<div class="meta">' + esc(p.validity) + (unit ? ' · ' + money(unit) + '/GB' : '') + '</div>' +
+        '</div>' +
+        '<label class="switch" title="Show on the storefront">' +
+          '<input type="checkbox" data-toggle="' + esc(p.id) + '"' + (p.active ? ' checked' : '') + ' />' +
+          '<span class="track"></span><span>' + (p.active ? 'Live' : 'Hidden') + '</span>' +
+        '</label>' +
+      '</div>' +
+      '<div class="profit-preview">' +
+        '<span>Est. profit</span><strong class="' + (profit < 0 ? 'neg' : 'pos') + '">' + money(profit) + '</strong>' +
+        '<em>' + margin.toFixed(1) + '% margin · fee ' + money(Number(p.priceGHS) * 0.0195) + '</em>' +
+      '</div>' +
+      '<div class="setting-editors">' +
+        '<label class="field"><span>Customer price (GH₵)</span>' +
+          '<div class="editor-row"><input type="number" min="0.01" step="0.01" value="' + Number(p.priceGHS).toFixed(2) + '" data-price="' + esc(p.id) + '" />' +
+          '<button class="btn btn-primary btn-sm" data-save-price="' + esc(p.id) + '">Save</button></div>' +
+        '</label>' +
+        '<label class="field"><span>Provider cost (GH₵)</span>' +
+          '<div class="editor-row"><input type="number" min="0" step="0.01" value="' + Number(p.providerCostGHS || 0).toFixed(2) + '" data-cost="' + esc(p.id) + '" />' +
+          '<button class="btn btn-ghost btn-sm" data-save-cost="' + esc(p.id) + '">Save</button></div>' +
+        '</label>' +
+      '</div>' +
+      '<div class="setting-foot">' +
+        '<span class="fee-note">' + (/^UP2U-\d+$/.test(p.networkCode) ? 'FastDealsGH package ' + esc(p.networkCode.slice(5)) : 'Code: ' + esc(p.networkCode)) + '</span>' +
+        '<div class="panel-actions">' +
+          '<button class="btn btn-subtle btn-sm" data-edit-plan="' + esc(p.id) + '">Edit</button>' +
+          '<button class="btn btn-danger btn-sm" data-delete-plan="' + esc(p.id) + '">Remove</button>' +
+        '</div>' +
+      '</div>' +
+    '</article>';
+  }
+  function planNetworks() {
+    var nets = [];
+    state.plans.forEach(function (p) { if (nets.indexOf(p.network) === -1) nets.push(p.network); });
+    return nets.sort(function (a, b) { return (NET_ORDER[a] || 9) - (NET_ORDER[b] || 9); });
+  }
+  function renderPlans() {
+    var nets = planNetworks();
+    if (nets.indexOf(state.planTab) === -1) state.planTab = nets[0];
+    $('#planTabs').innerHTML = nets.map(function (n) {
+      var all = state.plans.filter(function (p) { return p.network === n; });
+      return '<button class="chip' + (n === state.planTab ? ' active' : '') + '" type="button" data-plan-tab="' + esc(n) + '">' + esc(n) + ' <b>' + all.length + '</b></button>';
+    }).join('');
+    var shown = state.plans.filter(function (p) { return p.network === state.planTab; })
+      .sort(function (a, b) { return Number(a.capacityGB) - Number(b.capacityGB) || Number(a.priceGHS) - Number(b.priceGHS); });
+    var hidden = shown.filter(function (p) { return !p.active; }).length;
+    $('#planBulk').innerHTML = shown.length ? (hidden
+      ? '<button class="btn btn-primary btn-sm" type="button" data-plans-all="1">Switch all ' + hidden + ' hidden on</button>'
+      : '<button class="btn btn-ghost btn-sm" type="button" data-plans-all="0">Hide all ' + shown.length + '</button>') : '';
+    $('#plansGridAdmin').innerHTML = shown.map(planCard).join('') ||
+      '<p class="muted">No bundles yet.' + (state.planTab ? '' : ' Add one, or press "Load MTN UP2U".') + '</p>';
+  }
+  // One card after a change (the list keeps its place on the page).
+  function replacePlan(p) {
+    state.plans = state.plans.map(function (x) { return x.id === p.id ? p : x; });
+    var el = document.querySelector('[data-card="' + CSS.escape(p.id) + '"]');
+    if (el) el.outerHTML = planCard(p);
+    var nets = planNetworks();
+    var hidden = state.plans.filter(function (x) { return x.network === state.planTab && !x.active; }).length;
+    var shown = state.plans.filter(function (x) { return x.network === state.planTab; }).length;
+    $('#planBulk').innerHTML = hidden
+      ? '<button class="btn btn-primary btn-sm" type="button" data-plans-all="1">Switch all ' + hidden + ' hidden on</button>'
+      : '<button class="btn btn-ghost btn-sm" type="button" data-plans-all="0">Hide all ' + shown + '</button>';
+    return nets;
+  }
   function loadPlans() {
     var grid = $('#plansGridAdmin');
-    grid.innerHTML = '<div class="skeleton-row" style="height:120px"></div><div class="skeleton-row" style="height:120px"></div>';
-    api('/api/admin/plans').then(function (plans) {
+    if (!state.plans || !state.plans.length) grid.innerHTML = '<div class="skeleton-row" style="height:120px"></div><div class="skeleton-row" style="height:120px"></div>';
+    return api('/api/admin/plans').then(function (plans) {
       state.plans = plans;
-      grid.innerHTML = plans.map(function (p) {
-        var profit = planProfit(p);
-        var margin = Number(p.priceGHS) ? (profit / Number(p.priceGHS)) * 100 : 0;
-        var unit = Number(p.capacityGB) > 0 ? Number(p.priceGHS) / Number(p.capacityGB) : null;
-        return '<article class="setting-card' + (p.active ? '' : ' inactive') + '">' +
-          '<div class="setting-top">' +
-            '<div>' +
-              '<span class="network-label">' + esc(p.network) + '</span>' +
-              '<h3>' + esc(p.label) + '</h3>' +
-              '<div class="meta">' + esc(p.capacityGB) + 'GB · ' + esc(p.validity) + (unit ? ' · ' + money(unit) + '/GB' : '') + '</div>' +
-            '</div>' +
-            '<label class="switch" title="Show on the storefront">' +
-              '<input type="checkbox" data-toggle="' + esc(p.id) + '"' + (p.active ? ' checked' : '') + ' />' +
-              '<span class="track"></span><span>' + (p.active ? 'Live' : 'Hidden') + '</span>' +
-            '</label>' +
-          '</div>' +
-          '<div class="profit-preview">' +
-            '<span>Est. profit</span><strong class="' + (profit < 0 ? 'neg' : 'pos') + '">' + money(profit) + '</strong>' +
-            '<em>' + margin.toFixed(1) + '% margin · fee ' + money(Number(p.priceGHS) * 0.0195) + '</em>' +
-          '</div>' +
-          '<div class="setting-editors">' +
-            '<label class="field"><span>Customer price (GH₵)</span>' +
-              '<div class="editor-row"><input type="number" min="0.01" step="0.01" value="' + Number(p.priceGHS).toFixed(2) + '" data-price="' + esc(p.id) + '" />' +
-              '<button class="btn btn-primary btn-sm" data-save-price="' + esc(p.id) + '">Save</button></div>' +
-            '</label>' +
-            '<label class="field"><span>Provider cost (GH₵)</span>' +
-              '<div class="editor-row"><input type="number" min="0" step="0.01" value="' + Number(p.providerCostGHS || 0).toFixed(2) + '" data-cost="' + esc(p.id) + '" />' +
-              '<button class="btn btn-ghost btn-sm" data-save-cost="' + esc(p.id) + '">Save</button></div>' +
-            '</label>' +
-          '</div>' +
-          '<div class="setting-foot">' +
-            '<span class="fee-note">' + (/^UP2U-\d+$/.test(p.networkCode) ? 'FastDealsGH package ' + esc(p.networkCode.slice(5)) : 'Code: ' + esc(p.networkCode)) + '</span>' +
-            '<div class="panel-actions">' +
-              '<button class="btn btn-subtle btn-sm" data-edit-plan="' + esc(p.id) + '">Edit</button>' +
-              '<button class="btn btn-danger btn-sm" data-delete-plan="' + esc(p.id) + '">Remove</button>' +
-            '</div>' +
-          '</div>' +
-        '</article>';
-      }).join('');
+      renderPlans();
     }).catch(function (err) { grid.innerHTML = '<p class="notice bad">' + esc(err.message) + '</p>'; });
   }
+  $('#planTabs').addEventListener('click', function (e) {
+    var t = e.target.closest('[data-plan-tab]');
+    if (!t) return;
+    state.planTab = t.getAttribute('data-plan-tab');
+    renderPlans();
+  });
+  $('#planBulk').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-plans-all]');
+    if (!b) return;
+    var on = b.getAttribute('data-plans-all') === '1';
+    setBusy(b, true, on ? 'Switching on…' : 'Hiding…');
+    api('/api/admin/plans/active', { method: 'PUT', body: JSON.stringify({ network: state.planTab, active: on }) })
+      .then(function (r) { toast(r.changed + ' ' + state.planTab + ' bundle' + (r.changed === 1 ? '' : 's') + (on ? ' switched on.' : ' hidden.'), 'success'); return loadPlans(); })
+      .catch(function (err) { toast(err.message, 'error'); setBusy(b, false); });
+  });
 
   function findPlan(id) {
     return state.plans.filter(function (p) { return p.id === id; })[0];
@@ -645,7 +699,7 @@
       setBusy(savePrice, true, 'Saving…');
       api('/api/admin/plans/' + encodeURIComponent(id), {
         method: 'PUT', body: JSON.stringify({ priceGHS: Number(input.value) })
-      }).then(function () { toast('Price updated.', 'success'); loadPlans(); loadStats(); })
+      }).then(function (p) { toast('Price updated.', 'success'); replacePlan(p); loadStats(); })
         .catch(function (err) { toast(err.message, 'error'); setBusy(savePrice, false); });
       return;
     }
@@ -657,7 +711,7 @@
       setBusy(saveCost, true, 'Saving…');
       api('/api/admin/plans/' + encodeURIComponent(cid) + '/cost', {
         method: 'PUT', body: JSON.stringify({ providerCostGHS: Number(cinput.value) })
-      }).then(function () { toast('Provider cost updated.', 'success'); loadPlans(); })
+      }).then(function (p) { toast('Provider cost updated.', 'success'); replacePlan(p); })
         .catch(function (err) { toast(err.message, 'error'); setBusy(saveCost, false); });
       return;
     }
@@ -685,9 +739,9 @@
     var id = toggle.dataset.toggle;
     api('/api/admin/plans/' + encodeURIComponent(id), {
       method: 'PUT', body: JSON.stringify({ active: toggle.checked })
-    }).then(function () {
+    }).then(function (p) {
       toast(toggle.checked ? 'Bundle is now live.' : 'Bundle hidden from customers.', 'success');
-      loadPlans();
+      replacePlan(p);
     }).catch(function (err) { toast(err.message, 'error'); toggle.checked = !toggle.checked; });
   });
 
@@ -714,16 +768,17 @@
   function closePlanModal() { $('#planModal').classList.add('hidden'); }
 
   $('#addPlanBtn').addEventListener('click', function () { openPlanModal(null); });
-  // MTN UP2U: new FastDealsGH packages arrive hidden with a suggested price; check the price, then switch them on.
+  // MTN UP2U: new FastDealsGH packages go live at a suggested price (cost + 10%); change any price on its card.
   $('#up2uSyncBtn').addEventListener('click', function () {
     var btn = this;
     setBusy(btn, true, 'Loading…');
     api('/api/admin/plans/up2u/sync', { method: 'POST' }).then(function (r) {
       var parts = [];
-      if (r.added) parts.push(r.added + ' new (hidden: check the price, then switch on)');
+      if (r.added) parts.push(r.added + ' new, live at the suggested price');
       if (r.costChanged) parts.push(r.costChanged + ' with a new cost');
       if (r.hidden) parts.push(r.hidden + ' hidden (no longer offered)');
       toast('FastDealsGH offers ' + r.offered + ' MTN UP2U package' + (r.offered === 1 ? '' : 's') + '. ' + (parts.length ? parts.join(', ') + '.' : 'Nothing changed.'), 'success');
+      state.planTab = 'MTN UP2U';
       loadPlans();
     }).catch(function (err) { toast(err.message, 'error'); }).finally(function () { setBusy(btn, false); });
   });

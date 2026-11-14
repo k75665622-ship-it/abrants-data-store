@@ -201,20 +201,29 @@
 
   // MTN UP2U right after MTN (it is an MTN product), so it is seen without scrolling the tabs.
   var TAB_RANK = { MTN: 1, 'MTN UP2U': 2, Telecel: 3, AirtelTigo: 4 };
+  // Each network is a card: its colour, a signal meter, its lowest price and how many bundles it has.
+  var NET_SLUG = { MTN: 'mtn', 'MTN UP2U': 'up2u', Telecel: 'telecel', AirtelTigo: 'airtel' };
+  function netSlug(network) { return NET_SLUG[network] || 'other'; }
   function renderTabs(networks) {
     networks = networks.slice().sort(function (a, b) { return (TAB_RANK[a] || 9) - (TAB_RANK[b] || 9); });
     tabsEl.innerHTML = networks.map(function (network) {
-      var count = ALL_PLANS.filter(function (p) { return p.network === network; }).length;
-      var cls = network === ACTIVE_NETWORK ? 'tab active' : 'tab';
-      var dot = baseNet(network) === 'MTN' ? 'mtn' : (network === 'Telecel' ? 'telecel' : 'airtel');
-      return '<button class="' + cls + '" role="tab" aria-selected="' + (network === ACTIVE_NETWORK) +
-        '" data-network="' + esc(network) + '"><span class="network-dot ' + dot + '"></span>' +
-        esc(network) + (PAUSED.indexOf(network) !== -1 ? '<span class="count paused-tag">paused</span>' : '<span class="count">' + count + '</span>') + '</button>';
+      var plans = ALL_PLANS.filter(function (p) { return p.network === network; });
+      var from = Math.min.apply(null, plans.map(function (p) { return Number(p.priceGHS); }));
+      var on = network === ACTIVE_NETWORK;
+      var paused = PAUSED.indexOf(network) !== -1;
+      return '<button type="button" class="tab net-card net-' + netSlug(network) + (on ? ' active' : '') + (paused ? ' paused' : '') + '" role="tab" aria-selected="' + on +
+        '" data-network="' + esc(network) + '">' +
+        '<span class="net-bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span>' +
+        '<span class="net-name">' + esc(network === 'Telecel' ? 'Telecel' : network) + '</span>' +
+        '<span class="net-from">' + (paused ? 'Paused for now' : 'From ' + money(from)) + '</span>' +
+        '<span class="count">' + (paused ? 'Paused' : network === 'MTN UP2U' ? 'No expiry' : plans.length + ' bundle' + (plans.length === 1 ? '' : 's')) + '</span>' +
+        '</button>';
     }).join('');
   }
 
   function renderPlans() {
     var plans = ALL_PLANS.filter(function (p) { return p.network === ACTIVE_NETWORK; });
+    plansGrid.setAttribute('data-net', netSlug(ACTIVE_NETWORK));
     if (PAUSED.indexOf(ACTIVE_NETWORK) !== -1) {
       plansGrid.innerHTML = '<div class="empty-state paused-state"><strong>' + esc(ACTIVE_NETWORK === 'Telecel' ? 'Telecel (Vodafone)' : ACTIVE_NETWORK) + ' is paused for now</strong>' + esc(pauseText(ACTIVE_NETWORK)) + '</div>';
       return;
@@ -262,6 +271,11 @@
       tab.setAttribute('aria-selected', on ? 'true' : 'false');
     });
     renderPlans();
+    // On a phone the bundles are below the cards: bring their top into view if it is off screen.
+    var top = plansGrid.getBoundingClientRect().top;
+    if (top > window.innerHeight - 140) {
+      plansGrid.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+    }
   });
 
   /* ----------------------------------------------------------- checkout */

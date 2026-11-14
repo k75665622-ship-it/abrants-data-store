@@ -4,7 +4,7 @@
  *
  * Each package is an ordinary store bundle under the network "MTN UP2U" whose network code is "UP2U-<package id>".
  * Checkout, agent prices, the order page, texts and refunds therefore work as for every other bundle.
- * Admin → Bundles → "Load MTN UP2U" adds new packages (hidden until priced) and keeps their costs current.
+ * Admin → Bundles → "Load MTN UP2U" adds new packages (on sale at cost + 10%) and keeps their costs current.
  */
 const fdv2 = require('./fdv2');
 const lazy = (name) => require('./' + name);
@@ -83,7 +83,8 @@ function labelFor(pkg) {
 
 /*
  * Brings our MTN UP2U bundles in line with FastDealsGH's list:
- *  - a new package becomes a hidden bundle, priced at its cost plus 10% (rounded up to 50 pesewas) for the admin to check;
+ *  - a new package goes on sale straight away, priced at its cost plus 10% (rounded up to 50 pesewas); the admin can
+ *    change any price on its card;
  *  - a known package gets its current cost (the admin's price and name are kept);
  *  - a package they dropped (or have run out of) is hidden. Hidden packages are never switched back on here.
  */
@@ -99,7 +100,7 @@ async function syncPackages() {
       const r = await createPlan({
         network: NETWORK, networkCode: codeFor(pkg.id), label: labelFor(pkg),
         capacityGB: pkg.dataGB > 0 ? pkg.dataGB : 0.01, validity: pkg.validity || 'No expiry',
-        priceGHS: Math.max(0.5, round(pkg.cost * 1.1, 0.5)), providerCostGHS: pkg.cost, active: false,
+        priceGHS: Math.max(0.5, round(pkg.cost * 1.1, 0.5)), providerCostGHS: pkg.cost, active: pkg.inStock,
       });
       if (!r.error) out.added += 1;
       continue;

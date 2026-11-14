@@ -129,6 +129,15 @@ input,select,textarea{font:inherit;color:inherit}
   .hero-words span:nth-child(3){color:transparent;-webkit-text-stroke:2px var(--yellow)}
 }
 @keyframes hero-rise{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:none}}
+/* A signal meter in the four networks' colours: MTN, MTN UP2U, Telecel, AirtelTigo. */
+.hero-inner{position:relative}
+.hero-meter{position:absolute;right:var(--pad);top:34px;display:flex;align-items:flex-end;gap:7px;width:92px;height:86px;pointer-events:none}
+.hero-meter i{flex:1;border-radius:7px 7px 3px 3px;transform-origin:bottom;animation:bar-up .8s cubic-bezier(.22,1,.36,1) both}
+.hero-meter i:nth-child(1){height:30%;background:var(--net-mtn);animation-delay:.1s}
+.hero-meter i:nth-child(2){height:52%;background:var(--net-up2u);animation-delay:.18s}
+.hero-meter i:nth-child(3){height:76%;background:var(--net-telecel);animation-delay:.26s}
+.hero-meter i:nth-child(4){height:100%;background:var(--net-airtel);animation-delay:.34s}
+@media (min-width:900px){.hero-meter{top:46px;width:150px;height:136px;gap:11px}.hero-meter i{border-radius:11px 11px 4px 4px}}
 .hero-copy{margin-top:18px}
 .hero-copy>p{margin:0;max-width:34em;color:#adb6c9;font-size:15.5px;line-height:1.6}
 .hero-cta{display:flex;width:100%;margin-top:18px}
@@ -148,32 +157,76 @@ input,select,textarea{font:inherit;color:inherit}
 .section-heading>p{color:var(--muted);font-size:14px;margin:0}
 .section-kicker{font-size:10px;font-weight:800;letter-spacing:.18em;color:#8b93a7;margin:0}
 
-.network-tabs{
-  position:sticky;top:var(--header-h);z-index:40;
-  display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;
-  padding:10px 0 12px;margin-bottom:8px;
-  background:linear-gradient(180deg,var(--cream) 78%,rgba(245,246,250,0));
+/* ------------------------------------------------------- Network cards
+   Each network is a card in its own colour with a signal meter (data = signal). Picking one fills its bars. */
+:root{
+  --net-mtn:#ffcb05; --net-mtn-ink:#1f1800; --net-mtn-soft:#fff8d6;
+  --net-up2u:#5b2ee0; --net-up2u-deep:#1d0f4a;
+  --net-telecel:#e4002b; --net-telecel-soft:#ffe8ec;
+  --net-airtel:#0b4fb3; --net-airtel-soft:#e7f0ff;
 }
-.network-tabs::-webkit-scrollbar{display:none}
-.tab{
-  flex:none;display:inline-flex;align-items:center;gap:9px;
-  min-height:46px;padding:0 17px;border-radius:999px;
-  background:#fff;border:1px solid var(--line);
-  font-weight:700;font-size:14px;color:#4b5468;
-  transition:transform .16s ease,border-color .16s ease,background .16s ease;
+.network-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0 0 18px}
+.net-card{
+  --net:#8b93a7;--net-ink:#fff;--net-soft:#f1f3f8;
+  position:relative;display:flex;flex-direction:column;align-items:flex-start;min-width:0;
+  min-height:124px;padding:13px 14px 12px;border-radius:20px;text-align:left;
+  background:#fff;border:1.5px solid var(--line);color:var(--ink);box-shadow:var(--shadow-xs);
+  transition:transform .18s ease,box-shadow .2s ease,border-color .2s ease,background .2s ease;
   -webkit-tap-highlight-color:transparent;
 }
-.tab:active{transform:scale(.97)}
-.tab.active{background:var(--navy);border-color:var(--navy);color:#fff}
-.tab .count{
-  font-size:11px;font-weight:700;padding:2px 7px;border-radius:999px;
-  background:var(--line-2);color:#7b8499;
+.net-mtn{--net:var(--net-mtn);--net-ink:var(--net-mtn-ink);--net-soft:var(--net-mtn-soft)}
+.net-telecel{--net:var(--net-telecel);--net-soft:var(--net-telecel-soft)}
+.net-airtel{--net:var(--net-airtel);--net-soft:var(--net-airtel-soft)}
+.net-card:active{transform:scale(.97)}
+.net-bars{
+  display:flex;align-items:flex-end;gap:3px;width:40px;height:40px;padding:9px 8px 9px;margin-bottom:10px;
+  border-radius:12px;background:var(--net);
 }
-.tab.active .count{background:rgba(255,255,255,.16);color:#dfe4ee}
-.network-dot{width:9px;height:9px;border-radius:50%;flex:none}
-.mtn{background:#ffd21c}
-.telecel{background:#e8233f}
-.airtel{background:#ee2f4a}
+.net-bars i{flex:1;border-radius:2px;background:var(--net-ink);opacity:.35;transform-origin:bottom}
+.net-bars i:nth-child(1){height:30%;opacity:1}
+.net-bars i:nth-child(2){height:52%;opacity:1}
+.net-bars i:nth-child(3){height:76%}
+.net-bars i:nth-child(4){height:100%}
+.net-name{font:700 17px/1.15 var(--display);letter-spacing:-.02em;overflow-wrap:anywhere}
+.net-from{font-size:13px;color:var(--muted);margin-top:2px}
+.net-card .count{
+  margin-top:auto;padding:3px 9px;border-radius:999px;transform:translateY(6px);
+  font-size:11.5px;font-weight:700;background:var(--line-2);color:#5f6880;
+}
+.net-card.active{border-color:var(--net);background:linear-gradient(180deg,var(--net-soft),#fff 75%);box-shadow:0 14px 28px -18px var(--net)}
+.net-card.active .net-bars i{opacity:1}
+.net-card.active .count{background:var(--net);color:var(--net-ink)}
+/* MTN UP2U: big data, its own night-violet card */
+.net-up2u{background:linear-gradient(150deg,var(--net-up2u-deep) 0%,#33179a 62%,var(--net-up2u) 100%);border-color:transparent;color:#fff}
+.net-up2u .net-bars{background:var(--net-mtn)}
+.net-up2u .net-bars i{background:var(--net-up2u-deep)}
+.net-up2u .net-from{color:#cfc4ff}
+.net-up2u .count{background:rgba(255,255,255,.14);color:#fff}
+.net-up2u.active{background:linear-gradient(150deg,var(--net-up2u-deep) 0%,#33179a 62%,var(--net-up2u) 100%);border-color:var(--net-mtn);box-shadow:0 16px 30px -16px var(--net-up2u)}
+.net-up2u.active .count{background:var(--net-mtn);color:var(--net-mtn-ink)}
+.net-card.paused{opacity:.62}
+.net-card.paused .count{background:#ffe9a8;color:#6b4e00}
+@media (prefers-reduced-motion:no-preference){
+  .net-card.active .net-bars i{animation:bar-up .5s cubic-bezier(.22,1,.36,1) both}
+  .net-card.active .net-bars i:nth-child(2){animation-delay:.06s}
+  .net-card.active .net-bars i:nth-child(3){animation-delay:.12s}
+  .net-card.active .net-bars i:nth-child(4){animation-delay:.18s}
+}
+@keyframes bar-up{from{transform:scaleY(.25)}to{transform:none}}
+@media (hover:hover){.net-card:not(.active):hover{border-color:var(--net);box-shadow:var(--shadow-sm)}}
+@media (min-width:900px){
+  .network-tabs{grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+  .net-card{min-height:136px;padding:16px 16px 14px}
+  .net-name{font-size:19px}
+}
+/* the bundles take the chosen network's colour */
+.plans-grid[data-net="mtn"]{--net:var(--net-mtn)}
+.plans-grid[data-net="up2u"]{--net:var(--net-up2u)}
+.plans-grid[data-net="telecel"]{--net:var(--net-telecel)}
+.plans-grid[data-net="airtel"]{--net:var(--net-airtel)}
+.mtn{background:var(--net-mtn)}
+.telecel{background:var(--net-telecel)}
+.airtel{background:var(--net-airtel)}
 
 /* ------------------------------------------------------------- Plan cards */
 .plans-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}
@@ -194,7 +247,9 @@ input,select,textarea{font:inherit;color:inherit}
   background:var(--line-2);color:#59637a;
   transition:background .18s ease,color .18s ease;
 }
+.plans-grid[data-net] .plan-card{box-shadow:inset 0 3px 0 var(--net),var(--shadow-xs)}
 .plan-card:hover{border-color:#ccd3e0;box-shadow:var(--shadow-sm)}
+.plans-grid[data-net] .plan-card:hover{box-shadow:inset 0 3px 0 var(--net),var(--shadow-sm)}
 .plan-card:hover::after{background:var(--navy);color:#fff}
 .plan-size{font:700 25px/1.1 var(--display);letter-spacing:-.04em}
 .plan-validity{font-size:11.5px;color:#8890a3;margin-top:3px}
@@ -659,7 +714,6 @@ body.has-mobilebar{padding-bottom:82px}
 
 .paused-state{background:#fff7e0;border:1px solid rgba(255,190,0,.5);color:#3a2c00;border-radius:var(--r-md);padding:18px;line-height:1.5}
 .paused-state strong{display:block;margin-bottom:6px;font-size:16px}
-.tab .count.paused-tag{background:#ffe9a8;color:#6b4e00;font-size:10px;padding:2px 7px}
 
 .summary-fee{margin-top:8px;color:#aeb8d0;font-size:12px;line-height:1.4}
 .summary-fee[hidden]{display:none}
