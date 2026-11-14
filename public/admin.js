@@ -622,7 +622,7 @@
             '</label>' +
           '</div>' +
           '<div class="setting-foot">' +
-            '<span class="fee-note">Code: ' + esc(p.networkCode) + '</span>' +
+            '<span class="fee-note">' + (/^UP2U-\d+$/.test(p.networkCode) ? 'FastDealsGH package ' + esc(p.networkCode.slice(5)) : 'Code: ' + esc(p.networkCode)) + '</span>' +
             '<div class="panel-actions">' +
               '<button class="btn btn-subtle btn-sm" data-edit-plan="' + esc(p.id) + '">Edit</button>' +
               '<button class="btn btn-danger btn-sm" data-delete-plan="' + esc(p.id) + '">Remove</button>' +
@@ -714,6 +714,19 @@
   function closePlanModal() { $('#planModal').classList.add('hidden'); }
 
   $('#addPlanBtn').addEventListener('click', function () { openPlanModal(null); });
+  // MTN UP2U: new FastDealsGH packages arrive hidden with a suggested price; check the price, then switch them on.
+  $('#up2uSyncBtn').addEventListener('click', function () {
+    var btn = this;
+    setBusy(btn, true, 'Loading…');
+    api('/api/admin/plans/up2u/sync', { method: 'POST' }).then(function (r) {
+      var parts = [];
+      if (r.added) parts.push(r.added + ' new (hidden: check the price, then switch on)');
+      if (r.costChanged) parts.push(r.costChanged + ' with a new cost');
+      if (r.hidden) parts.push(r.hidden + ' hidden (no longer offered)');
+      toast('FastDealsGH offers ' + r.offered + ' MTN UP2U package' + (r.offered === 1 ? '' : 's') + '. ' + (parts.length ? parts.join(', ') + '.' : 'Nothing changed.'), 'success');
+      loadPlans();
+    }).catch(function (err) { toast(err.message, 'error'); }).finally(function () { setBusy(btn, false); });
+  });
   $('#closePlanModal').addEventListener('click', closePlanModal);
   $('#cancelPlanBtn').addEventListener('click', closePlanModal);
   $('#planModal').addEventListener('click', function (e) { if (e.target.id === 'planModal') closePlanModal(); });

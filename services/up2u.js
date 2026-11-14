@@ -72,10 +72,13 @@ async function check(providerReference) {
 }
 
 const round = (v, step) => Math.ceil(Number(v) / step - 1e-9) * step;
+// FastDealsGH's own name ("1GB", "10GB + 100 mins"), without a repeated "MTN"/"UP2U" (the tab already says it).
 function labelFor(pkg) {
-  const gb = pkg.dataGB != null && pkg.dataGB > 0 ? (pkg.dataGB < 1 ? `${Math.round(pkg.dataGB * 1000)}MB` : `${+pkg.dataGB.toFixed(2)}GB`) : '';
+  const name = String(pkg.name || '').replace(/\bMTN\s*UP2U\b|\bUP2U\b|\bMTN\b/gi, '').replace(/\s{2,}/g, ' ').replace(/^[\s\-:]+|[\s\-:]+$/g, '');
+  if (name) return name.slice(0, 40);
+  const gb = pkg.dataGB > 0 ? (pkg.dataGB < 1 ? `${Math.round(pkg.dataGB * 1000)}MB` : `${+pkg.dataGB.toFixed(2)}GB`) : '';
   const mins = pkg.minutes > 0 ? `${pkg.minutes} mins` : '';
-  return ([gb, mins].filter(Boolean).join(' + ') || pkg.name || `Package ${pkg.id}`).slice(0, 40);
+  return [gb, mins].filter(Boolean).join(' + ') || `Package ${pkg.id}`;
 }
 
 /*

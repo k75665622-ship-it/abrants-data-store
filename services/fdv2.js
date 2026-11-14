@@ -30,8 +30,9 @@ async function call(method, path, body, idempotencyKey) {
 }
 
 /*
- * One MTN UP2U package from the "mtnup2u" list in /products -> { id, name, cost, dataGB, minutes, validity, inStock }.
- * Sizes are read from the package's own fields, or else from its name ("10GB + 100 mins").
+ * One MTN UP2U package from the "mtnup2u" list in /products, e.g. { package_id: 3, name: "1GB", category: "data",
+ * price: 3.95 } -> { id, name, cost, dataGB, minutes, category, validity, inStock }. Sizes come from the package's own
+ * fields when it has them, or else from its name ("10GB + 100 mins").
  */
 const num = (v) => (v == null || v === '' || !Number.isFinite(Number(v)) ? null : Number(v));
 function up2uPackage(p) {
@@ -49,7 +50,7 @@ function up2uPackage(p) {
   const minutes = num(p.minutes ?? p.mins ?? p.voice_minutes) ?? (minIn ? Number(minIn[1]) : null);
   const stock = p.in_stock ?? p.available ?? p.active;
   return {
-    id, name, cost, dataGB, minutes,
+    id, name, cost, dataGB, minutes, category: String(p.category || '').trim().toLowerCase() || null,
     validity: String(p.validity || p.duration || '').trim() || null,
     inStock: stock == null ? true : stock !== false && stock !== 0 && stock !== '0',
   };

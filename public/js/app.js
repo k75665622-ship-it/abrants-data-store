@@ -35,6 +35,9 @@
     AirtelTigo: ['026', '056', '027', '057']
   };
 
+  // MTN UP2U bundles go to MTN numbers.
+  function baseNet(network) { return network === 'MTN UP2U' ? 'MTN' : network; }
+
   function networkFromPhone(phone) {
     if (!/^0\d{2}/.test(phone)) return null;
     var prefix = phone.slice(0, 3);
@@ -196,11 +199,14 @@
       });
   }
 
+  // MTN UP2U right after MTN (it is an MTN product), so it is seen without scrolling the tabs.
+  var TAB_RANK = { MTN: 1, 'MTN UP2U': 2, Telecel: 3, AirtelTigo: 4 };
   function renderTabs(networks) {
+    networks = networks.slice().sort(function (a, b) { return (TAB_RANK[a] || 9) - (TAB_RANK[b] || 9); });
     tabsEl.innerHTML = networks.map(function (network) {
       var count = ALL_PLANS.filter(function (p) { return p.network === network; }).length;
       var cls = network === ACTIVE_NETWORK ? 'tab active' : 'tab';
-      var dot = network === 'MTN' ? 'mtn' : (network === 'Telecel' ? 'telecel' : 'airtel');
+      var dot = baseNet(network) === 'MTN' ? 'mtn' : (network === 'Telecel' ? 'telecel' : 'airtel');
       return '<button class="' + cls + '" role="tab" aria-selected="' + (network === ACTIVE_NETWORK) +
         '" data-network="' + esc(network) + '"><span class="network-dot ' + dot + '"></span>' +
         esc(network) + (PAUSED.indexOf(network) !== -1 ? '<span class="count paused-tag">paused</span>' : '<span class="count">' + count + '</span>') + '</button>';
@@ -220,14 +226,16 @@
 
     var bestId = null;
     var bestUnit = Infinity;
-    plans.forEach(function (p) {
+    // "Best value" by price per GB; not for MTN UP2U, where some packages carry minutes too.
+    if (ACTIVE_NETWORK !== 'MTN UP2U') plans.forEach(function (p) {
       var unit = Number(p.capacityGB) > 0 ? Number(p.priceGHS) / Number(p.capacityGB) : Infinity;
       if (unit < bestUnit) { bestUnit = unit; bestId = p.id; }
     });
 
     plansGrid.innerHTML = plans.map(function (plan) {
-      var unit = Number(plan.capacityGB) > 0 ? Number(plan.priceGHS) / Number(plan.capacityGB) : null;
+      var unit = Number(plan.capacityGB) >= 0.1 && !/min/i.test(plan.label) ? Number(plan.priceGHS) / Number(plan.capacityGB) : null;
       var isBest = plan.id === bestId && plans.length > 1;
+      var validity = plan.validity || '30 days';
       // In an agent's shop: the bundles the agent marked "Popular" (they come first), then the best value.
       var tag = plan.special ? '<span class="plan-tag mine">YOUR PRICE</span>'
         : plan.popular ? '<span class="plan-tag popular">Popular</span>'
@@ -235,7 +243,7 @@
       return '<button type="button" class="plan-card' + (plan.special ? ' special-plan' : (plan.popular ? ' popular-plan' : (isBest ? ' featured-plan' : ''))) + '" data-plan="' + esc(plan.id) + '">' +
         tag +
         '<span class="plan-size">' + esc(plan.label) + '</span>' +
-        '<span class="plan-validity">Valid ' + esc(plan.validity || '30 days') + '</span>' +
+        '<span class="plan-validity">' + esc(/^no\b/i.test(validity) ? validity : 'Valid ' + validity) + '</span>' +
         '<span class="plan-price">' +
           (plan.special && plan.listPriceGHS ? '<s class="plan-was">' + money(plan.listPriceGHS) + '</s>' : '') +
           money(plan.priceGHS) + '</span>' +
@@ -317,7 +325,7 @@
       return;
     }
     detectEl.className = 'network-detect';
-    if (SELECTED_PLAN && network !== SELECTED_PLAN.network) {
+    if (SELECTED_PLAN && network !== baseNet(SELECTED_PLAN.network)) {
       detectEl.className = 'network-detect warn';
       detectEl.textContent = 'This looks like a ' + network + ' number, but you picked a ' + SELECTED_PLAN.network + ' bundle.';
     } else {
@@ -348,7 +356,12 @@
       return;
     }
     var detected = networkFromPhone(phone);
-    if (detected && detected !== SELECTED_PLAN.network) {
+    if (SELECTED_PLAN.network === 'MTN UP2U' && detected !== 'MTN') {
+      showError('MTN UP2U works only on MTN numbers (024, 025, 053, 054, 055 or 059).');
+      phoneInput.focus();
+      return;
+    }
+    if (detected && detected !== baseNet(SELECTED_PLAN.network)) {
       showError('That number looks like ' + detected + '. Please choose a ' + detected + ' bundle, or check the number.');
       return;
     }
