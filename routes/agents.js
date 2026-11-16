@@ -83,7 +83,8 @@ pub.post('/login', limit('agent-login', 15 * 60 * 1000, 30), async (req, res) =>
   } catch (err) { console.error('Agent login error:', err.message); res.status(500).json({ error: 'Could not log in. Please try again.' }); }
 });
 
-pub.post('/logout', (req, res) => { agents.clearSession(res); res.json({ ok: true }); });
+// Log out means out of everything on this device: the agent shop and the customer account (they have separate logins).
+pub.post('/logout', (req, res) => { agents.clearSession(res); require('../services/customers').clearSessionCookie(res); res.json({ ok: true }); });
 
 pub.get('/me', requireAgent, async (req, res) => {
   try {

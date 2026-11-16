@@ -510,7 +510,7 @@ function sessionToken(a) {
 }
 function cookieFlags() { return `HttpOnly; Path=/; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`; }
 function setSession(res, a) { res.setHeader('Set-Cookie', `${COOKIE}=${encodeURIComponent(sessionToken(a))}; ${cookieFlags()}; Max-Age=${SESSION_DAYS * 86400}`); }
-function clearSession(res) { res.setHeader('Set-Cookie', `${COOKIE}=; ${cookieFlags()}; Max-Age=0`); }
+function clearSession(res) { res.append('Set-Cookie', `${COOKIE}=; ${cookieFlags()}; Max-Age=0`); } // append: logging out also ends the customer login
 
 /** The signed-in agent (any status but closed or deleted), from memory. */
 function agentFromRequest(req) {

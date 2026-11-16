@@ -100,7 +100,8 @@ router.post('/login', loginLimit, async (req, res) => {
   } catch (err) { console.error('Login error:', err.message); res.status(500).json({ error: 'Could not log you in. Please try again.' }); }
 });
 
-router.post('/logout', (req, res) => { clearSessionCookie(res); res.json({ ok: true }); });
+// Log out means out of everything on this device: the customer account and the agent shop (they have separate logins).
+router.post('/logout', (req, res) => { clearSessionCookie(res); require('../services/agents').clearSession(res); res.json({ ok: true }); });
 
 // Never errors for guests: the storefront uses this to decide whether to show "Log in" or "My account".
 router.get('/me', optionalCustomer(), async (req, res) => {
