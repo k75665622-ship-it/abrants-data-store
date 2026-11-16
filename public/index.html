@@ -18,7 +18,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="/css/style.css?v=16" />
+<link rel="stylesheet" href="/css/style.css?v=17" />
 <link rel="stylesheet" href="/css/chat.css?v=2" />
 </head>
 <body class="has-mobilebar">
@@ -57,6 +57,26 @@
 </section>
 
 <main>
+  <section class="shop wrap" id="bundles">
+    <div class="net-hero" id="netHero" hidden></div>
+    <div class="section-heading">
+      <div><h2>Pick your network</h2></div>
+    </div>
+
+    <a class="offer-banner" id="offerBanner" href="/account.html" hidden>
+      <span class="offer-banner-icon" aria-hidden="true">🎁</span>
+      <span class="offer-banner-text" id="offerBannerText"></span>
+      <span class="offer-banner-go" aria-hidden="true">›</span>
+    </a>
+    <p class="guest-hint" id="guestHint">Have an account? <a href="/account.html">Log in</a> to see your special prices and offers.</p>
+
+    <div class="network-tabs" id="networkTabs" role="tablist" aria-label="Choose network"></div>
+    <div class="plans-grid" id="plansGrid" aria-live="polite">
+      <div class="skeleton"></div><div class="skeleton"></div>
+      <div class="skeleton"></div><div class="skeleton"></div>
+    </div>
+  </section>
+
   <section class="wrap home-section" id="services" aria-labelledby="needTitle">
     <h2 id="needTitle">What do you need today?</h2>
     <div class="need-grid">
@@ -150,26 +170,6 @@
         <a class="mp-cta" href="/account.html#register">Create my free account <span aria-hidden="true">→</span></a>
         <small>Takes under a minute. Just your phone number and a password.</small>
       </div>
-    </div>
-  </section>
-
-  <section class="shop wrap" id="bundles">
-    <div class="net-hero" id="netHero" hidden></div>
-    <div class="section-heading">
-      <div><h2>Pick your network</h2></div>
-    </div>
-
-    <a class="offer-banner" id="offerBanner" href="/account.html" hidden>
-      <span class="offer-banner-icon" aria-hidden="true">🎁</span>
-      <span class="offer-banner-text" id="offerBannerText"></span>
-      <span class="offer-banner-go" aria-hidden="true">›</span>
-    </a>
-    <p class="guest-hint" id="guestHint">Have an account? <a href="/account.html">Log in</a> to see your special prices and offers.</p>
-
-    <div class="network-tabs" id="networkTabs" role="tablist" aria-label="Choose network"></div>
-    <div class="plans-grid" id="plansGrid" aria-live="polite">
-      <div class="skeleton"></div><div class="skeleton"></div>
-      <div class="skeleton"></div><div class="skeleton"></div>
     </div>
   </section>
 
