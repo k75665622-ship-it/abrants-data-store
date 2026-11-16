@@ -915,3 +915,6 @@ body.has-mobilebar{padding-bottom:82px}
   .pulse-popular{grid-area:pop}
   .pop-row{grid-auto-flow:row;grid-template-columns:repeat(6,minmax(0,1fr));overflow:visible;margin:0;padding:0}
 }
+
+/* Home: the network cards come first; the section after them sits closer. */
+#bundles+#services{padding-top:0}
