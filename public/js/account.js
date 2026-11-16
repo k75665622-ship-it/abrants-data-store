@@ -188,6 +188,7 @@
   });
 
   $('logoutBtn').addEventListener('click', function () {
+    try { localStorage.removeItem('abrants_agent'); } catch (e) { /* private mode */ } // the shop is logged out too
     api('/api/account/logout', 'POST', {}).catch(function () {}).then(function () {
       OVERVIEW = null; setAuthTab('login'); show('auth'); window.scrollTo(0, 0);
     });

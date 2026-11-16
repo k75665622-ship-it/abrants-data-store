@@ -153,7 +153,7 @@ function setSessionCookie(res, customer) {
 }
 
 function clearSessionCookie(res) {
-  res.setHeader('Set-Cookie', `${COOKIE_NAME}=; ${cookieFlags()}; Max-Age=0`);
+  res.append('Set-Cookie', `${COOKIE_NAME}=; ${cookieFlags()}; Max-Age=0`); // append: logging out also ends the shop login
 }
 
 /* ------------------------------------------------------------------ */
