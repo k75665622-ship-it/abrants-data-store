@@ -49,14 +49,24 @@ function safely(fn) {
 const dataStatus = safely(async (row, old) => {
   if (!row || row.status === old || !(await allowed('customers'))) return;
   const b = brand(row.agent_id);
-  const what = `${row.network} ${row.label}`;
+  // The bundle is named by its network and price, never its size: Arkesel refuses texts with "1GB", "2GB"... as spam.
   const total = Number(row.price_ghs) + Number(row.customer_fee_ghs || 0);
-  let text = null;
+  const paid = total > 0 ? ` (${money(total)})` : '';
+  const net = `${row.network} data`;
+  let text = null, plainer = null;
   // "Placed" once, when the order first goes to the network (not again when the store retries a delivery).
-  if (row.status === 'processing' && (old === 'paid' || old === 'pending')) text = `${b.name}: Your ${what} order for ${row.phone} has been placed. We will text you when it is delivered. Ref ${row.reference}`;
-  else if (row.status === 'fulfilled') text = `${b.name}: ${what} has been delivered to ${row.phone}. Thank you! Buy again: ${b.again}`;
-  else if (row.status === 'refunding' && Number(row.price_ghs) > 0) text = `${b.name}: Sorry, we could not deliver ${what} to ${row.phone}. Your ${money(total)} is being refunded. Ref ${row.reference}`;
-  if (text) sms.send(row.phone, text, 'order.' + row.status);
+  if (row.status === 'processing' && (old === 'paid' || old === 'pending')) {
+    text = `${b.name}: Your ${net} order${paid} for ${row.phone} has been placed. We will text you when it is delivered. Ref ${row.reference}`;
+    plainer = `${b.name}: Your data order for ${row.phone} has been placed. We will text you when it is delivered. Ref ${row.reference}`;
+  } else if (row.status === 'fulfilled') {
+    text = `${b.name}: Your ${net}${paid} has been delivered to ${row.phone}. Thank you! Buy again: ${b.again}`;
+    plainer = `${b.name}: Delivered to ${row.phone}. Thank you! Buy again: ${b.again}`;
+  } else if (row.status === 'refunding' && Number(row.price_ghs) > 0) {
+    text = `${b.name}: Sorry, we could not deliver your ${net} to ${row.phone}. Your ${money(total)} is being refunded. Ref ${row.reference}`;
+    plainer = `${b.name}: Sorry, we could not deliver your data to ${row.phone}. Your money is being refunded. Ref ${row.reference}`;
+  }
+  // If the SMS company still calls a word spam, the plainer text goes instead (services/sms.js).
+  if (text) sms.send(row.phone, text, 'order.' + row.status, { plainer });
 });
 
 /* ------------------------------------------------------------------ checkers and AFA */

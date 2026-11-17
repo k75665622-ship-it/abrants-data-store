@@ -149,16 +149,18 @@ async function sendNow(phone, text, kind = 'message') {
  * Sends in the background. Returns straight away: true if it was queued, false if SMS is off or the number is not a
  * Ghana number. `kind` is a short label for the Admin log ("order.delivered", "agent.code", ...).
  */
-function send(phone, text, kind = 'message') {
+function send(phone, text, kind = 'message', { plainer = null } = {}) {
   if (!configured() || !intl(phone)) return false;
-  const attempt = (n) => deliver(phone, text, kind)
-    .then((r) => { counts.sent += 1; note({ ...logged(phone, text, kind), ok: true, parts: r.parts }); })
+  const attempt = (n, words = text) => deliver(phone, words, kind)
+    .then((r) => { counts.sent += 1; note({ ...logged(phone, words, kind), ok: true, parts: r.parts }); })
     .catch((err) => {
       const network = !err.response && !['not_configured', 'bad_number', 'empty', 'rejected'].includes(err.code);
-      if (network && n === 1) { setTimeout(() => attempt(2), Number(process.env.SMS_RETRY_MS || 60 * 1000)).unref(); return; }
+      if (network && n === 1) { setTimeout(() => attempt(2, words), Number(process.env.SMS_RETRY_MS || 60 * 1000)).unref(); return; }
+      // The SMS company refused a word as spam (Arkesel: "The message contains a spam word!"): send the plainer wording.
+      if (plainer && words !== plainer && /spam/i.test(reason(err))) { attempt(n, plainer); return; }
       counts.failed += 1;
       const why = reason(err);
-      note({ ...logged(phone, text, kind), ok: false, error: why });
+      note({ ...logged(phone, words, kind), ok: false, error: why });
       console.warn(`SMS (${kind}) to ${mask(intl(phone))} failed: ${why}`);
     });
   setImmediate(() => attempt(1));

@@ -597,6 +597,9 @@ Arkesel as before (`services/sms.js`).
 **What is sent**
 - Data: when the order is placed with the network, when it is delivered (with the link to buy again) and when it
   cannot be delivered (refund). Each one once per order, even when the network reports the same thing twice.
+  The bundle is named by network and price ("Your MTN data (GHS 10.50) has been delivered"), never by its size:
+  Arkesel refuses texts with "1GB", "2GB"... as spam words. If the SMS company refuses a text as spam anyway, a
+  plainer one goes instead ("Delivered to 024…. Thank you! Buy again: …"), and Admin shows the words that were sent.
 - Result checkers: the Serial and PIN of every checker. AFA: received, approved (with the AFA ID), rejected or refunded.
 - Agents: the sign-up code, approved (with their shop link), paused (with the reason and until when), reopened, closed or
   deleted, strikes, messages from the store (section 27), and every payout.
