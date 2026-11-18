@@ -25,7 +25,7 @@
     enabled: 'Agent programme', autoApprove: 'Approve new agents automatically', holdHours: 'Hold after delivery', minPayout: 'Minimum payout',
     payoutFee: 'Fee per payout', payoutMethod: 'How agents are paid', autoPayout: 'Weekly automatic payouts', payoutDay: 'Payout day',
     offReason: 'Reason given to agents', offReturn: 'Coming back', offUntil: 'Back on',
-    customers: 'Text messages to customers', agents: 'Text messages to agents', keepDays: 'Keep chats for', chatEnabled: 'Chat on the website',
+    popup: 'Pop-up message', customers: 'Text messages to customers', agents: 'Text messages to agents', keepDays: 'Keep chats for', chatEnabled: 'Chat on the website',
   };
   var SKIP = { autoPaused: 1, lastAutoPayout: 1, offAt: 1 };
   function value(key, v) {
@@ -37,6 +37,7 @@
     if (key === 'keepDays') return v + ' days';
     if (key === 'offReturn') return { soon: 'yes, soon', date: 'yes, on a date', never: 'no' }[v] || v;
     if (key === 'offUntil') return longDate(v);
+    if (key === 'popup') { var t = String(v.title || v.text || ''); return (v.enabled ? 'on' : 'off') + (t ? ', "' + (t.length > 50 ? t.slice(0, 47) + '…' : t) + '"' : ''); }
     if (/minPayout|payoutFee|lowWalletThreshold/.test(key)) return money(v);
     if (key === 'providers') return Object.keys(v).map(function (n) { return n + ': ' + (PROVIDER[v[n]] || v[n]); }).join(', ');
     if (Array.isArray(v)) return v.length ? v.join(', ') : 'none';

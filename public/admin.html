@@ -480,6 +480,14 @@
                 </label>
                 <label class="field" style="margin-bottom:16px"><span>Announcement text</span><input id="setAnnouncement" maxlength="200" placeholder="e.g. Festive offer: 10GB now GH₵40!" /></label>
 
+                <label class="switch" style="margin:4px 0 12px">
+                  <input type="checkbox" id="setPopupEnabled" /><span class="track"></span>
+                  <span>Pop-up message when customers open the store</span>
+                </label>
+                <label class="field" style="margin-bottom:12px"><span>Pop-up title</span><input id="setPopupTitle" maxlength="70" placeholder="e.g. Delivery is slower than usual" /></label>
+                <label class="field" style="margin-bottom:6px"><span>Pop-up message</span><textarea id="setPopupText" rows="5" maxlength="600"></textarea></label>
+                <p class="muted" style="margin:0 0 16px;font-size:13px">Shows once per visit, in the main store and in agents' shops. <a href="/" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700">See the store</a></p>
+
                 <div class="filter-row" style="margin-bottom:12px">
                   <label class="field"><span>Support WhatsApp</span><input id="setWhatsapp" placeholder="233551234567" inputmode="tel" /></label>
                   <label class="field"><span>Support phone</span><input id="setSupportPhone" placeholder="0551234567" inputmode="tel" /></label>
@@ -784,14 +792,14 @@
 
 <div class="toast-stack" id="toastStack" aria-live="polite"></div>
 
-<script src="admin.js?v=26"></script>
+<script src="admin.js?v=27"></script>
 <script src="admin-customers.js"></script>
 <script src="admin-services.js?v=5"></script>
 <script src="admin-links.js?v=4"></script>
 <script src="admin-agents.js?v=6"></script>
 <script src="admin-sms.js?v=2"></script>
 <script src="admin-security.js?v=1"></script>
-<script src="admin-activity.js?v=6"></script>
+<script src="admin-activity.js?v=7"></script>
 <script src="admin-inbox.js?v=2"></script>
 </body>
 </html>

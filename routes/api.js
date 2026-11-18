@@ -155,6 +155,7 @@ router.get('/settings', async (req, res) => {
       supportWhatsapp: s.supportWhatsapp || '',
       supportPhone: s.supportPhone || '',
       channelLink: s.channelLink || '',
+      popup: s.popup && s.popup.enabled && s.popup.text ? { title: s.popup.title || '', text: s.popup.text, version: Number(s.popup.version) || 0 } : null,
       maintenanceMode: Boolean(s.maintenanceMode),
       maintenanceMessage: s.maintenanceMessage,
       pausedNetworks: Array.isArray(s.pausedNetworks) ? s.pausedNetworks : [],

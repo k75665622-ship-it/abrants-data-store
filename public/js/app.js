@@ -125,6 +125,7 @@
           if (!data.supportWhatsapp) some('helpLinkText', function (el) { el.textContent = 'Call us'; });
           some('needHelp', function (el) { el.hidden = false; });
         }
+        if (data.popup) showNotice(data.popup);
         if (data.agentsOpen) inviteAgents();
         if (data.channelLink && /^https:\/\//i.test(data.channelLink) && $('channelLink')) {
           $('channelLink').href = data.channelLink;
@@ -143,6 +144,70 @@
         }
       })
       .catch(function () { /* settings are optional */ });
+  }
+
+  /* ------------------------------------------------------- pop-up message */
+
+  // The owner's message (Admin → Settings → Pop-up message), shown once per visit when the store opens: in a new tab
+  // or a later visit it shows again, and a changed message shows even to people who closed the old one.
+  var NOTICE_KEY = 'abrants_notice_seen';
+  var noticeOpen = false;
+  function showNotice(n) {
+    var seen = null;
+    try { seen = sessionStorage.getItem(NOTICE_KEY); } catch (e) { /* private mode */ }
+    if (!n || !n.text || seen === String(n.version) || document.getElementById('noticePop')) return;
+    var before = document.activeElement;
+    var pop = document.createElement('div');
+    pop.className = 'notice-pop';
+    pop.id = 'noticePop';
+    pop.setAttribute('role', 'dialog');
+    pop.setAttribute('aria-modal', 'true');
+    pop.setAttribute('aria-describedby', 'noticePopText');
+    if (n.title) pop.setAttribute('aria-labelledby', 'noticePopTitle'); else pop.setAttribute('aria-label', 'Message from the store');
+    pop.innerHTML =
+      '<div class="notice-pop-backdrop" data-close></div>' +
+      '<div class="notice-pop-card" tabindex="-1">' +
+        '<div class="notice-pop-top" aria-hidden="true"><span class="notice-pop-bars"><i></i><i></i><i></i><i></i></span></div>' +
+        '<button type="button" class="notice-pop-x" data-close aria-label="Close">' +
+          '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>' +
+        '<div class="notice-pop-body">' +
+          (n.title ? '<h2 id="noticePopTitle"></h2>' : '') +
+          '<p id="noticePopText"></p>' +
+          '<button type="button" class="notice-pop-ok" data-close>Got it</button>' +
+        '</div>' +
+      '</div>';
+    if (n.title) pop.querySelector('#noticePopTitle').textContent = n.title;
+    pop.querySelector('#noticePopText').textContent = n.text;
+    document.body.appendChild(pop);
+    noticeOpen = true;
+    document.documentElement.classList.add('notice-open');
+    requestAnimationFrame(function () { requestAnimationFrame(function () { pop.classList.add('open'); }); });
+    var ok = pop.querySelector('.notice-pop-ok');
+    var card = pop.querySelector('.notice-pop-card');
+    setTimeout(function () { try { card.focus({ preventScroll: true }); } catch (e) { card.focus(); } }, 60);
+
+    function close() {
+      if (!noticeOpen) return;
+      noticeOpen = false;
+      try { sessionStorage.setItem(NOTICE_KEY, String(n.version)); } catch (e) { /* private mode */ }
+      document.removeEventListener('keydown', onKey, true);
+      pop.classList.remove('open');
+      pop.classList.add('closing');
+      document.documentElement.classList.remove('notice-open');
+      setTimeout(function () { pop.remove(); }, 260);
+      if (before && before.focus && before !== document.body) { try { before.focus({ preventScroll: true }); } catch (e) { /* gone */ } }
+    }
+    function onKey(e) {
+      if (e.key === 'Escape') { e.stopPropagation(); close(); return; }
+      if (e.key === 'Tab') { // keep the keyboard inside the message
+        var items = [pop.querySelector('.notice-pop-x'), ok];
+        var i = items.indexOf(document.activeElement);
+        e.preventDefault();
+        items[(i + (e.shiftKey ? items.length - 1 : 1)) % items.length].focus();
+      }
+    }
+    pop.addEventListener('click', function (e) { if (e.target.closest('[data-close]')) close(); });
+    document.addEventListener('keydown', onKey, true);
   }
 
   /* ------------------------------------------------- agent programme invite */
@@ -165,7 +230,7 @@
     function later(days) { try { localStorage.setItem(KEY, String(Date.now() + days * 864e5)); } catch (e) { /* private mode */ } }
     function show() {
       if (shown || document.documentElement.classList.contains('in-shop')) return;
-      if (!sheet.hidden || !$('firstTimeConfirm').hidden) { setTimeout(show, 5000); return; }
+      if (noticeOpen || !sheet.hidden || !$('firstTimeConfirm').hidden) { setTimeout(show, 5000); return; }
       shown = true;
       window.removeEventListener('scroll', onScroll);
       pop.hidden = false;
