@@ -48,6 +48,14 @@ const DEFAULT_SETTINGS = {
   autoPaused: {},
   adminAlerts: [],
   pauseMessage: "{network} bundles are temporarily out of stock with our supplier. We are sorting it out. Please try again later or choose another network. You have not been charged.",
+  // A message that pops up when customers open the store (Admin → Settings → Pop-up message). version changes whenever
+  // the message is saved, so people who closed an older one see the new one.
+  popup: {
+    enabled: false,
+    title: 'Delivery is slower than usual',
+    text: 'Due to validation on the Yellow portal, delivery is slower than usual.\n\nBut be rest assured that all orders placed will be delivered.\n\nKeep dropping 🫳 🔥',
+    version: 0,
+  },
   maintenanceMode: false,
   maintenanceMessage: "We are doing a quick upgrade. Please check back in a few minutes.",
   lowWalletThreshold: 100,

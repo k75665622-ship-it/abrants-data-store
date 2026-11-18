@@ -900,6 +900,10 @@
       $('#setStoreName').value = s.storeName || '';
       $('#setAnnouncement').value = s.announcement || '';
       $('#setAnnounceEnabled').checked = Boolean(s.announcementEnabled);
+      var pop = s.popup || {};
+      $('#setPopupEnabled').checked = Boolean(pop.enabled);
+      $('#setPopupTitle').value = pop.title || '';
+      $('#setPopupText').value = pop.text || '';
       $('#setWhatsapp').value = s.supportWhatsapp || '';
       $('#setSupportPhone').value = s.supportPhone || '';
       $('#setChannelLink').value = s.channelLink || '';
@@ -1039,6 +1043,7 @@
       storeName: $('#setStoreName').value.trim(),
       announcement: $('#setAnnouncement').value.trim(),
       announcementEnabled: $('#setAnnounceEnabled').checked,
+      popup: { enabled: $('#setPopupEnabled').checked, title: $('#setPopupTitle').value.trim(), text: $('#setPopupText').value.trim() },
       supportWhatsapp: $('#setWhatsapp').value.trim(),
       supportPhone: $('#setSupportPhone').value.trim(),
       channelLink: $('#setChannelLink').value.trim(),

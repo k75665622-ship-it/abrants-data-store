@@ -638,6 +638,16 @@ router.put('/settings', async (req, res) => {
       patch.autoPaused = Object.fromEntries(Object.entries(cur).filter(([n]) => patch.pausedNetworks.includes(n)));
     }
     if (body.pauseMessage != null) patch.pauseMessage = String(body.pauseMessage).trim().slice(0, 300);
+    if (body.popup != null && typeof body.popup === 'object') {
+      // Plain text only (shown with textContent); line breaks and emoji are kept.
+      const clean = (v, max) => String(v == null ? '' : v).replace(/\r\n?/g, '\n').replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, ' ')
+        .replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim().slice(0, max);
+      const cur = (await getSettings()).popup || {};
+      const next = { enabled: Boolean(body.popup.enabled), title: clean(body.popup.title, 70), text: clean(body.popup.text, 600) };
+      if (next.enabled && !next.text) return res.status(400).json({ error: 'Write the pop-up message first, or switch the pop-up off.' });
+      const changed = next.enabled !== Boolean(cur.enabled) || next.title !== (cur.title || '') || next.text !== (cur.text || '');
+      patch.popup = { ...next, version: changed ? Date.now() : Number(cur.version) || 0 };
+    }
     if (body.numberCheckEnabled != null) patch.numberCheckEnabled = Boolean(body.numberCheckEnabled);
     if (body.unverifiedNotice != null) patch.unverifiedNotice = String(body.unverifiedNotice).trim().slice(0, 500);
     if (body.firstTimeNoticeEnabled != null) patch.firstTimeNoticeEnabled = Boolean(body.firstTimeNoticeEnabled);

@@ -725,3 +725,12 @@ leaves the order under review for the admin (top up, then Retry); it is never re
 paused automatically for stock.
 
 **Agents** see MTN UP2U as its own group in Prices and set their own prices like any other bundle.
+
+## 31. Pop-up message (Admin → Settings)
+
+A message that pops up when customers open the store (the home page, the network pages and agents' shops), for news
+like "Delivery is slower than usual". Switch it on, edit the title and the message (line breaks and emoji are kept),
+and press **Save settings**. It shows once per visit: closing it (Got it, ×, Esc or a tap outside) hides it until the
+customer's next visit, and a changed message shows again even to people who closed the old one. The "Become an
+agent" invitation waits until it is closed. Off by default, with the delivery-delay
+message ready to switch on. The store reads it from the settings it already loads, so it adds no database work.
